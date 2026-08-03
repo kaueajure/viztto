@@ -10,7 +10,7 @@ export function Tooltip({ label, children }: { label: string; children: ReactNod
       <span tabIndex={0}>{children}</span>
       <span
         role="tooltip"
-        className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-30 w-max -translate-x-1/2 rounded-sm bg-ink px-2.5 py-1.5 text-xs text-white opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"
+        className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-30 w-max -translate-x-1/2 rounded-sm bg-ink px-2.5 py-1.5 text-xs text-background opacity-0 shadow-soft transition group-hover:opacity-100 group-focus-within:opacity-100"
       >
         {label}
       </span>
@@ -64,7 +64,7 @@ export function Modal({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 grid place-items-end bg-ink/45 p-0 sm:place-items-center sm:p-5"
+          className="fixed inset-0 z-50 grid place-items-end bg-overlay p-0 sm:place-items-center sm:p-5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -77,7 +77,7 @@ export function Modal({
             role="dialog"
             aria-modal="true"
             aria-labelledby="modal-title"
-            className="w-full max-w-lg rounded-t-xl bg-surface p-5 shadow-raised sm:rounded-xl sm:p-7"
+            className="w-full max-w-lg rounded-t-xl border border-line bg-surface-elevated p-5 shadow-raised sm:rounded-xl sm:p-7"
             initial={{ opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 18 }}
@@ -107,7 +107,7 @@ export function Dropdown({ label, items }: { label: string; items: string[] }) {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex min-h-11 items-center gap-2 rounded-md border border-line bg-surface px-4 text-sm font-medium"
+        className="flex min-h-11 items-center gap-2 rounded-md border border-line bg-surface px-4 text-sm font-medium transition-colors hover:border-line-strong hover:bg-surface-secondary"
       >
         {label}
         <ChevronDown className="h-4 w-4" />
@@ -118,7 +118,7 @@ export function Dropdown({ label, items }: { label: string; items: string[] }) {
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -5 }}
-            className="absolute left-0 top-[calc(100%+8px)] z-20 min-w-52 rounded-md border border-line bg-surface p-1.5 shadow-soft"
+            className="absolute left-0 top-[calc(100%+8px)] z-20 min-w-52 rounded-md border border-line bg-surface-elevated p-1.5 shadow-soft"
           >
             {items.map((item) => (
               <button
@@ -225,12 +225,12 @@ export function Toast({ open, onClose }: { open: boolean; onClose: () => void })
           initial={{ opacity: 0, y: 12, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 8 }}
-          className="fixed bottom-5 left-5 right-5 z-50 flex items-center gap-3 rounded-md border border-line bg-ink p-4 text-white shadow-raised sm:left-auto sm:w-96"
+          className="fixed bottom-5 left-5 right-5 z-50 flex items-center gap-3 rounded-md border border-line-strong bg-surface-elevated p-4 text-ink shadow-raised sm:left-auto sm:w-96"
         >
           <CheckCircle2 className="h-5 w-5 text-approval" />
           <div className="flex-1">
             <p className="text-sm font-semibold">Comentário resolvido</p>
-            <p className="text-xs text-white/65">O histórico foi atualizado na versão 3.</p>
+            <p className="text-xs text-secondary">O histórico foi atualizado na versão 3.</p>
           </div>
           <button type="button" aria-label="Fechar aviso" onClick={onClose}>
             <X className="h-4 w-4" />

@@ -71,7 +71,7 @@ export function ProductSections() {
           <CollaborativeCursor name="Marina" className="absolute left-[18%] top-[44%]" />
           <CollaborativeCursor
             name="Rafael"
-            color="revision"
+            color="accent"
             className="absolute right-[20%] top-[28%]"
           />
         </div>
@@ -118,7 +118,7 @@ export function ProductSections() {
             </div>
           </Card>
           <Card className="flex items-center gap-3">
-            <Avatar name="Marina Costa" color="bg-revision" />
+            <Avatar name="Marina Costa" color="bg-revision text-background" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">Marina Costa</p>
               <p className="truncate text-xs text-muted">Direção de criação</p>

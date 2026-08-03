@@ -102,7 +102,7 @@ export function PatternSections() {
           </div>
           <div className="grid lg:grid-cols-[1fr_340px]">
             <div className="relative min-h-[390px] overflow-hidden bg-surface-secondary p-6 surface-grid">
-              <div className="mx-auto flex min-h-80 max-w-lg items-center justify-center rounded-md bg-brand text-center text-white shadow-raised">
+              <div className="mx-auto flex min-h-80 max-w-lg items-center justify-center rounded-md bg-brand text-center text-brand-contrast shadow-raised">
                 <div>
                   <FileImage className="mx-auto mb-4 h-8 w-8 opacity-65" />
                   <p className="text-2xl font-semibold tracking-tight">

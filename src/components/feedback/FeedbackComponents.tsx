@@ -14,16 +14,16 @@ import { cn } from '@/lib/cn'
 import { Avatar } from '@/components/ui/DataDisplay'
 
 const statusMap: Record<VizttoStatus, { label: string; classes: string; icon: typeof Check }> = {
-  approved: { label: 'Aprovado', classes: 'bg-approval-soft text-approval-dark', icon: Check },
-  waiting: { label: 'Aguardando aprovação', classes: 'bg-warning-soft text-ink', icon: Clock3 },
+  approved: { label: 'Aprovado', classes: 'bg-approval-soft text-approval', icon: Check },
+  waiting: { label: 'Aguardando aprovação', classes: 'bg-warning-soft text-warning', icon: Clock3 },
   changes: {
     label: 'Alterações solicitadas',
-    classes: 'bg-revision-soft text-revision-dark',
+    classes: 'bg-revision-soft text-revision',
     icon: PenLine,
   },
   resolved: {
     label: 'Revisão concluída',
-    classes: 'bg-brand-soft text-brand-hover',
+    classes: 'bg-accent-soft text-accent',
     icon: CheckCircle2,
   },
 }
@@ -57,7 +57,7 @@ export function VersionBadge({
       className={cn(
         'inline-flex rounded-sm border px-2 py-1 text-xs font-semibold',
         approved
-          ? 'border-approval bg-approval-soft text-approval-dark'
+          ? 'border-approval bg-approval-soft text-approval'
           : current
             ? 'border-brand bg-brand-soft text-brand'
             : 'border-line bg-surface text-secondary',
@@ -71,10 +71,22 @@ export function VersionBadge({
 type PinState = 'normal' | 'active' | 'resolved' | 'pending'
 export function CommentPin({ number, state = 'normal' }: { number: number; state?: PinState }) {
   const styles = {
-    normal: 'bg-brand text-white',
-    active: 'bg-ink text-white ring-4 ring-brand/20',
-    resolved: 'bg-approval text-approval-dark',
-    pending: 'bg-revision text-white',
+    normal: {
+      button: 'bg-brand text-brand-contrast',
+      pointer: 'bg-brand',
+    },
+    active: {
+      button: 'bg-brand text-brand-contrast ring-4 ring-brand/25',
+      pointer: 'bg-brand',
+    },
+    resolved: {
+      button: 'bg-approval text-brand-contrast',
+      pointer: 'bg-approval',
+    },
+    pending: {
+      button: 'bg-revision text-background',
+      pointer: 'bg-revision',
+    },
   }
   return (
     <motion.button
@@ -84,13 +96,11 @@ export function CommentPin({ number, state = 'normal' }: { number: number; state
       whileTap={{ scale: 0.93 }}
       className={cn(
         'relative grid h-8 w-8 place-items-center rounded-full text-xs font-bold shadow-soft',
-        styles[state],
+        styles[state].button,
       )}
     >
       {number}
-      <span
-        className={cn('absolute -bottom-1 h-2.5 w-2.5 rotate-45', styles[state].split(' ')[0])}
-      />
+      <span className={cn('absolute -bottom-1 h-2.5 w-2.5 rotate-45', styles[state].pointer)} />
     </motion.button>
   )
 }
@@ -104,7 +114,7 @@ export function CommentCard({ compact = false }: { compact?: boolean }) {
       )}
     >
       <div className="flex items-start gap-3">
-        <Avatar name="Marina Costa" color="bg-revision" />
+        <Avatar name="Marina Costa" color="bg-revision text-background" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-semibold">Marina Costa</p>
@@ -138,9 +148,7 @@ export function ApprovalStamp({ status = 'approved' }: { status?: VizttoStatus }
       whileHover={{ rotate: -2, scale: 1.02 }}
       className={cn(
         'inline-flex rotate-[-3deg] items-center gap-2 rounded-sm border-2 px-4 py-2 text-sm font-bold uppercase tracking-[.1em]',
-        approved
-          ? 'border-approval-dark text-approval-dark'
-          : 'border-revision-dark text-revision-dark',
+        approved ? 'border-approval text-approval' : 'border-revision text-revision',
       )}
     >
       <span className="grid h-6 w-6 place-items-center rounded-full border-2 border-current">
@@ -157,14 +165,15 @@ export function CollaborativeCursor({
   className,
 }: {
   name: string
-  color?: 'brand' | 'revision' | 'approval' | 'warning'
+  color?: 'brand' | 'revision' | 'approval' | 'warning' | 'accent'
   className?: string
 }) {
   const colors = {
-    brand: 'text-brand bg-brand',
-    revision: 'text-revision bg-revision',
-    approval: 'text-approval-dark bg-approval-dark',
-    warning: 'text-warning bg-warning',
+    brand: { cursor: 'text-brand', label: 'bg-brand text-brand-contrast' },
+    revision: { cursor: 'text-revision', label: 'bg-revision text-background' },
+    approval: { cursor: 'text-approval', label: 'bg-approval text-brand-contrast' },
+    warning: { cursor: 'text-warning', label: 'bg-warning text-brand-contrast' },
+    accent: { cursor: 'text-accent', label: 'bg-accent text-background' },
   }
   return (
     <motion.div
@@ -175,20 +184,20 @@ export function CollaborativeCursor({
       <svg
         aria-hidden
         viewBox="0 0 24 28"
-        className={cn('h-7 w-6 drop-shadow-sm', colors[color].split(' ')[0])}
+        className={cn('h-7 w-6 drop-shadow-sm', colors[color].cursor)}
       >
         <path
           fill="currentColor"
           d="M2 1.5v21.8l5.2-5.1 3.9 8.1 4.2-2-3.8-7.8h7.3L2 1.5Z"
-          stroke="white"
+          stroke="var(--surface)"
           strokeWidth="1.5"
           strokeLinejoin="round"
         />
       </svg>
       <span
         className={cn(
-          '-mt-1 ml-4 rounded-sm px-2 py-1 text-[10px] font-semibold text-white shadow-soft',
-          colors[color].split(' ')[1],
+          '-mt-1 ml-4 rounded-sm px-2 py-1 text-[10px] font-semibold shadow-soft',
+          colors[color].label,
         )}
       >
         {name}
@@ -215,7 +224,7 @@ export function HistoryLine() {
               className={cn(
                 'z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full border',
                 i === history.length - 1
-                  ? 'border-approval bg-approval-soft text-approval-dark'
+                  ? 'border-approval bg-approval-soft text-approval'
                   : 'border-line bg-surface text-secondary',
               )}
             >

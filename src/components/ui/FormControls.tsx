@@ -25,7 +25,7 @@ function FieldWrap({
       <span>{label}</span>
       {children}
       {(hint || error) && (
-        <span className={cn('text-xs font-normal', error ? 'text-revision-dark' : 'text-muted')}>
+        <span className={cn('text-xs font-normal', error ? 'text-revision' : 'text-muted')}>
           {error ?? hint}
         </span>
       )}
@@ -48,7 +48,7 @@ export function Input({
       <input
         id={fieldId}
         className={cn(
-          'min-h-11 rounded-md border bg-surface px-3.5 text-sm outline-none transition focus:border-brand disabled:bg-surface-secondary disabled:text-muted',
+          'min-h-11 rounded-md border bg-surface px-3.5 text-sm text-ink outline-none transition placeholder:text-muted hover:border-line-strong focus:border-brand disabled:border-line-subtle disabled:bg-surface-secondary disabled:text-disabled',
           error ? 'border-revision' : 'border-line',
           className,
         )}
@@ -71,7 +71,7 @@ export function Textarea({
       <textarea
         id={fieldId}
         className={cn(
-          'min-h-28 resize-y rounded-md border border-line bg-surface p-3.5 text-sm outline-none transition focus:border-brand',
+          'min-h-28 resize-y rounded-md border border-line bg-surface p-3.5 text-sm text-ink outline-none transition placeholder:text-muted hover:border-line-strong focus:border-brand disabled:bg-surface-secondary disabled:text-disabled',
           className,
         )}
         {...props}
@@ -94,7 +94,7 @@ export function Select({
         <select
           id={fieldId}
           className={cn(
-            'min-h-11 w-full appearance-none rounded-md border border-line bg-surface px-3.5 pr-10 text-sm outline-none focus:border-brand',
+            'min-h-11 w-full appearance-none rounded-md border border-line bg-surface px-3.5 pr-10 text-sm text-ink outline-none transition hover:border-line-strong focus:border-brand disabled:bg-surface-secondary disabled:text-disabled',
             className,
           )}
           {...props}
@@ -152,7 +152,7 @@ export function Switch({ label, checked = false, onChange }: ChoiceProps) {
       >
         <span
           className={cn(
-            'absolute top-1 h-4 w-4 rounded-full bg-white transition-transform',
+            'absolute top-1 h-4 w-4 rounded-full bg-surface transition-transform',
             checked ? 'translate-x-1' : '-translate-x-4',
           )}
         />

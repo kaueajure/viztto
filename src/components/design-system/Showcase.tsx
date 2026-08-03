@@ -41,7 +41,7 @@ export function Swatch({
 }) {
   return (
     <div className="min-w-0">
-      <div className={cn('h-24 rounded-md border border-black/5', className)} />
+      <div className={cn('h-24 rounded-md border border-line-subtle', className)} />
       <p className="mt-2 text-xs font-semibold">{name}</p>
       <p className="font-mono text-[10px] text-muted">{value}</p>
     </div>

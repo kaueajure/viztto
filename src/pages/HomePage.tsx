@@ -47,7 +47,7 @@ export default function HomePage() {
           <div className="absolute right-[14%] top-[42%]">
             <CommentPin number={1} state="active" />
           </div>
-          <div className="absolute bottom-[18%] right-[8%] hidden items-center gap-2 rounded-md bg-ink px-3 py-2 text-xs text-white sm:flex">
+          <div className="absolute bottom-[18%] right-[8%] hidden items-center gap-2 rounded-md border border-line bg-surface-elevated px-3 py-2 text-xs text-ink shadow-soft sm:flex">
             <MessageSquareMore className="h-4 w-4 text-approval" /> Linguagem visual preparada
           </div>
         </div>

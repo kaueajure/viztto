@@ -23,7 +23,7 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
-          className="absolute inset-x-4 top-[72px] z-40 rounded-lg border border-line bg-surface p-3 shadow-raised md:hidden"
+          className="absolute inset-x-4 top-[72px] z-40 rounded-lg border border-line bg-surface-elevated p-3 shadow-raised md:hidden"
         >
           <nav className="grid">
             {links.map(([label, path]) => (

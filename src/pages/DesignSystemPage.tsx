@@ -19,19 +19,19 @@ const anchors = [
 export default function DesignSystemPage() {
   return (
     <>
-      <section className="relative overflow-hidden border-b border-line bg-ink py-16 text-white md:py-24">
+      <section className="relative overflow-hidden border-b border-line bg-surface-secondary py-16 text-ink md:py-24">
         <Container>
           <div className="grid items-end gap-10 lg:grid-cols-12">
             <div className="lg:col-span-8">
-              <p className="eyebrow !text-white/50">Viztto · Design System 0.1</p>
+              <p className="eyebrow !text-muted">Viztto · Design System 0.1</p>
               <h1 className="mt-5 text-[clamp(3.5rem,9vw,8rem)] font-semibold leading-[.82] tracking-[-.07em]">
                 Clareza para
                 <br />
-                <span className="font-serif font-normal italic text-approval">ver juntos.</span>
+                <span className="font-serif font-normal italic text-brand">ver juntos.</span>
               </h1>
             </div>
             <div className="lg:col-span-4">
-              <p className="max-w-md text-lg leading-relaxed text-white/65">
+              <p className="max-w-md text-lg leading-relaxed text-secondary">
                 Uma linguagem visual para colocar decisões, comentários e versões no contexto certo.
               </p>
               <a

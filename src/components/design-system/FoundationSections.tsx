@@ -15,7 +15,7 @@ export function BrandFoundation() {
           <Card className="flex min-h-44 items-center justify-center">
             <Logo />
           </Card>
-          <Card className="flex min-h-44 items-center justify-center bg-ink">
+          <Card className="flex min-h-44 items-center justify-center bg-background">
             <BrandSymbol className="h-16 w-16" />
           </Card>
         </div>
@@ -24,19 +24,19 @@ export function BrandFoundation() {
         id="cores"
         index="02"
         title="Paleta"
-        note="Azul institucional, verde de aprovação e coral de revisão."
+        note="Lima elétrico institucional, verde de aprovação, coral de revisão e azul-violeta de apoio."
       >
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
-          <Swatch name="Background" value="#F5F3ED" className="bg-background" />
-          <Swatch name="Surface" value="#FFFFFF" className="bg-surface" />
-          <Swatch name="Ink" value="#111318" className="bg-ink" />
-          <Swatch name="Viztto blue" value="#3854F6" className="bg-brand" />
-          <Swatch name="Brand soft" value="#E7EBFF" className="bg-brand-soft" />
-          <Swatch name="Approval" value="#B7ED52" className="bg-approval" />
-          <Swatch name="Approval soft" value="#EFFBD6" className="bg-approval-soft" />
-          <Swatch name="Revision" value="#FF6955" className="bg-revision" />
-          <Swatch name="Warning" value="#F5BA3D" className="bg-warning" />
-          <Swatch name="Border" value="#D9D7D0" className="bg-line" />
+          <Swatch name="Background" value="#0D1117" className="bg-background" />
+          <Swatch name="Surface" value="#151B23" className="bg-surface" />
+          <Swatch name="Elevated" value="#202A38" className="bg-surface-elevated" />
+          <Swatch name="Text primary" value="#F5F7FA" className="bg-ink" />
+          <Swatch name="Electric lime" value="#B8FF4F" className="bg-brand" />
+          <Swatch name="Brand soft" value="#1E2A12" className="bg-brand-soft" />
+          <Swatch name="Approval" value="#7CFFB2" className="bg-approval" />
+          <Swatch name="Revision" value="#FF6B57" className="bg-revision" />
+          <Swatch name="Accent" value="#7C8CFF" className="bg-accent" />
+          <Swatch name="Border" value="#2A3442" className="bg-line" />
         </div>
       </ShowcaseSection>
       <ShowcaseSection

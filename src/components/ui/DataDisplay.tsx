@@ -19,10 +19,10 @@ export function Badge({
 }) {
   const tones = {
     neutral: 'bg-surface-secondary text-secondary',
-    brand: 'bg-brand-soft text-brand-hover',
-    approval: 'bg-approval-soft text-approval-dark',
-    revision: 'bg-revision-soft text-revision-dark',
-    warning: 'bg-warning-soft text-ink',
+    brand: 'bg-brand-soft text-brand',
+    approval: 'bg-approval-soft text-approval',
+    revision: 'bg-revision-soft text-revision',
+    warning: 'bg-warning-soft text-warning',
   }
   return (
     <span
@@ -98,7 +98,13 @@ export function Breadcrumb({ items }: { items: string[] }) {
     </nav>
   )
 }
-export function Avatar({ name, color = 'bg-brand' }: { name: string; color?: string }) {
+export function Avatar({
+  name,
+  color = 'bg-brand text-brand-contrast',
+}: {
+  name: string
+  color?: string
+}) {
   const initials = name
     .split(' ')
     .map((n) => n[0])
@@ -108,7 +114,7 @@ export function Avatar({ name, color = 'bg-brand' }: { name: string; color?: str
     <span
       title={name}
       className={cn(
-        'inline-grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-surface text-xs font-semibold text-white',
+        'inline-grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-surface text-xs font-semibold',
         color,
       )}
     >
@@ -123,7 +129,14 @@ export function AvatarGroup({ names }: { names: string[] }) {
         <Avatar
           key={n}
           name={n}
-          color={['bg-brand', 'bg-revision', 'bg-approval-dark', 'bg-warning'][i % 4]}
+          color={
+            [
+              'bg-brand text-brand-contrast',
+              'bg-revision text-background',
+              'bg-accent text-background',
+              'bg-warning text-brand-contrast',
+            ][i % 4]
+          }
         />
       ))}
     </div>

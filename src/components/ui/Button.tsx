@@ -6,11 +6,14 @@ import { cn } from '@/lib/cn'
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive' | 'link'
 const variants: Record<Variant, string> = {
-  primary: 'bg-brand text-white border-brand hover:bg-brand-hover',
-  secondary: 'bg-ink text-white border-ink hover:bg-ink/85',
-  outline: 'bg-transparent text-ink border-line-strong hover:bg-surface',
+  primary:
+    'bg-brand text-brand-contrast border-brand hover:bg-brand-hover active:bg-brand-active hover:shadow-soft',
+  secondary:
+    'bg-surface-elevated text-ink border-line hover:border-line-strong hover:bg-surface-secondary',
+  outline:
+    'bg-transparent text-ink border-line-strong hover:border-brand hover:bg-surface-secondary',
   ghost: 'bg-transparent text-ink border-transparent hover:bg-surface-secondary',
-  destructive: 'bg-revision text-white border-revision hover:bg-revision-dark',
+  destructive: 'bg-revision text-background border-revision hover:bg-revision-hover',
   link: 'bg-transparent text-brand border-transparent px-1 hover:text-brand-hover underline-offset-4 hover:underline',
 }
 
@@ -58,7 +61,7 @@ export function IconButton({
       whileTap={{ scale: 0.94 }}
       aria-label={label}
       className={cn(
-        'inline-flex h-11 w-11 items-center justify-center rounded-md border border-line bg-surface transition-colors hover:bg-surface-secondary',
+        'inline-flex h-11 w-11 items-center justify-center rounded-md border border-line bg-surface transition-colors hover:border-line-strong hover:bg-surface-secondary',
         className,
       )}
       {...props}
