@@ -105,7 +105,22 @@ export function CommentPin({ number, state = 'normal' }: { number: number; state
   )
 }
 
-export function CommentCard({ compact = false }: { compact?: boolean }) {
+export function CommentCard({
+  compact = false,
+  name = 'Marina Costa',
+  time = 'há 12 min',
+  comment =
+    'Podemos aumentar o respiro entre o título e a assinatura? A leitura fica mais clara nesta versão.',
+  status = 'changes',
+  showActions = !compact,
+}: {
+  compact?: boolean
+  name?: string
+  time?: string
+  comment?: string
+  status?: VizttoStatus
+  showActions?: boolean
+}) {
   return (
     <article
       className={cn(
@@ -114,23 +129,20 @@ export function CommentCard({ compact = false }: { compact?: boolean }) {
       )}
     >
       <div className="flex items-start gap-3">
-        <Avatar name="Marina Costa" color="bg-revision text-background" />
+        <Avatar name={name} color="bg-revision text-background" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold">Marina Costa</p>
-            <span className="text-xs text-muted">há 12 min</span>
+            <p className="text-sm font-semibold">{name}</p>
+            <span className="text-xs text-muted">{time}</span>
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-secondary">
-            Podemos aumentar o respiro entre o título e a assinatura? A leitura fica mais clara
-            nesta versão.
-          </p>
+          <p className="mt-2 text-sm leading-relaxed text-secondary">{comment}</p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <VersionBadge>v3</VersionBadge>
-            <StatusBadge status="changes" />
+            <StatusBadge status={status} />
           </div>
         </div>
       </div>
-      {!compact && (
+      {showActions && (
         <div className="mt-4 flex gap-2 border-t border-line pt-4">
           <button className="text-xs font-semibold text-brand">Responder</button>
           <span className="text-line-strong">·</span>
