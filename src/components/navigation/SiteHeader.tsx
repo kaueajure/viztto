@@ -1,6 +1,6 @@
 import { Menu, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { DesktopNavigation } from './DesktopNavigation'
 import { MobileNavigation } from './MobileNavigation'
 import { Logo } from '@/components/brand/Logo'
@@ -12,6 +12,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const menuButton = useRef<HTMLButtonElement>(null)
+  const location = useLocation()
 
   const closeMenu = useCallback((returnFocus = true) => {
     setOpen(false)
@@ -30,14 +31,39 @@ export function SiteHeader() {
     const previousOverflow = document.body.style.overflow
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') closeMenu()
+      if (event.key === 'Tab') {
+        const menu = document.getElementById('mobile-navigation')
+        const focusable = Array.from(
+          menu?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])') ?? [],
+        )
+        if (!focusable.length) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
+      }
     }
     document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', onKeyDown)
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLElement>('#mobile-navigation a[href]')?.focus(),
+    )
     return () => {
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', onKeyDown)
     }
   }, [closeMenu, open])
+
+  useEffect(() => {
+    if (open) closeMenu(false)
+    // Closing on location changes must not steal focus from the new page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, location.search, location.hash])
 
   return (
     <header

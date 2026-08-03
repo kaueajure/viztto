@@ -14,8 +14,20 @@ export function ProductDemo({ restartSignal = 0 }: { restartSignal?: number }) {
   useEffect(() => {
     if (reducedMotion) return
     setStep(0)
-    const interval = window.setInterval(() => setStep((current) => (current + 1) % 7), 1250)
-    return () => window.clearInterval(interval)
+    let current = 0
+    let timeout = 0
+    const advance = () => {
+      timeout = window.setTimeout(
+        () => {
+          current = (current + 1) % 7
+          setStep(current)
+          advance()
+        },
+        current === 6 ? 2200 : 1050,
+      )
+    }
+    advance()
+    return () => window.clearTimeout(timeout)
   }, [reducedMotion, restartSignal])
 
   return (

@@ -25,7 +25,7 @@ export function HeroSection() {
 
   return (
     <section
-      id="solucoes"
+      id="inicio"
       aria-labelledby="hero-title"
       className="relative isolate overflow-hidden border-b border-line-subtle"
     >
