@@ -34,7 +34,9 @@ export function SiteHeader() {
       if (event.key === 'Tab') {
         const menu = document.getElementById('mobile-navigation')
         const focusable = Array.from(
-          menu?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])') ?? [],
+          menu?.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ) ?? [],
         )
         if (!focusable.length) return
         const first = focusable[0]

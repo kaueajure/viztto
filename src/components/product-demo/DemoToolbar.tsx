@@ -5,7 +5,13 @@ import { StatusBadge, VersionBadge } from '@/components/feedback/FeedbackCompone
 import { AvatarGroup, Breadcrumb } from '@/components/ui/DataDisplay'
 import { Button, IconButton } from '@/components/ui/Button'
 
-export function DemoToolbar({ approved, currentVersion }: { approved: boolean; currentVersion: 2 | 3 }) {
+export function DemoToolbar({
+  approved,
+  currentVersion,
+}: {
+  approved: boolean
+  currentVersion: 2 | 3
+}) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-3 py-3 sm:px-4">
       <div className="min-w-0">

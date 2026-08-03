@@ -16,7 +16,9 @@ export function AudioMessage() {
             ))}
           </div>
           <div className="mt-1 flex items-center justify-between text-[10px] text-muted">
-            <span className="inline-flex items-center gap-1"><Mic className="h-3 w-3" /> Áudio</span>
+            <span className="inline-flex items-center gap-1">
+              <Mic className="h-3 w-3" /> Áudio
+            </span>
             <span>1:48</span>
           </div>
         </div>

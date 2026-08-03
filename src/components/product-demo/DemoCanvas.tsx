@@ -1,5 +1,9 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { ApprovalStamp, CollaborativeCursor, CommentPin } from '@/components/feedback/FeedbackComponents'
+import {
+  ApprovalStamp,
+  CollaborativeCursor,
+  CommentPin,
+} from '@/components/feedback/FeedbackComponents'
 import { demoPins } from '@/data/productDemo'
 
 export function DemoCanvas({ step, reducedMotion }: { step: number; reducedMotion: boolean }) {
@@ -15,10 +19,22 @@ export function DemoCanvas({ step, reducedMotion }: { step: number; reducedMotio
         aria-label="Peça gráfica da campanha de lançamento com quatro comentários posicionados sobre o material"
         className="relative mx-auto h-[336px] max-w-[440px] overflow-hidden rounded-md border border-line bg-[#151816] shadow-raised sm:h-[390px]"
       >
-        <div aria-hidden="true" className="absolute -right-16 -top-16 h-52 w-52 rounded-full border-[34px] border-brand/85" />
-        <div aria-hidden="true" className="absolute -bottom-14 -left-12 h-48 w-48 rotate-12 border-[28px] border-revision/80" />
-        <div aria-hidden="true" className="absolute left-[48%] top-[12%] h-48 w-px rotate-[28deg] bg-line-strong" />
-        <div aria-hidden="true" className="absolute bottom-0 right-[20%] top-0 w-px bg-line-subtle" />
+        <div
+          aria-hidden="true"
+          className="absolute -right-16 -top-16 h-52 w-52 rounded-full border-[34px] border-brand/85"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute -bottom-14 -left-12 h-48 w-48 rotate-12 border-[28px] border-revision/80"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute left-[48%] top-[12%] h-48 w-px rotate-[28deg] bg-line-strong"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute bottom-0 right-[20%] top-0 w-px bg-line-subtle"
+        />
         <div className="absolute left-[8%] top-[8%] text-[9px] font-semibold uppercase tracking-[0.2em] text-brand">
           Estúdio Viztto · 2026
         </div>

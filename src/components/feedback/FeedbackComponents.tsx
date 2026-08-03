@@ -109,8 +109,7 @@ export function CommentCard({
   compact = false,
   name = 'Marina Costa',
   time = 'há 12 min',
-  comment =
-    'Podemos aumentar o respiro entre o título e a assinatura? A leitura fica mais clara nesta versão.',
+  comment = 'Podemos aumentar o respiro entre o título e a assinatura? A leitura fica mais clara nesta versão.',
   status = 'changes',
   showActions = !compact,
 }: {
