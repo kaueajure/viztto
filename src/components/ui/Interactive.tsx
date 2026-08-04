@@ -185,13 +185,16 @@ export function Tabs({ items }: { items: Array<{ label: string; content: ReactNo
 
 export function Accordion({ items }: { items: Array<{ title: string; content: string }> }) {
   const [active, setActive] = useState<number | null>(0)
+  const id = useId()
   return (
     <div className="divide-y divide-line border-y border-line">
       {items.map((item, i) => (
         <div key={item.title}>
           <button
+            id={`${id}-trigger-${i}`}
             type="button"
             aria-expanded={active === i}
+            aria-controls={`${id}-panel-${i}`}
             onClick={() => setActive(active === i ? null : i)}
             className="flex w-full items-center justify-between py-4 text-left font-medium"
           >
@@ -201,6 +204,9 @@ export function Accordion({ items }: { items: Array<{ title: string; content: st
           <AnimatePresence>
             {active === i && (
               <motion.p
+                id={`${id}-panel-${i}`}
+                role="region"
+                aria-labelledby={`${id}-trigger-${i}`}
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}

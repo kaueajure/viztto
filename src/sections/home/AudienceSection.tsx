@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Check } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { AudienceNavigation } from '@/components/audience/AudienceNavigation'
 import { AudiencePreview } from '@/components/audience/AudiencePreview'
 import { Container } from '@/components/layout/Container'
@@ -9,7 +9,21 @@ import { audiences } from '@/data/audiences'
 export function AudienceSection() {
   const [activeIndex, setActiveIndex] = useState(0)
   const reduceMotion = useReducedMotion()
+  const generatedId = useId()
+  const panelId = `${generatedId}-audience-panel`
+  const tabIdPrefix = `${generatedId}-audience-tab`
+  const selectId = `${generatedId}-audience-select`
+  const selectLabelId = `${generatedId}-audience-select-label`
+  const [usesTabs, setUsesTabs] = useState(() => window.matchMedia('(min-width: 768px)').matches)
   const active = audiences[activeIndex]
+
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 768px)')
+    const update = () => setUsesTabs(query.matches)
+    update()
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
 
   return (
     <section id="publicos" aria-labelledby="audience-title" className="scroll-mt-24 py-20 md:py-28">
@@ -28,11 +42,11 @@ export function AudienceSection() {
         </div>
 
         <div className="mt-10 md:hidden">
-          <label htmlFor="audience-select" className="mb-2 block text-sm font-semibold">
+          <label id={selectLabelId} htmlFor={selectId} className="mb-2 block text-sm font-semibold">
             Escolha seu perfil
           </label>
           <select
-            id="audience-select"
+            id={selectId}
             value={active.id}
             onChange={(event) =>
               setActiveIndex(audiences.findIndex((item) => item.id === event.target.value))
@@ -53,15 +67,18 @@ export function AudienceSection() {
               items={audiences}
               activeIndex={activeIndex}
               onChange={setActiveIndex}
+              panelId={panelId}
+              tabIdPrefix={tabIdPrefix}
             />
           </div>
 
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={active.id}
-              id="audience-panel"
-              role="tabpanel"
-              aria-labelledby={`audience-tab-${active.id}`}
+              id={panelId}
+              role={usesTabs ? 'tabpanel' : 'region'}
+              aria-labelledby={usesTabs ? `${tabIdPrefix}-${active.id}` : selectLabelId}
+              aria-live="polite"
               initial={reduceMotion ? false : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}

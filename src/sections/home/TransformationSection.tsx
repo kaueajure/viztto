@@ -4,7 +4,7 @@ import { useReducedMotion } from 'motion/react'
 import { ScatteredFeedback } from '@/components/problem-demo/ScatteredFeedback'
 import { OrganizedWorkspace } from '@/components/problem-demo/OrganizedWorkspace'
 import { Container } from '@/components/layout/Container'
-import { gsap } from '@/lib/gsap'
+import { gsap, ScrollTrigger } from '@/lib/gsap'
 import { cn } from '@/lib/cn'
 
 export function TransformationSection() {
@@ -14,18 +14,20 @@ export function TransformationSection() {
 
   useLayoutEffect(() => {
     if (reducedMotion || !root.current || !stage.current) return
+    let cancelled = false
     const media = gsap.matchMedia()
-    media.add('(min-width: 1024px)', () => {
+    const buildTimeline = (pin: boolean) => {
       const context = gsap.context(() => {
         const items = gsap.utils.toArray<HTMLElement>('[data-chaos-item]')
         const timeline = gsap.timeline({
           scrollTrigger: {
             trigger: stage.current,
             start: 'top 88px',
-            end: '+=1100',
             scrub: 0.7,
-            pin: true,
+            pin,
             anticipatePin: 1,
+            invalidateOnRefresh: true,
+            end: pin ? '+=980' : 'bottom 20%',
           },
         })
         timeline
@@ -48,8 +50,16 @@ export function TransformationSection() {
         return () => timeline.kill()
       }, root)
       return () => context.revert()
+    }
+    media.add('(min-width: 1024px) and (min-height: 700px)', () => buildTimeline(true))
+    media.add('(min-width: 1024px) and (max-height: 699px)', () => buildTimeline(false))
+    document.fonts.ready.then(() => {
+      if (!cancelled) ScrollTrigger.refresh()
     })
-    return () => media.revert()
+    return () => {
+      cancelled = true
+      media.revert()
+    }
   }, [reducedMotion])
 
   return (
@@ -61,7 +71,7 @@ export function TransformationSection() {
       <Container>
         <div
           ref={stage}
-          role="img"
+          role="group"
           aria-label="Mensagens, arquivos e comentários espalhados sendo organizados dentro de uma revisão do Viztto"
           className="relative rounded-xl border border-line-subtle bg-background p-3 lg:min-h-[650px] lg:p-5"
         >

@@ -69,7 +69,15 @@ export function VersionBadge({
 }
 
 type PinState = 'normal' | 'active' | 'resolved' | 'pending'
-export function CommentPin({ number, state = 'normal' }: { number: number; state?: PinState }) {
+export function CommentPin({
+  number,
+  state = 'normal',
+  interactive = true,
+}: {
+  number: number
+  state?: PinState
+  interactive?: boolean
+}) {
   const styles = {
     normal: {
       button: 'bg-brand text-brand-contrast',
@@ -88,19 +96,33 @@ export function CommentPin({ number, state = 'normal' }: { number: number; state
       pointer: 'bg-revision',
     },
   }
+  const className = cn(
+    'relative grid h-8 w-8 place-items-center rounded-full text-xs font-bold shadow-soft',
+    styles[state].button,
+  )
+  const pointer = (
+    <span className={cn('absolute -bottom-1 h-2.5 w-2.5 rotate-45', styles[state].pointer)} />
+  )
+
+  if (!interactive) {
+    return (
+      <motion.span aria-hidden="true" className={className}>
+        {number}
+        {pointer}
+      </motion.span>
+    )
+  }
+
   return (
     <motion.button
       type="button"
       aria-label={`Comentário ${number}, ${state}`}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.93 }}
-      className={cn(
-        'relative grid h-8 w-8 place-items-center rounded-full text-xs font-bold shadow-soft',
-        styles[state].button,
-      )}
+      className={className}
     >
       {number}
-      <span className={cn('absolute -bottom-1 h-2.5 w-2.5 rotate-45', styles[state].pointer)} />
+      {pointer}
     </motion.button>
   )
 }

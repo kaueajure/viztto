@@ -39,7 +39,7 @@ export function HeroSection() {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-[calc(7%-5px)] top-[170px] hidden h-2.5 w-2.5 rounded-full border border-brand/50 lg:block"
+        className="pointer-events-none absolute left-[calc(7%_-_5px)] top-[170px] hidden h-2.5 w-2.5 rounded-full border border-brand/50 lg:block"
       />
       <Container className="relative py-14 sm:py-16 lg:py-20 xl:py-24">
         <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,.82fr)_minmax(0,1.18fr)] lg:gap-10 xl:gap-14">

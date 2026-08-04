@@ -15,7 +15,7 @@ export function DemoCanvas({ step, reducedMotion }: { step: number; reducedMotio
   return (
     <div className="relative min-h-[360px] overflow-hidden bg-surface-secondary p-3 surface-grid sm:min-h-[430px] sm:p-5">
       <div
-        role="img"
+        role="group"
         aria-label="Peça gráfica da campanha de lançamento com quatro comentários posicionados sobre o material"
         className="relative mx-auto h-[336px] max-w-[440px] overflow-hidden rounded-md border border-line bg-[#151816] shadow-raised sm:h-[390px]"
       >
@@ -51,7 +51,7 @@ export function DemoCanvas({ step, reducedMotion }: { step: number; reducedMotio
 
         {demoPins.map((pin) => (
           <div key={pin.number} className={`absolute ${pin.position}`}>
-            <CommentPin number={pin.number} state={pin.state} />
+            <CommentPin number={pin.number} state={pin.state} interactive={false} />
           </div>
         ))}
 
@@ -64,7 +64,7 @@ export function DemoCanvas({ step, reducedMotion }: { step: number; reducedMotio
               exit={{ opacity: 0, scale: 0.65 }}
               transition={{ duration: 0.26 }}
             >
-              <CommentPin number={4} state="active" />
+              <CommentPin number={4} state="active" interactive={false} />
             </motion.div>
           )}
         </AnimatePresence>

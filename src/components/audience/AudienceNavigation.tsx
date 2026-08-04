@@ -6,12 +6,20 @@ type AudienceNavigationProps = {
   items: Audience[]
   activeIndex: number
   onChange: (index: number) => void
+  panelId: string
+  tabIdPrefix: string
 }
 
-export function AudienceNavigation({ items, activeIndex, onChange }: AudienceNavigationProps) {
+export function AudienceNavigation({
+  items,
+  activeIndex,
+  onChange,
+  panelId,
+  tabIdPrefix,
+}: AudienceNavigationProps) {
   const focusTab = (index: number) => {
     onChange(index)
-    document.getElementById(`audience-tab-${items[index].id}`)?.focus()
+    document.getElementById(`${tabIdPrefix}-${items[index].id}`)?.focus()
   }
 
   return (
@@ -25,11 +33,11 @@ export function AudienceNavigation({ items, activeIndex, onChange }: AudienceNav
         return (
           <button
             key={item.id}
-            id={`audience-tab-${item.id}`}
+            id={`${tabIdPrefix}-${item.id}`}
             type="button"
             role="tab"
             aria-selected={active}
-            aria-controls="audience-panel"
+            aria-controls={panelId}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(index)}
             onKeyDown={(event) => {

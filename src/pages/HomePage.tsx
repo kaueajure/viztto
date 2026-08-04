@@ -5,25 +5,33 @@ import { TransformationSection } from '@/sections/home/TransformationSection'
 import { OutcomeSection } from '@/sections/home/OutcomeSection'
 import { HowItWorksSection } from '@/sections/home/HowItWorksSection'
 import { useEffect } from 'react'
+import { useReducedMotion } from 'motion/react'
+import { useLocation } from 'react-router-dom'
 import { AudienceSection } from '@/sections/home/AudienceSection'
+import { FeaturesSection } from '@/sections/home/FeaturesSection'
+import { VersionComparisonSection } from '@/sections/home/VersionComparisonSection'
+import { ClientExperienceSection } from '@/sections/home/ClientExperienceSection'
+import { PricingSection } from '@/sections/home/PricingSection'
+import { FaqSection } from '@/sections/home/FaqSection'
+import { FinalCtaSection } from '@/sections/home/FinalCtaSection'
 
 export default function HomePage() {
+  const location = useLocation()
+  const prefersReducedMotion = Boolean(useReducedMotion())
+
   useEffect(() => {
-    const scrollToHash = () => {
-      const id = decodeURIComponent(window.location.hash.slice(1))
-      if (!id) return
+    if (!location.hash) return
+    const id = decodeURIComponent(location.hash.slice(1))
+    const element = document.getElementById(id)
+    if (!element) return
 
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          document.getElementById(id)?.scrollIntoView({ block: 'start' })
-        })
+    window.requestAnimationFrame(() => {
+      element.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        block: 'start',
       })
-    }
-
-    scrollToHash()
-    window.addEventListener('hashchange', scrollToHash)
-    return () => window.removeEventListener('hashchange', scrollToHash)
-  }, [])
+    })
+  }, [location.hash, prefersReducedMotion])
 
   return (
     <>
@@ -34,6 +42,12 @@ export default function HomePage() {
       <OutcomeSection />
       <HowItWorksSection />
       <AudienceSection />
+      <FeaturesSection />
+      <VersionComparisonSection />
+      <ClientExperienceSection />
+      <PricingSection />
+      <FaqSection />
+      <FinalCtaSection />
     </>
   )
 }

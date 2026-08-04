@@ -16,7 +16,7 @@ export function AudiencePreview({ audience }: { audience: AudienceId }) {
   return (
     <div
       className="relative min-h-[22rem] overflow-hidden rounded-xl border border-line bg-surface-elevated p-4 shadow-soft sm:p-5"
-      role="img"
+      role="group"
       aria-label={labels[audience]}
     >
       <div className="surface-grid absolute inset-0 opacity-30" aria-hidden />
@@ -90,10 +90,10 @@ const visuals: Record<AudienceId, React.ReactNode> = {
         Uma campanha que chama atenção.
       </p>
       <div className="absolute left-[63%] top-[28%]">
-        <CommentPin number={1} state="active" />
+        <CommentPin number={1} state="active" interactive={false} />
       </div>
       <div className="absolute bottom-[18%] left-[28%]">
-        <CommentPin number={2} state="resolved" />
+        <CommentPin number={2} state="resolved" interactive={false} />
       </div>
       <div className="absolute bottom-4 right-4 rounded-sm bg-background px-2 py-1 text-[10px] text-ink">
         v3 · comparação ativa
@@ -142,7 +142,7 @@ const visuals: Record<AudienceId, React.ReactNode> = {
         </div>
         <div className="rounded-md bg-revision" />
         <div className="absolute right-[28%] top-[38%]">
-          <CommentPin number={3} state="pending" />
+          <CommentPin number={3} state="pending" interactive={false} />
         </div>
       </div>
     </div>

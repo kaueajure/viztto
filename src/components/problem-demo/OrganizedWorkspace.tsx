@@ -73,13 +73,13 @@ export function OrganizedWorkspace() {
               Uma campanha vista, comentada e aprovada no mesmo contexto.
             </p>
             <div className="absolute left-[22%] top-[23%]">
-              <CommentPin number={1} state="resolved" />
+              <CommentPin number={1} state="resolved" interactive={false} />
             </div>
             <div className="absolute right-[22%] top-[38%]">
-              <CommentPin number={2} state="active" />
+              <CommentPin number={2} state="active" interactive={false} />
             </div>
             <div className="absolute bottom-[22%] left-[42%]">
-              <CommentPin number={3} state="pending" />
+              <CommentPin number={3} state="pending" interactive={false} />
             </div>
             <div className="absolute bottom-[7%] right-[7%]">
               <ApprovalStamp />

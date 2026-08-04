@@ -9,6 +9,9 @@ const names: Record<string, string> = {
   '/precos': 'Preços',
   '/entrar': 'Entrar',
   '/criar-conta': 'Criar conta',
+  '/contato': 'Contato',
+  '/termos': 'Termos de uso',
+  '/privacidade': 'Privacidade',
 }
 export default function PlaceholderPage() {
   const { pathname } = useLocation()

@@ -24,7 +24,7 @@ export function StepPreview({ step }: { step: HowItWorksStepId }) {
   return (
     <div
       className="relative min-h-[30rem] w-full min-w-0 overflow-hidden rounded-xl border border-line bg-surface p-4 shadow-raised sm:p-6"
-      role="img"
+      role="group"
       aria-label={previewLabels[step]}
     >
       <div className="surface-grid absolute inset-0 opacity-30" aria-hidden />
@@ -134,10 +134,10 @@ const previews: Record<HowItWorksStepId, React.ReactNode> = {
           Ideias que ganham forma.
         </p>
         <div className="absolute left-[60%] top-[22%]">
-          <CommentPin number={1} state="active" />
+          <CommentPin number={1} state="active" interactive={false} />
         </div>
         <div className="absolute bottom-[16%] left-[25%]">
-          <CommentPin number={2} state="resolved" />
+          <CommentPin number={2} state="resolved" interactive={false} />
         </div>
         <CollaborativeCursor name="Marina" className="absolute left-[48%] top-[38%]" />
       </div>

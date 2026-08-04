@@ -9,7 +9,7 @@ import { duplicatedFiles, looseComments } from '@/data/problemDemo'
 export function ScatteredFeedback() {
   return (
     <div
-      role="img"
+      role="group"
       aria-label="Mensagens, arquivos duplicados, áudio, e-mail e comentários sem contexto espalhados em diferentes canais"
       className="relative grid gap-3 lg:h-[590px] lg:block"
     >

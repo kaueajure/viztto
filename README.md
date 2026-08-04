@@ -1,6 +1,6 @@
-# Viztto — fundação do site
+# Viztto — site institucional
 
-Primeira etapa do site institucional do Viztto: arquitetura React, identidade visual, componentes globais, rotas e uma página interna de Design System.
+Landing page institucional do Viztto, plataforma de revisão, feedback, controle de versões e aprovação de materiais criativos.
 
 ## Executar
 
@@ -19,19 +19,24 @@ npm run build
 npm run preview
 ```
 
+## Nota comercial
+
+Os preços e limites exibidos na landing page são provisórios e deverão ser validados antes do lançamento público do Viztto.
+
 ## Rotas
 
-- `/` — placeholder editorial da futura home
+- `/` — landing page comercial
 - `/produto`, `/recursos`, `/precos`, `/entrar`, `/criar-conta` — estruturas mínimas
+- `/contato`, `/termos`, `/privacidade` — placeholders institucionais
 - `/design-system` — catálogo visual e interativo completo
 - demais caminhos — erro 404
 
 ## Organização
 
-O código está separado em componentes de marca, layout, navegação, UI, feedback e seções do Design System. Os tokens centrais ficam em `src/styles/globals.css` e são expostos ao Tailwind em `tailwind.config.js`.
+O código está separado em componentes de marca, layout, navegação, UI, feedback, demonstrações do produto e seções comerciais. Os tokens centrais ficam em `src/styles/globals.css` e são expostos ao Tailwind em `tailwind.config.js`.
 
-GSAP e ScrollTrigger estão registrados em `src/lib/gsap.ts` para as próximas etapas. As microinterações atuais usam Motion e respeitam `prefers-reduced-motion`.
+GSAP e ScrollTrigger conduzem a transformação narrativa da home. As microinterações usam Motion e respeitam `prefers-reduced-motion`.
 
-## Escopo desta etapa
+## Fora do escopo atual
 
-Ainda não há landing page comercial, hero definitivo, preços, autenticação, dashboard, backend ou integrações. Esses pontos dependem das próximas partes do projeto.
+Ainda não há autenticação funcional, dashboard, backend, banco de dados, upload real, pagamentos ou integrações.
