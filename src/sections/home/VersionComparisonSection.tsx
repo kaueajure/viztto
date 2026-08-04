@@ -12,8 +12,7 @@ export function VersionComparisonSection() {
           <div>
             <p className="eyebrow">Comparação sem adivinhação</p>
             <h2 id="comparison-title" className="heading-lg mt-4">
-              Veja exatamente{' '}
-              <span className="font-serif font-normal text-accent">o que mudou.</span>
+              Veja exatamente <span className="font-serif font-normal text-ink">o que mudou.</span>
             </h2>
             <p className="mt-5 max-w-lg text-lg leading-relaxed text-secondary">
               Compare duas versões lado a lado ou arraste o divisor para identificar alterações sem

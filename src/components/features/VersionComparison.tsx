@@ -85,11 +85,11 @@ export function VersionComparison() {
           aria-valuenow={Math.round(position)}
           aria-valuetext={`Divisor em ${Math.round(position)}%. A versão 3 ocupa a área à esquerda e a versão 4 ocupa a área à direita.`}
           onKeyDown={onKeyDown}
-          className="version-comparison-slider absolute inset-y-0 z-20 w-px bg-ink focus-visible:outline-none"
+          className="version-comparison-slider absolute inset-y-0 z-20 w-0.5 bg-brand focus-visible:outline-none"
           style={{ left: `${position}%` }}
         >
           <span
-            className="absolute left-1/2 top-1/2 grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-ink bg-brand text-brand-contrast shadow-raised"
+            className="absolute left-1/2 top-1/2 grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-brand bg-surface-elevated text-brand shadow-raised"
             aria-hidden
           >
             ↔
@@ -113,29 +113,55 @@ function VersionArtwork({ version }: { version: 'v3' | 'v4' }) {
   const current = version === 'v4'
   return (
     <div
-      className={`absolute inset-0 overflow-hidden p-6 sm:p-10 ${current ? 'bg-accent text-background' : 'bg-revision text-background'}`}
+      className={`absolute inset-0 overflow-hidden p-6 text-ink sm:p-10 ${current ? 'bg-surface-elevated' : 'bg-surface-secondary'}`}
       aria-hidden
     >
       <div
-        className={`absolute -right-20 -top-20 h-72 w-72 rounded-full border-[52px] ${current ? 'border-brand' : 'border-warning'}`}
+        className={`absolute h-56 w-56 rounded-full border-[28px] sm:h-64 sm:w-64 ${
+          current ? '-right-20 -top-16 border-brand/25' : '-right-14 top-4 border-line-strong/55'
+        }`}
       />
       <div
-        className={`absolute -bottom-24 -left-16 h-72 w-72 rotate-12 border-[44px] ${current ? 'border-background' : 'border-accent'}`}
+        className={`absolute h-52 w-64 rounded-lg border ${
+          current
+            ? '-bottom-10 left-[8%] rotate-[-4deg] border-brand/30 bg-brand-soft'
+            : '-bottom-6 left-[3%] rotate-3 border-line bg-surface'
+        }`}
       />
-      <p className="relative max-w-lg text-[clamp(3rem,9vw,7.5rem)] font-semibold leading-[0.76] tracking-[-0.075em]">
-        CLAREZA
-        <br />
-        <span
-          className={`font-serif font-normal italic ${current ? 'text-brand' : 'text-warning'}`}
-        >
-          {current ? 'em foco' : 'em processo'}
+      <div
+        className={`absolute max-w-lg ${current ? 'left-[10%] top-[19%]' : 'left-[7%] top-[24%]'}`}
+      >
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+          Campanha de agosto
         </span>
-      </p>
-      <div className="absolute bottom-7 right-7 max-w-48 text-right text-xs font-semibold">
+        <p
+          className={`mt-3 text-[clamp(3rem,9vw,7.2rem)] font-semibold tracking-[-0.07em] ${
+            current ? 'leading-[0.78] text-ink' : 'leading-[0.84] text-secondary'
+          }`}
+        >
+          CLAREZA
+          <br />
+          <span
+            className={`font-serif font-normal italic ${current ? 'text-brand' : 'text-muted'}`}
+          >
+            {current ? 'em foco' : 'em processo'}
+          </span>
+        </p>
+      </div>
+      <div
+        className={`absolute bottom-7 max-w-52 rounded-md border px-3 py-2 text-xs ${
+          current
+            ? 'right-7 border-brand/35 bg-brand-soft text-right text-ink'
+            : 'left-6 border-revision/30 bg-revision-soft text-left text-secondary sm:left-10'
+        }`}
+      >
         {current
           ? 'Hierarquia ajustada e contraste ampliado.'
           : 'Primeira composição enviada para revisão.'}
       </div>
+      <span
+        className={`absolute left-6 top-1/2 h-1 w-12 rounded-full sm:left-10 ${current ? 'bg-brand' : 'bg-revision'}`}
+      />
     </div>
   )
 }

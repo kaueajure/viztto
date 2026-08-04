@@ -42,7 +42,7 @@ export function FinalCtaSection() {
                 <LinkButton
                   to="/#como-funciona"
                   variant="outline"
-                  className="border-brand-contrast/40 text-brand-contrast hover:border-brand-contrast hover:bg-brand-contrast/10"
+                  className="!border-transparent !bg-[#f5f7fa] !text-[#0d1117] hover:!bg-[#e5e9ef]"
                 >
                   Ver como funciona <ArrowDownRight className="h-4 w-4" />
                 </LinkButton>
