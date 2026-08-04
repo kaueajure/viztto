@@ -6,12 +6,15 @@ export function VideoReviewDemo() {
     <div
       role="group"
       aria-label="Revisão de vídeo com comentário relacionado ao segundo trinta e oito."
-      className="overflow-hidden rounded-xl border border-line bg-surface shadow-raised"
+      className="overflow-hidden rounded-xl border border-line bg-surface shadow-soft"
     >
-      <div className="relative min-h-[21rem] overflow-hidden bg-[#131816] p-6 surface-grid">
-        <div className="absolute -right-10 top-10 h-52 w-52 rounded-full bg-revision" aria-hidden />
+      <div className="relative min-h-[19rem] overflow-hidden bg-background p-6 surface-grid sm:min-h-[21rem]">
         <div
-          className="absolute bottom-8 left-8 h-32 w-[56%] rotate-[-6deg] bg-brand"
+          className="absolute -right-10 top-10 h-52 w-52 rounded-full border-[32px] border-line"
+          aria-hidden
+        />
+        <div
+          className="absolute bottom-8 left-8 h-24 w-[56%] rotate-[-5deg] bg-brand-soft"
           aria-hidden
         />
         <p className="relative max-w-sm text-[clamp(2.8rem,7vw,5.6rem)] font-semibold leading-[0.82] tracking-[-0.07em]">
@@ -30,7 +33,6 @@ export function VideoReviewDemo() {
           <div className="relative h-2 flex-1 rounded-full bg-surface-secondary">
             <span className="absolute inset-y-0 left-0 w-[45%] rounded-full bg-brand" />
             <span className="absolute left-[45%] top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-revision" />
-            <span className="absolute left-[70%] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-accent" />
           </div>
           <VersionBadge current>v4</VersionBadge>
         </div>

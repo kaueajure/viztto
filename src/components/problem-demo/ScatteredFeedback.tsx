@@ -14,34 +14,26 @@ export function ScatteredFeedback() {
       className="relative grid gap-3 lg:h-[590px] lg:block"
     >
       <div
-        data-chaos-item
-        data-shift-x="250"
-        data-shift-y="150"
-        className="lg:absolute lg:left-[2%] lg:top-[4%] lg:-rotate-2"
+        data-chaos-group="channels"
+        data-shift-x="0"
+        data-shift-y="48"
+        className="grid gap-3 lg:absolute lg:inset-0 lg:block"
       >
-        <MessageBubble />
-      </div>
-      <div
-        data-chaos-item
-        data-shift-x="-250"
-        data-shift-y="165"
-        className="lg:absolute lg:right-[1%] lg:top-[2%] lg:rotate-1"
-      >
-        <EmailPreview />
-      </div>
-      <div
-        data-chaos-item
-        data-shift-x="260"
-        data-shift-y="-85"
-        className="lg:absolute lg:bottom-[7%] lg:left-[8%] lg:rotate-1"
-      >
-        <AudioMessage />
+        <div className="lg:absolute lg:left-[2%] lg:top-[4%] lg:-rotate-2">
+          <MessageBubble />
+        </div>
+        <div className="lg:absolute lg:right-[1%] lg:top-[2%] lg:rotate-1">
+          <EmailPreview />
+        </div>
+        <div className="lg:absolute lg:bottom-[7%] lg:left-[8%] lg:rotate-1">
+          <AudioMessage />
+        </div>
       </div>
 
       <div
-        data-chaos-item
-        data-shift-x="-270"
-        data-shift-y="20"
+        data-chaos-group="files"
+        data-shift-x="-82"
+        data-shift-y="8"
         className="grid gap-1.5 lg:absolute lg:right-[4%] lg:top-[38%] lg:w-[330px] lg:-rotate-1"
       >
         <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.12em] text-muted">
@@ -59,9 +51,9 @@ export function ScatteredFeedback() {
       </div>
 
       <div
-        data-chaos-item
-        data-shift-x="75"
-        data-shift-y="125"
+        data-chaos-group="comments"
+        data-shift-x="38"
+        data-shift-y="42"
         className="rounded-lg border border-line bg-surface p-4 shadow-soft lg:absolute lg:left-[34%] lg:top-[17%] lg:w-[260px] lg:rotate-2"
       >
         <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
@@ -78,9 +70,9 @@ export function ScatteredFeedback() {
       </div>
 
       <div
-        data-chaos-item
-        data-shift-x="-40"
-        data-shift-y="-150"
+        data-chaos-group="status"
+        data-shift-x="-18"
+        data-shift-y="-44"
         className="flex max-w-[310px] flex-wrap gap-2 lg:absolute lg:bottom-[3%] lg:left-[43%] lg:rotate-1"
       >
         <Badge tone="warning">Aguardando resposta</Badge>

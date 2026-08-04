@@ -7,7 +7,7 @@ export function ImageReviewDemo() {
     <div
       role="group"
       aria-label="Página três de uma apresentação com comentários resolvidos e pendentes posicionados no material."
-      className="overflow-hidden rounded-xl border border-line bg-surface shadow-raised"
+      className="overflow-hidden rounded-xl border border-line bg-surface shadow-soft"
     >
       <div className="flex items-center justify-between border-b border-line px-4 py-3 text-xs text-secondary">
         <span className="inline-flex items-center gap-2">
@@ -16,19 +16,19 @@ export function ImageReviewDemo() {
         <span>Página 3 de 8</span>
       </div>
       <div className="grid md:grid-cols-[minmax(0,1fr)_15rem]">
-        <div className="relative min-h-[24rem] overflow-hidden bg-warning p-6 text-brand-contrast">
+        <div className="relative min-h-[21rem] overflow-hidden bg-surface-secondary p-6 text-ink sm:min-h-[24rem]">
           <div
-            className="absolute -right-16 -top-20 h-64 w-64 rounded-full border-[42px] border-background"
+            className="absolute -right-12 -top-20 h-64 w-64 rounded-full border-[38px] border-brand/85"
             aria-hidden
           />
           <div
-            className="absolute -bottom-20 left-[12%] h-48 w-48 rotate-12 border-[34px] border-accent"
+            className="absolute bottom-10 left-[8%] h-1 w-24 rotate-[-7deg] bg-revision"
             aria-hidden
           />
-          <p className="relative max-w-sm text-[clamp(2.6rem,7vw,5.4rem)] font-semibold leading-[0.8] tracking-[-0.07em]">
+          <p className="relative max-w-sm text-[clamp(2.5rem,7vw,5.2rem)] font-semibold leading-[0.82] tracking-[-0.07em]">
             IDEIAS
             <br />
-            <span className="font-serif font-normal italic">em contexto</span>
+            <span className="font-serif font-normal italic text-brand">em contexto</span>
           </p>
           <p className="absolute bottom-6 right-6 max-w-44 text-right text-xs">
             Campanha de agosto · conceito principal
@@ -36,11 +36,8 @@ export function ImageReviewDemo() {
           <div className="absolute left-[62%] top-[24%]">
             <CommentPin number={1} state="active" interactive={false} />
           </div>
-          <div className="absolute bottom-[22%] left-[28%]">
-            <CommentPin number={2} state="resolved" interactive={false} />
-          </div>
           <div className="absolute bottom-[34%] right-[12%]">
-            <CommentPin number={3} state="pending" interactive={false} />
+            <CommentPin number={2} state="pending" interactive={false} />
           </div>
         </div>
         <aside className="border-t border-line bg-surface p-4 md:border-l md:border-t-0">
@@ -49,7 +46,7 @@ export function ImageReviewDemo() {
             <MessageSquareText className="h-4 w-4 text-brand" />
           </div>
           <div className="mt-5 flex items-center gap-2">
-            <Avatar name="Bianca Alves" color="bg-accent text-background" />
+            <Avatar name="Bianca Alves" color="bg-brand-soft text-brand" />
             <div>
               <p className="text-sm font-semibold">Bianca Alves</p>
               <p className="text-xs text-muted">há 8 min · v4</p>
@@ -63,7 +60,7 @@ export function ImageReviewDemo() {
             <StatusBadge status="changes" />
           </div>
           <div className="mt-5 border-t border-line pt-4 text-xs text-secondary">
-            <span className="text-approval">2 resolvidos</span> · 1 pendente
+            <span className="text-secondary">1 conversa ativa</span> · 1 pendente
           </div>
         </aside>
       </div>

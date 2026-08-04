@@ -32,7 +32,7 @@ export function OrganizedWorkspace() {
         </div>
       </header>
 
-      <div className="grid lg:grid-cols-[150px_minmax(0,1fr)_250px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[150px_minmax(0,1fr)_250px]">
         <aside className="order-2 border-t border-line p-3 lg:order-none lg:border-r lg:border-t-0">
           <p className="eyebrow mb-3">Versões</p>
           <div className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible">
@@ -51,8 +51,8 @@ export function OrganizedWorkspace() {
           </div>
         </aside>
 
-        <div className="relative min-h-[370px] overflow-hidden bg-surface-secondary p-4 surface-grid sm:min-h-[450px] sm:p-6">
-          <div className="relative mx-auto h-[340px] max-w-[450px] overflow-hidden rounded-md border border-line bg-[#171a18] shadow-soft sm:h-[400px]">
+        <div className="relative min-h-[390px] min-w-0 overflow-hidden bg-surface-secondary p-4 surface-grid sm:min-h-[405px] sm:p-5">
+          <div className="relative mx-auto h-[320px] w-full max-w-[450px] overflow-hidden rounded-md border border-line bg-[#171a18] shadow-soft sm:h-[360px]">
             <div
               aria-hidden="true"
               className="absolute -left-14 top-10 h-48 w-48 rotate-12 border-[30px] border-accent/75"
@@ -85,7 +85,7 @@ export function OrganizedWorkspace() {
               <ApprovalStamp />
             </div>
           </div>
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border border-line bg-background px-2 py-1 text-[10px] text-muted">
+          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border border-line bg-background px-2 py-1 text-[10px] text-muted lg:left-6 lg:translate-x-0">
             <Minus className="h-3 w-3" /> 86% <Plus className="h-3 w-3" />
           </div>
         </div>
@@ -102,7 +102,7 @@ export function OrganizedWorkspace() {
               compact
               name="Rafael Lima"
               time="há 3 min"
-              comment="Ajuste aplicado na versão 4. O título agora mantém contraste em todos os formatos."
+              comment="Ajuste aplicado na versão 4, com contraste preservado."
               status="resolved"
             />
           </div>
@@ -112,14 +112,14 @@ export function OrganizedWorkspace() {
               <StatusBadge status="changes" />
             </div>
             <p className="mt-2 text-xs leading-relaxed text-secondary">
-              Revisar a legenda antes da aprovação final.
+              Revisar a legenda antes da aprovação.
             </p>
             <div className="mt-2 flex items-center justify-between">
               <VersionBadge>v4</VersionBadge>
               <span className="text-[10px] text-muted">Responsável: Marina</span>
             </div>
           </div>
-          <div className="mt-4 max-h-40 overflow-hidden border-t border-line pt-4">
+          <div className="mt-3 max-h-24 overflow-hidden border-t border-line pt-3">
             <div className="mb-3 flex items-center gap-2">
               <CheckCircle2 className="h-3.5 w-3.5 text-approval" />
               <p className="eyebrow">Histórico</p>

@@ -10,6 +10,21 @@ export const productDemo = {
   },
 } as const
 
+export type DemoPhase = 'waiting' | 'commenting' | 'new-version' | 'approved' | 'resetting'
+
+export const demoPhaseContent: Record<
+  Exclude<DemoPhase, 'resetting'>,
+  { label: string; duration: number }
+> = {
+  waiting: { label: 'Aguardando revisão', duration: 1600 },
+  commenting: { label: 'Comentário criado', duration: 2600 },
+  'new-version': { label: 'Nova versão enviada', duration: 2100 },
+  approved: { label: 'Versão aprovada', duration: 2800 },
+}
+
+export const demoPhaseOrder = ['waiting', 'commenting', 'new-version', 'approved'] as const
+export const demoResetDuration = 550
+
 export const demoPins = [
   { number: 1, state: 'normal', position: 'left-[18%] top-[22%]' },
   { number: 2, state: 'pending', position: 'right-[18%] top-[29%]' },

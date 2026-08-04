@@ -4,33 +4,54 @@ import { DemoCanvas } from './DemoCanvas'
 import { DemoFooter } from './DemoFooter'
 import { DemoSidebar } from './DemoSidebar'
 import { DemoToolbar } from './DemoToolbar'
+import { demoPhaseContent, demoResetDuration, type DemoPhase } from '@/data/productDemo'
+
+const nextPhase: Record<DemoPhase, DemoPhase> = {
+  waiting: 'commenting',
+  commenting: 'new-version',
+  'new-version': 'approved',
+  approved: 'resetting',
+  resetting: 'waiting',
+}
+
+const phaseDuration = (phase: DemoPhase) =>
+  phase === 'resetting' ? demoResetDuration : demoPhaseContent[phase].duration
 
 export function ProductDemo({ restartSignal = 0 }: { restartSignal?: number }) {
-  const prefersReducedMotion = useReducedMotion()
+  const reducedMotion = Boolean(useReducedMotion())
   const root = useRef<HTMLElement>(null)
   const inView = useInView(root, { amount: 0.15 })
-  const [step, setStep] = useState(0)
-  const reducedMotion = Boolean(prefersReducedMotion)
-  const visibleStep = reducedMotion ? 6 : step
+  const [phase, setPhase] = useState<DemoPhase>('waiting')
+  const [pageVisible, setPageVisible] = useState(() => document.visibilityState === 'visible')
+  const visiblePhase: DemoPhase = reducedMotion ? 'approved' : phase
 
   useEffect(() => {
-    if (reducedMotion || !inView) return
-    setStep(0)
-    let current = 0
+    const handleVisibility = () => setPageVisible(document.visibilityState === 'visible')
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
+
+  useEffect(() => {
+    if (reducedMotion) return
+    setPhase('waiting')
+    if (!inView || !pageVisible) return
+
+    let cancelled = false
     let timeout = 0
-    const advance = () => {
-      timeout = window.setTimeout(
-        () => {
-          current = (current + 1) % 7
-          setStep(current)
-          advance()
-        },
-        current === 6 ? 2200 : 1050,
-      )
+    const schedule = (current: DemoPhase) => {
+      timeout = window.setTimeout(() => {
+        if (cancelled) return
+        const following = nextPhase[current]
+        setPhase(following)
+        schedule(following)
+      }, phaseDuration(current))
     }
-    advance()
-    return () => window.clearTimeout(timeout)
-  }, [inView, reducedMotion, restartSignal])
+    schedule('waiting')
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+    }
+  }, [inView, pageVisible, reducedMotion, restartSignal])
 
   return (
     <motion.section
@@ -43,16 +64,17 @@ export function ProductDemo({ restartSignal = 0 }: { restartSignal?: number }) {
       transition={{ duration: reducedMotion ? 0 : 0.55, delay: reducedMotion ? 0 : 0.24 }}
     >
       <div aria-hidden="true" className="absolute inset-x-12 top-0 h-px bg-brand/45" />
-      <DemoToolbar
-        approved={visibleStep >= 6}
-        currentVersion={visibleStep >= 5 ? 3 : 2}
-        reducedMotion={reducedMotion}
-      />
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_240px]">
-        <DemoCanvas step={visibleStep} reducedMotion={reducedMotion} />
-        <DemoSidebar highlighted={visibleStep >= 4} reducedMotion={reducedMotion} />
-      </div>
-      <DemoFooter />
+      <motion.div
+        animate={{ opacity: visiblePhase === 'resetting' ? 0.42 : 1 }}
+        transition={{ duration: reducedMotion ? 0 : visiblePhase === 'resetting' ? 0.45 : 0.18 }}
+      >
+        <DemoToolbar phase={visiblePhase} reducedMotion={reducedMotion} />
+        <div className="grid xl:grid-cols-[minmax(0,1fr)_240px]">
+          <DemoCanvas phase={visiblePhase} reducedMotion={reducedMotion} />
+          <DemoSidebar phase={visiblePhase} reducedMotion={reducedMotion} />
+        </div>
+        <DemoFooter phase={visiblePhase} reducedMotion={reducedMotion} />
+      </motion.div>
     </motion.section>
   )
 }
