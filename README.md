@@ -1,50 +1,67 @@
-# Viztto — site institucional
+# Viztto
 
-Landing page institucional do Viztto, plataforma de revisão, feedback, controle de versões e aprovação de materiais criativos.
+Aplicacao full-stack de revisao, feedback, versoes e aprovacao de materiais criativos. O repositorio contem a landing React/Vite e o produto autenticado, servidos em producao pelo mesmo processo Express.
 
-## Executar
+## Requisitos
 
-Requer Node.js 20.19+ (ou 22.12+) e npm.
+- Node.js 22 LTS ou superior
+- MySQL 8 ou MariaDB compativel
+- npm
+
+## Configuracao local
+
+1. Copie `.env.example` para `.env` e preencha banco, segredo de sessao e URL.
+2. Crie os bancos com `utf8mb4`/`utf8mb4_unicode_ci` e conceda acesso ao usuario configurado.
+3. Instale, migre e opcionalmente carregue a demonstracao:
 
 ```bash
 npm install
+npm run banco:migrar
+npm run banco:seed
 npm run dev
 ```
 
-Build e verificações:
+Frontend Vite: `http://localhost:5173`. API em desenvolvimento: `http://localhost:3001`, encaminhada pelo proxy do Vite. A saude esta em `GET /api/saude`.
+
+O seed e idempotente. Credenciais apenas para desenvolvimento: `marina@viztto.local` / `Viztto@123`.
+
+## Verificacoes
 
 ```bash
 npm run lint
 npm run typecheck
+npm test
 npm run build
-npm run preview
 ```
 
-## Nota comercial
+`npm test` se recusa a preparar um banco sem o sufixo `_testes`. Configure um usuario que tenha acesso somente ao banco de testes.
 
-Os preços e limites exibidos na landing page são provisórios e deverão ser validados antes do lançamento público do Viztto.
+## Producao
 
-## Rotas
+```bash
+npm ci
+npm run banco:migrar
+npm run build
+NODE_ENV=production npm start
+```
 
-- `/` — landing page comercial
-- `/produto`, `/recursos`, `/precos`, `/contato` — layout comercial
-- `/entrar`, `/criar-conta` — layout de autenticação preparado
-- `/termos`, `/privacidade` — layout institucional simplificado
-- `/design-system` — catálogo visual e interativo completo
-- demais caminhos — erro 404
+Um unico processo serve `/api`, arquivos protegidos em `/arquivos`, assets de `dist` e o fallback do React Router. Consulte [deploy na Hostinger](docs/deploy-hostinger.md), [backup](docs/backup.md) e [API](docs/api.md).
 
-## Organização
+## Banco
 
-O código está separado em componentes de marca, layout, navegação, UI, feedback, demonstrações do produto e seções comerciais. Os tokens centrais ficam em `src/styles/globals.css` e são expostos ao Tailwind em `tailwind.config.js`.
+O schema fica em `servidor/banco/esquema`, e migrations versionadas em `servidor/banco/migrations`. Tabelas, colunas, indices, constraints e enums textuais usam portugues-BR sem acentos em `snake_case`. IDs principais sao UUID v4 em `CHAR(36)`; esta escolha prioriza portabilidade e simplicidade, com custo de indice maior que UUID binario.
 
-GSAP e ScrollTrigger conduzem a transformação narrativa da home. As microinterações usam Motion e respeitam `prefers-reduced-motion`.
+## Seguranca
 
-## Publicação
+- senha com bcrypt (custo 12);
+- sessao em cookie HTTP-only, SameSite estrito e Secure configuravel;
+- apenas SHA-256 do token de sessao no banco;
+- CSRF double-submit e validacao de origem;
+- rate limit nas rotas de autenticacao;
+- Helmet, logs Pino com redacao de segredos e CORS restrito somente no desenvolvimento;
+- todas as consultas de dominio filtradas pelo workspace derivado da sessao;
+- upload limitado, nome gerado no servidor, validacao por assinatura e metadados da imagem.
 
-O projeto gera arquivos estáticos em `dist` e inclui fallback de SPA para Vercel em `vercel.json`. O domínio oficial ainda precisa ser definido antes da publicação: substitua `DOMINIO-A-DEFINIR.invalid` em `public/sitemap.xml` e adicione a URL absoluta do sitemap em `public/robots.txt`. As metatags usam caminhos relativos e não inventam uma URL canônica.
+## Observacoes
 
-O workflow `.github/workflows/ci.yml` executa instalação reproduzível, lint, typecheck e build em pushes e pull requests para `main`.
-
-## Fora do escopo atual
-
-Ainda não há autenticação funcional, dashboard, backend, banco de dados, upload real, pagamentos ou integrações.
+Precos e limites da landing continuam provisórios. Envio de e-mail, recuperacao de senha, convites, video/PDF/apresentacao e armazenamento externo permanecem fora desta macroetapa.

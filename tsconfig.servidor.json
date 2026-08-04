@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "build-servidor",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "declaration": false,
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["servidor/**/*.ts"],
+  "exclude": ["servidor/**/*.test.ts", "servidor/banco/migrations"]
+}

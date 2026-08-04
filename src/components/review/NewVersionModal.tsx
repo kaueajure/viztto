@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Checkbox, Input, Select, Textarea } from '@/components/ui/FormControls'
+import { Checkbox, Input, Textarea } from '@/components/ui/FormControls'
 import { Modal } from '@/components/ui/Interactive'
 
 export function NewVersionModal({
@@ -15,19 +15,20 @@ export function NewVersionModal({
   onPublish: (input: {
     label: string
     description?: string
-    imageUrl: string
+    file: File
     copyPending: boolean
   }) => void
 }) {
   const [label, setLabel] = useState('')
   const [description, setDescription] = useState('')
-  const [imageUrl, setImageUrl] = useState('/demo/review-campaign-v4.svg')
+  const [file, setFile] = useState<File | null>(null)
   const [copyPending, setCopyPending] = useState(true)
   const [error, setError] = useState('')
   useEffect(() => {
     if (open) {
       setLabel(`Versão ${nextNumber}`)
       setDescription('')
+      setFile(null)
       setError('')
     }
   }, [open, nextNumber])
@@ -37,10 +38,11 @@ export function NewVersionModal({
         onSubmit={(event) => {
           event.preventDefault()
           if (!label.trim()) return setError('Informe um nome para a versão.')
+          if (!file) return setError('Selecione a imagem da nova versão.')
           onPublish({
             label: label.trim(),
             description: description.trim() || undefined,
-            imageUrl,
+            file,
             copyPending,
           })
         }}
@@ -58,22 +60,21 @@ export function NewVersionModal({
           value={description}
           onChange={(event) => setDescription(event.target.value)}
         />
-        <Select
-          label="Imagem de demonstração"
-          value={imageUrl}
-          onChange={(event) => setImageUrl(event.target.value)}
-        >
-          <option value="/demo/review-campaign-v4.svg">Composição atualizada</option>
-          <option value="/demo/review-campaign-v2.svg">Composição anterior</option>
-        </Select>
+        <label className="grid gap-2 text-sm font-medium text-ink">
+          Imagem da nova versão
+          <input
+            className="min-h-11 rounded-md border border-line bg-surface px-3 py-2 file:mr-3 file:rounded file:border-0 file:bg-brand-soft file:px-3 file:py-1 file:text-brand"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          />
+        </label>
         <Checkbox
           label="Copiar comentários ainda não resolvidos"
           checked={copyPending}
           onChange={setCopyPending}
         />
-        <p className="text-xs text-muted">
-          O envio é simulado e utiliza recursos locais nesta etapa.
-        </p>
+        <p className="text-xs text-muted">A imagem será validada e armazenada pelo servidor.</p>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancelar

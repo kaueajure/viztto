@@ -152,4 +152,6 @@ export type OnboardingState = {
   role: string
   clientId?: string
   projectId?: string
+  clientDraft?: { name: string; email?: string; company?: string; notes?: string }
+  projectDraft?: { name: string; type: string; dueDate?: string; description?: string }
 }

@@ -1,98 +1,150 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
-import { demoUser } from '@/data/mock/users'
-import { localStorageService, storageKeys } from '@/services/localStorageService'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { autenticacaoApi } from '@/services/api/autenticacaoApi'
+import { ApiError } from '@/services/api/clienteHttp'
 
-export type AuthUser = {
-  id: string
-  name: string
-  email: string
-  avatar?: string
-  role: string
-}
-
+export type AuthUser = { id: string; name: string; email: string; avatar?: string; role: string }
 export type AuthState = {
   user: AuthUser | null
   pendingEmail: string
   emailVerified: boolean
   onboardingCompleted: boolean
 }
-
 type AuthValue = AuthState & {
   isAuthenticated: boolean
-  login: (email: string) => void
-  register: (name: string, email: string) => void
-  verifyEmail: () => void
-  completeOnboarding: () => void
-  logout: () => void
-  resetAuth: () => void
+  loading: boolean
+  login: (email: string, senha: string) => Promise<void>
+  register: (name: string, email: string, senha: string) => Promise<void>
+  verifyEmail: () => Promise<void>
+  completeOnboarding: (nome: string, slug: string) => Promise<void>
+  logout: () => Promise<void>
+  resetAuth: () => Promise<void>
 }
-
-const emptyAuth: AuthState = {
+const vazio: AuthState = {
   user: null,
   pendingEmail: '',
   emailVerified: false,
   onboardingCompleted: false,
 }
-
-function migrateAuth(stored: Partial<AuthState> & { user?: AuthUser | null }): AuthState {
-  if (!stored.user) return { ...emptyAuth, pendingEmail: stored.pendingEmail ?? '' }
-  const legacySession = stored.emailVerified === undefined
-  return {
-    user: stored.user,
-    pendingEmail: stored.pendingEmail ?? stored.user.email,
-    emailVerified: legacySession ? true : Boolean(stored.emailVerified),
-    onboardingCompleted: legacySession ? true : Boolean(stored.onboardingCompleted),
-  }
-}
-
 const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [auth, setAuth] = useState<AuthState>(() =>
-    migrateAuth(localStorageService.get<Partial<AuthState>>(storageKeys.auth, emptyAuth)),
-  )
-  const persist = (next: AuthState) => {
-    setAuth(next)
-    localStorageService.set(storageKeys.auth, next)
-  }
+  const [auth, setAuth] = useState<AuthState>(vazio)
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    let ativo = true
+    autenticacaoApi
+      .sessao()
+      .then(({ sessao }) => {
+        if (ativo)
+          setAuth({
+            user: {
+              id: sessao.usuarioId,
+              name: sessao.usuarioNome,
+              email: sessao.usuarioEmail,
+              role: sessao.funcao,
+            },
+            pendingEmail: sessao.usuarioEmail,
+            emailVerified: true,
+            onboardingCompleted: true,
+          })
+      })
+      .catch((erro) => {
+        if (!ativo) return
+        if (!(erro instanceof ApiError) || erro.status !== 401) console.error(erro)
+        const usuarioId = sessionStorage.getItem('viztto_usuario_pendente')
+        const cadastro = sessionStorage.getItem('viztto_cadastro_pendente')
+        if (usuarioId && cadastro) {
+          const pendente = JSON.parse(cadastro) as { name: string; email: string }
+          setAuth({ user: { id: usuarioId, name: pendente.name, email: pendente.email, role: 'administrador' }, pendingEmail: pendente.email, emailVerified: true, onboardingCompleted: false })
+        }
+      })
+      .finally(() => {
+        if (ativo) setLoading(false)
+      })
+    return () => {
+      ativo = false
+    }
+  }, [])
   const value = useMemo<AuthValue>(
     () => ({
       ...auth,
+      loading,
       isAuthenticated: Boolean(auth.user && auth.emailVerified && auth.onboardingCompleted),
-      login(email) {
-        persist({
-          user: { ...demoUser, email },
-          pendingEmail: email,
+      async login(email, senha) {
+        await autenticacaoApi.entrar(email, senha)
+        const { sessao } = await autenticacaoApi.sessao()
+        setAuth({
+          user: {
+            id: sessao.usuarioId,
+            name: sessao.usuarioNome,
+            email: sessao.usuarioEmail,
+            role: sessao.funcao,
+          },
+          pendingEmail: sessao.usuarioEmail,
           emailVerified: true,
           onboardingCompleted: true,
         })
       },
-      register(name, email) {
-        persist({
-          user: { id: `user-${Date.now()}`, name, email, role: 'Administrador' },
+      async register(name, email, senha) {
+        const r = await autenticacaoApi.cadastrar(name, email, senha)
+      if (r.tokenVerificacao)
+        sessionStorage.setItem('viztto_token_verificacao', r.tokenVerificacao)
+      sessionStorage.setItem('viztto_cadastro_pendente', JSON.stringify({ name, email }))
+        setAuth({
+          user: { id: '', name, email, role: 'administrador' },
           pendingEmail: email,
           emailVerified: false,
           onboardingCompleted: false,
         })
       },
-      verifyEmail() {
-        persist({ ...auth, emailVerified: true })
+      async verifyEmail() {
+        const token = sessionStorage.getItem('viztto_token_verificacao')
+        if (!token) throw new Error('Abra o link de verificacao enviado para o e-mail.')
+        const r = await autenticacaoApi.verificar(token)
+        sessionStorage.setItem('viztto_usuario_pendente', r.usuarioId)
+        setAuth((atual) => ({
+          ...atual,
+          user: atual.user ? { ...atual.user, id: r.usuarioId } : atual.user,
+          emailVerified: true,
+        }))
       },
-      completeOnboarding() {
-        persist({ ...auth, emailVerified: true, onboardingCompleted: true })
+      async completeOnboarding(nome, slug) {
+        const usuarioId = auth.user?.id || sessionStorage.getItem('viztto_usuario_pendente')
+        if (!usuarioId) throw new Error('Sessao de cadastro nao encontrada.')
+        await autenticacaoApi.onboarding(usuarioId, nome, slug)
+        const { sessao } = await autenticacaoApi.sessao()
+        setAuth({
+          user: {
+            id: sessao.usuarioId,
+            name: sessao.usuarioNome,
+            email: sessao.usuarioEmail,
+            role: sessao.funcao,
+          },
+          pendingEmail: sessao.usuarioEmail,
+          emailVerified: true,
+          onboardingCompleted: true,
+        })
+        sessionStorage.removeItem('viztto_usuario_pendente')
+      sessionStorage.removeItem('viztto_token_verificacao')
+      sessionStorage.removeItem('viztto_cadastro_pendente')
       },
-      logout() {
-        persist(emptyAuth)
+      async logout() {
+        await autenticacaoApi.sair()
+        setAuth(vazio)
       },
-      resetAuth() {
-        persist(emptyAuth)
+      async resetAuth() {
+        try {
+          await autenticacaoApi.sair()
+        } catch {
+          /* sessao ja ausente */
+        }
+        setAuth(vazio)
       },
     }),
-    [auth],
+    [auth, loading],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
-
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const value = useContext(AuthContext)

@@ -4,3 +4,10 @@ dist
 *.local
 *.log
 *.tsbuildinfo
+.env
+build-servidor
+uploads/*
+!uploads/.gitkeep
+!uploads/imagens/.gitkeep
+!uploads/miniaturas/.gitkeep
+!uploads/temporarios/.gitkeep

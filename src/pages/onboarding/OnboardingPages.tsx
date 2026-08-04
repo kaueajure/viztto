@@ -41,7 +41,7 @@ export function WorkspaceStep() {
   const { onboarding, updateOnboarding, updateWorkspace } = useAppData()
   const [name, setName] = useState(onboarding.workspaceName)
   const [slug, setSlug] = useState(onboarding.slug)
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!name.trim()) return
     const finalSlug =
@@ -142,7 +142,7 @@ export function ProfileStep() {
 
 export function ClientStep() {
   const navigate = useNavigate()
-  const { addClient, updateOnboarding } = useAppData()
+  const { updateOnboarding } = useAppData()
   const [form, setForm] = useState({ name: '', email: '', company: '', notes: '' })
   const set =
     (key: keyof typeof form) =>
@@ -151,8 +151,7 @@ export function ClientStep() {
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (!form.name) return
-    const client = addClient(form)
-    updateOnboarding({ clientId: client.id })
+    updateOnboarding({ clientDraft: form })
     navigate('/onboarding/projeto')
   }
   return (
@@ -181,10 +180,10 @@ export function ClientStep() {
 
 export function ProjectStep() {
   const navigate = useNavigate()
-  const { clients, addProject, updateOnboarding } = useAppData()
+  const { clients, onboarding, updateOnboarding } = useAppData()
   const [form, setForm] = useState({
     name: '',
-    clientId: clients[0]?.id ?? '',
+    clientId: clients[0]?.id ?? (onboarding.clientDraft ? 'cliente-pendente' : ''),
     type: 'Campanha',
     dueDate: '',
     description: '',
@@ -196,8 +195,7 @@ export function ProjectStep() {
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (!form.name || !form.clientId) return
-    const project = addProject(form)
-    updateOnboarding({ projectId: project.id })
+    updateOnboarding({ projectDraft: { name: form.name, type: form.type, dueDate: form.dueDate, description: form.description } })
     navigate('/onboarding/concluido')
   }
   return (
@@ -210,6 +208,9 @@ export function ProjectStep() {
         <Input required label="Nome do projeto" value={form.name} onChange={set('name')} />
         <Select label="Cliente" value={form.clientId} onChange={set('clientId')}>
           <option value="">Selecione</option>
+          {onboarding.clientDraft && (
+            <option value="cliente-pendente">{onboarding.clientDraft.name}</option>
+          )}
           {clients.map((client) => (
             <option value={client.id} key={client.id}>
               {client.name}
@@ -239,9 +240,10 @@ export function ProjectStep() {
 export function CompleteStep() {
   const navigate = useNavigate()
   const { completeOnboarding } = useAuth()
-  const { onboarding, clients, projects } = useAppData()
+  const { onboarding, clients, projects, addClient, addProject } = useAppData()
   const client = clients.find((item) => item.id === onboarding.clientId)
   const project = projects.find((item) => item.id === onboarding.projectId)
+  const [error, setError] = useState('')
   return (
     <div className="text-center">
       <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-approval-soft text-approval">
@@ -262,22 +264,37 @@ export function CompleteStep() {
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-muted">Cliente</dt>
-          <dd className="font-semibold">{client?.name || 'Será criado depois'}</dd>
+          <dd className="font-semibold">{client?.name || onboarding.clientDraft?.name || 'Será criado depois'}</dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-muted">Projeto</dt>
-          <dd className="font-semibold">{project?.name || 'Será criado depois'}</dd>
+          <dd className="font-semibold">{project?.name || onboarding.projectDraft?.name || 'Será criado depois'}</dd>
         </div>
       </dl>
       <Button
         className="mt-7"
-        onClick={() => {
-          completeOnboarding()
-          navigate('/app/inicio')
+        onClick={async () => {
+          try {
+            await completeOnboarding(
+              onboarding.workspaceName || 'Meu workspace',
+              onboarding.slug || 'meu-workspace',
+            )
+            let clientId: string | undefined
+            if (onboarding.clientDraft) clientId = (await addClient(onboarding.clientDraft)).id
+            if (onboarding.projectDraft && clientId) await addProject({ ...onboarding.projectDraft, clientId })
+            navigate('/app/inicio')
+          } catch (erro) {
+            setError(erro instanceof Error ? erro.message : 'Nao foi possivel concluir.')
+          }
         }}
       >
         Acessar o Viztto
       </Button>
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-revision">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

@@ -167,10 +167,10 @@ export function NewClientPage() {
     (key: keyof typeof form) =>
     (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm({ ...form, [key]: event.target.value })
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!form.name.trim()) return
-    const client = addClient(form)
+    const client = await addClient(form)
     setSaved(true)
     window.setTimeout(() => navigate(`/app/clientes/${client.id}`), 350)
   }

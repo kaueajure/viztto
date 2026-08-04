@@ -133,10 +133,10 @@ export function NewProjectPage() {
     (key: keyof typeof form) =>
     (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
       setForm({ ...form, [key]: event.target.value })
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!form.name || !form.clientId) return
-    const project = addProject({
+    const project = await addProject({
       ...form,
       members: form.members
         .split(',')
@@ -204,6 +204,9 @@ export function ProjectDetailPage() {
   const { projects, clients, materials: allMaterials, addMaterial } = useAppData()
   const [materialModal, setMaterialModal] = useState(false)
   const [materialForm, setMaterialForm] = useState({ name: '', type: 'image' })
+  const [materialFile, setMaterialFile] = useState<File | null>(null)
+  const [materialSubmitting, setMaterialSubmitting] = useState(false)
+  const [materialError, setMaterialError] = useState('')
   const project = projects.find((item) => item.id === projectId)
   if (!project)
     return (
@@ -309,21 +312,47 @@ export function ProjectDetailPage() {
             onChange={(event) => setMaterialForm({ ...materialForm, type: event.target.value })}
           >
             <option value="image">Imagem</option>
-            <option value="video">Vídeo</option>
-            <option value="pdf">PDF</option>
-            <option value="presentation">Apresentação</option>
-            <option value="web">Página</option>
           </Select>
+          <label className="grid gap-2 text-sm font-medium text-ink">
+            Primeiro envio
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="min-h-11 rounded-md border border-line bg-surface px-3 py-2 text-sm file:mr-3 file:rounded-sm file:border-0 file:bg-brand-soft file:px-3 file:py-1.5 file:font-semibold file:text-brand"
+              onChange={(event) => {
+                setMaterialFile(event.target.files?.[0] ?? null)
+                setMaterialError('')
+              }}
+            />
+            <span className="text-xs font-normal text-secondary">
+              JPEG, PNG ou WebP. Outros formatos terão editores próprios em uma próxima etapa.
+            </span>
+          </label>
+          {materialError && <p className="text-sm text-revision">{materialError}</p>}
           <Button
-            disabled={!materialForm.name.trim()}
-            onClick={() => {
-              addMaterial({
-                projectId: project.id,
-                name: materialForm.name.trim(),
-                type: materialForm.type as 'image' | 'video' | 'pdf' | 'presentation' | 'web',
-              })
-              setMaterialForm({ name: '', type: 'image' })
-              setMaterialModal(false)
+            disabled={!materialForm.name.trim() || !materialFile}
+            loading={materialSubmitting}
+            onClick={async () => {
+              if (!materialFile) return
+              setMaterialSubmitting(true)
+              setMaterialError('')
+              try {
+                await addMaterial({
+                  projectId: project.id,
+                  name: materialForm.name.trim(),
+                  type: 'image',
+                  file: materialFile,
+                })
+                setMaterialForm({ name: '', type: 'image' })
+                setMaterialFile(null)
+                setMaterialModal(false)
+              } catch (error) {
+                setMaterialError(
+                  error instanceof Error ? error.message : 'Não foi possível adicionar o material.',
+                )
+              } finally {
+                setMaterialSubmitting(false)
+              }
             }}
           >
             Adicionar material

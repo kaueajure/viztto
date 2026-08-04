@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom'
 import { MaterialStatus } from '@/components/app/AppUi'
 import { Button, IconButton } from '@/components/ui/Button'
 import { AvatarGroup, Badge, Breadcrumb } from '@/components/ui/DataDisplay'
-import type { Client, Material, Project } from '@/types/domain'
+import type { Client, Material, MaterialVersion, Project } from '@/types/domain'
 
 export function ReviewToolbar({
   client,
   project,
   material,
+  activeVersion,
   zoom,
   creationMode,
   onToggleCreation,
@@ -17,11 +18,13 @@ export function ReviewToolbar({
   onRequestChanges,
   onApprove,
   onReopen,
+  onReturnToCurrent,
   onOpenMobilePanel,
 }: {
   client?: Client
   project?: Project
   material: Material
+  activeVersion: MaterialVersion
   zoom: number
   creationMode: boolean
   onToggleCreation: () => void
@@ -30,8 +33,10 @@ export function ReviewToolbar({
   onRequestChanges: () => void
   onApprove: () => void
   onReopen: () => void
+  onReturnToCurrent: () => void
   onOpenMobilePanel: () => void
 }) {
+  const isCurrentVersion = activeVersion.id === material.currentVersionId
   return (
     <header className="border-b border-line bg-surface">
       <div className="flex min-h-16 items-center gap-3 px-3 sm:px-4">
@@ -48,12 +53,17 @@ export function ReviewToolbar({
           </div>
           <div className="flex items-center gap-2">
             <h1 className="truncate text-sm font-semibold sm:text-base">{material.name}</h1>
-            <Badge tone="brand">v{material.currentVersion}</Badge>
+            <Badge tone={isCurrentVersion ? 'brand' : 'neutral'}>v{activeVersion.number}</Badge>
             <span className="hidden sm:inline-flex">
               <MaterialStatus status={material.status} />
             </span>
           </div>
         </div>
+        {!isCurrentVersion && (
+          <Button className="hidden xl:inline-flex" variant="ghost" onClick={onReturnToCurrent}>
+            Voltar para v{material.currentVersion}
+          </Button>
+        )}
         <div className="hidden items-center gap-1 lg:flex" aria-label="Controles de zoom">
           <IconButton label="Diminuir zoom" onClick={() => onZoom(zoom - 25)}>
             <Minus className="h-4 w-4" />
@@ -90,10 +100,15 @@ export function ReviewToolbar({
           </Button>
         ) : (
           <>
-            <Button className="hidden xl:inline-flex" variant="outline" onClick={onRequestChanges}>
+            <Button
+              className="hidden xl:inline-flex"
+              variant="outline"
+              disabled={!isCurrentVersion}
+              onClick={onRequestChanges}
+            >
               Solicitar alterações
             </Button>
-            <Button className="hidden lg:inline-flex" onClick={onApprove}>
+            <Button className="hidden lg:inline-flex" disabled={!isCurrentVersion} onClick={onApprove}>
               <Check className="h-4 w-4" /> Aprovar
             </Button>
           </>

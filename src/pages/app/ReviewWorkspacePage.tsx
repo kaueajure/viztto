@@ -177,8 +177,9 @@ export default function ReviewWorkspacePage() {
       </section>
     )
 
-  const confirmRequest = () => {
-    const changed = data.requestChanges(material.id)
+  const confirmRequest = async () => {
+    if (activeVersion.id !== material.currentVersionId) return
+    const changed = await data.requestChanges(material.id, activeVersion.id)
     setDecision(null)
     setNotice(
       changed
@@ -189,8 +190,9 @@ export default function ReviewWorkspacePage() {
           },
     )
   }
-  const confirmApproval = () => {
-    data.approveVersion(material.id, material.currentVersionId)
+  const confirmApproval = async () => {
+    if (activeVersion.id !== material.currentVersionId) return
+    await data.approveVersion(material.id, activeVersion.id)
     setDecision(null)
     setNotice({ tone: 'success', text: `Versão ${material.currentVersion} aprovada por Marina.` })
   }
@@ -201,6 +203,7 @@ export default function ReviewWorkspacePage() {
         client={client}
         project={project}
         material={material}
+        activeVersion={activeVersion}
         zoom={zoom}
         creationMode={creationMode}
         onToggleCreation={() => {
@@ -208,7 +211,7 @@ export default function ReviewWorkspacePage() {
           setDraft(null)
           setDraftText('')
         }}
-        onZoom={(value) => setZoom(Math.min(200, Math.max(25, value)))}
+        onZoom={(value) => setZoom(Math.min(300, Math.max(25, value)))}
         onFit={() => setZoom(100)}
         onRequestChanges={() =>
           openCurrent
@@ -223,6 +226,10 @@ export default function ReviewWorkspacePage() {
           data.reopenReview(material.id)
           setNotice({ tone: 'success', text: 'Revisão reaberta sem remover a aprovação anterior.' })
         }}
+        onReturnToCurrent={() => {
+          setActiveVersionId(material.currentVersionId)
+          setSelectedId(null)
+        }}
         onOpenMobilePanel={() => setMobilePanel(true)}
       />
       {activeVersion.id !== material.currentVersionId && (
@@ -231,7 +238,17 @@ export default function ReviewWorkspacePage() {
           className="border-b border-warning/30 bg-warning-soft px-4 py-2 text-center text-xs text-warning"
         >
           Você está visualizando a versão {activeVersion.number}. A versão atual é a{' '}
-          {material.currentVersion}.
+          {material.currentVersion}. As decisões ficam disponíveis apenas na versão atual.
+          <button
+            type="button"
+            className="ml-2 min-h-8 font-semibold underline underline-offset-4"
+            onClick={() => {
+              setActiveVersionId(material.currentVersionId)
+              setSelectedId(null)
+            }}
+          >
+            Voltar para a versão atual
+          </button>
         </div>
       )}
       {notice && (
@@ -267,10 +284,10 @@ export default function ReviewWorkspacePage() {
           />
           {draft && (
             <form
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault()
                 if (!draftText.trim()) return
-                const comment = data.addComment({
+                const comment = await data.addComment({
                   materialId: material.id,
                   versionId: activeVersion.id,
                   text: draftText,
@@ -364,6 +381,7 @@ export default function ReviewWorkspacePage() {
               <>
                 <Button
                   variant="destructive"
+                  disabled={activeVersion.id !== material.currentVersionId}
                   onClick={() => {
                     setMobilePanel(false)
                     if (openCurrent) setDecision('changes')
@@ -377,6 +395,7 @@ export default function ReviewWorkspacePage() {
                   Solicitar alterações
                 </Button>
                 <Button
+                  disabled={activeVersion.id !== material.currentVersionId}
                   onClick={() => {
                     setMobilePanel(false)
                     setDecision('approve')
@@ -393,8 +412,8 @@ export default function ReviewWorkspacePage() {
         open={newVersion}
         onClose={() => setNewVersion(false)}
         nextNumber={Math.max(...versions.map((item) => item.number)) + 1}
-        onPublish={(input) => {
-          const version = data.addMaterialVersion({ materialId: material.id, ...input })
+        onPublish={async (input) => {
+          const version = await data.addMaterialVersion({ materialId: material.id, ...input })
           setActiveVersionId(version.id)
           setNewVersion(false)
           setNotice({ tone: 'success', text: `Versão ${version.number} publicada.` })

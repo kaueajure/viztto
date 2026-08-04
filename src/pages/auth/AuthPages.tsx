@@ -56,7 +56,8 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const submit = (event: FormEvent) => {
+  const [submitting, setSubmitting] = useState(false)
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
     const next: Record<string, string> = {}
     if (!validEmail(email)) next.email = 'Informe um e-mail válido.'
@@ -64,8 +65,15 @@ export function LoginPage() {
     setErrors(next)
     if (next.email) return emailRef.current?.focus()
     if (next.password) return passwordRef.current?.focus()
-    login(email)
-    navigate('/app/inicio')
+    setSubmitting(true)
+    try {
+      await login(email, password)
+      navigate('/app/inicio')
+    } catch (error) {
+      setErrors({ form: error instanceof Error ? error.message : 'Nao foi possivel entrar.' })
+    } finally {
+      setSubmitting(false)
+    }
   }
   return (
     <AuthCard
@@ -98,7 +106,12 @@ export function LoginPage() {
             Esqueci minha senha
           </Link>
         </div>
-        <Button type="submit" className="w-full">
+        {errors.form && (
+          <p role="alert" className="text-sm text-revision">
+            {errors.form}
+          </p>
+        )}
+        <Button type="submit" className="w-full" loading={submitting}>
           Entrar
         </Button>
         <p className="text-center text-sm text-secondary">
@@ -123,12 +136,14 @@ export function RegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [key]: event.target.value })
-  const submit = (event: FormEvent) => {
+  const [submitting, setSubmitting] = useState(false)
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
     const next: Record<string, string> = {}
     if (!form.name.trim()) next.name = 'Informe seu nome.'
     if (!validEmail(form.email)) next.email = 'Informe um e-mail válido.'
-    if (form.password.length < 6) next.password = 'Use pelo menos seis caracteres.'
+    if (form.password.length < 8 || !/[A-Za-zÀ-ÿ]/.test(form.password) || !/[0-9]/.test(form.password))
+      next.password = 'Use pelo menos oito caracteres, com uma letra e um número.'
     if (form.confirm !== form.password) next.confirm = 'As senhas precisam ser iguais.'
     if (!terms) next.terms = 'Você precisa aceitar os termos para continuar.'
     setErrors(next)
@@ -136,8 +151,17 @@ export function RegisterPage() {
     if (next.email) return emailRef.current?.focus()
     if (next.password || next.confirm) return passwordRef.current?.focus()
     if (Object.keys(next).length) return
-    register(form.name, form.email)
-    navigate('/verificar-email')
+    setSubmitting(true)
+    try {
+      await register(form.name, form.email, form.password)
+      navigate('/verificar-email')
+    } catch (error) {
+      setErrors({
+        form: error instanceof Error ? error.message : 'Nao foi possivel criar a conta.',
+      })
+    } finally {
+      setSubmitting(false)
+    }
   }
   return (
     <AuthCard
@@ -190,7 +214,12 @@ export function RegisterPage() {
             {errors.terms}
           </p>
         )}
-        <Button type="submit" className="w-full">
+        {errors.form && (
+          <p role="alert" className="text-sm text-revision">
+            {errors.form}
+          </p>
+        )}
+        <Button type="submit" className="w-full" loading={submitting}>
           Criar conta gratuitamente
         </Button>
         <p className="text-center text-sm text-secondary">
@@ -250,6 +279,7 @@ export function VerifyEmailPage() {
   const navigate = useNavigate()
   const { pendingEmail, verifyEmail } = useAuth()
   const [cooldown, setCooldown] = useState(0)
+  const [error, setError] = useState('')
   useEffect(() => {
     if (!cooldown) return
     const timer = window.setInterval(() => setCooldown((value) => Math.max(0, value - 1)), 1000)
@@ -269,13 +299,22 @@ export function VerifyEmailPage() {
         <p className="mt-1 font-semibold">{pendingEmail || 'seu e-mail informado'}</p>
         <Button
           className="mt-7 w-full"
-          onClick={() => {
-            verifyEmail()
-            navigate('/onboarding/workspace')
+          onClick={async () => {
+            try {
+              await verifyEmail()
+              navigate('/onboarding/workspace')
+            } catch (erro) {
+              setError(erro instanceof Error ? erro.message : 'Nao foi possivel verificar.')
+            }
           }}
         >
           Simular e-mail verificado
         </Button>
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-revision">
+            {error}
+          </p>
+        )}
         <Button
           variant="ghost"
           className="mt-2 w-full"
