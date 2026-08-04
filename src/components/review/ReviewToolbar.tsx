@@ -1,5 +1,5 @@
 import { ArrowLeft, Check, MessageSquarePlus, Minus, MoreHorizontal, Plus } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { MaterialStatus } from '@/components/app/AppUi'
 import { Button, IconButton } from '@/components/ui/Button'
 import { AvatarGroup, Badge, Breadcrumb } from '@/components/ui/DataDisplay'

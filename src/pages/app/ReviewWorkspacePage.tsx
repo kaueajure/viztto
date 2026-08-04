@@ -1,6 +1,6 @@
 import { Check, MessageSquare, PanelRight, RotateCcw, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router'
 import { ActivityPanel } from '@/components/review/ActivityPanel'
 import { CommentsPanel } from '@/components/review/CommentsPanel'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'

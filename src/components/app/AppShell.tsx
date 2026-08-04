@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router'
 import { AppHeader } from '@/components/app/AppHeader'
 import { DesktopSidebar, MobileAppNavigation } from '@/components/app/AppSidebar'
 import { useAuth } from '@/contexts/AuthContext'

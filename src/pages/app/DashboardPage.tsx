@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2, Clock3, FolderKanban } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { MaterialStatus, PageHeader, ProjectStatusBadge } from '@/components/app/AppUi'
 import { Avatar, Card } from '@/components/ui/DataDisplay'
 import { useAppData } from '@/contexts/AppDataContext'

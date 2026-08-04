@@ -1,6 +1,6 @@
 import { CheckCircle2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/FormControls'
 import { useAppData } from '@/contexts/AppDataContext'

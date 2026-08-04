@@ -1,6 +1,6 @@
 import { Menu, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router'
 import { DesktopNavigation } from './DesktopNavigation'
 import { MobileNavigation } from './MobileNavigation'
 import { Logo } from '@/components/brand/Logo'

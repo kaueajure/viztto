@@ -1,6 +1,6 @@
 import { FileImage, Play } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router'
 import { MaterialStatus, PageHeader, SearchField } from '@/components/app/AppUi'
 import { LinkButton } from '@/components/ui/Button'
 import { Badge, EmptyState } from '@/components/ui/DataDisplay'

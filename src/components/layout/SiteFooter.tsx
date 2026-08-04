@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { Logo } from '@/components/brand/Logo'
 import { Container } from '@/components/layout/Container'
 import { HashLink } from '@/components/navigation/HashLink'

@@ -1,6 +1,6 @@
 import { Grid2X2, List, MoreHorizontal, UserRound } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router'
 import { PageHeader, ProjectStatusBadge, SearchField } from '@/components/app/AppUi'
 import { Button, IconButton } from '@/components/ui/Button'
 import { Avatar, EmptyState } from '@/components/ui/DataDisplay'

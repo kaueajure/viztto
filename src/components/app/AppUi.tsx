@@ -1,6 +1,6 @@
 import { Search } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { Badge, Progress } from '@/components/ui/DataDisplay'
 import type { Material, ProjectStatus } from '@/types/domain'
 

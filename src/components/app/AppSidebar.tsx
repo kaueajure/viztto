@@ -9,7 +9,7 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router'
 import { Logo } from '@/components/brand/Logo'
 import { Button, IconButton } from '@/components/ui/Button'
 import { useAppData } from '@/contexts/AppDataContext'

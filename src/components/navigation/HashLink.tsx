@@ -1,5 +1,5 @@
 import { useReducedMotion } from 'motion/react'
-import { Link, useLocation, useResolvedPath, type LinkProps } from 'react-router-dom'
+import { Link, useLocation, useResolvedPath, type LinkProps } from 'react-router'
 import { scrollToHash } from '@/lib/scrollToHash'
 
 function isModifiedClick(event: React.MouseEvent<HTMLAnchorElement>) {

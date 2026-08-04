@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router'
 import { DesignSystemLayout } from '@/components/layout/DesignSystemLayout'
 import { MarketingLayout } from '@/components/layout/MarketingLayout'
 import { UtilityLayout } from '@/components/layout/UtilityLayout'

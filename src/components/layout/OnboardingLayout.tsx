@@ -1,5 +1,5 @@
 import { ArrowLeft, LogOut } from 'lucide-react'
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { Logo } from '@/components/brand/Logo'
 import { Progress } from '@/components/ui/DataDisplay'
 import { useAppData } from '@/contexts/AppDataContext'

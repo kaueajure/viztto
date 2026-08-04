@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router'
 import { AuthGuard, GuestGuard, OnboardingGuard } from '@/components/auth/AuthGuards'
 import { AppShell } from '@/components/app/AppShell'
 import { AuthLayout } from '@/components/layout/AuthLayout'

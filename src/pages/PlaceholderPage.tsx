@@ -1,5 +1,5 @@
 import { ArrowLeft, Sparkles } from 'lucide-react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router'
 import { Container } from '@/components/layout/Container'
 import { Section } from '@/components/layout/Section'
 

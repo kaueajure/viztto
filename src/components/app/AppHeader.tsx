@@ -1,6 +1,6 @@
 import { Bell, ChevronDown, Menu, Plus, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { IconButton } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/DataDisplay'
 import { useAuth } from '@/contexts/AuthContext'

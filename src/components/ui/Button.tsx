@@ -1,7 +1,7 @@
 import { LoaderCircle } from 'lucide-react'
 import { motion, useReducedMotion, type HTMLMotionProps } from 'motion/react'
 import type { ReactNode } from 'react'
-import { Link, type LinkProps } from 'react-router-dom'
+import { Link, type LinkProps } from 'react-router'
 import { HashLink } from '@/components/navigation/HashLink'
 import { cn } from '@/lib/cn'
 
