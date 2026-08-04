@@ -49,14 +49,19 @@ export type Project = {
   updatedAt: string
 }
 
+export type MaterialStatus =
+  'draft' | 'in-review' | 'changes-requested' | 'waiting-approval' | 'approved'
+
 export type Material = {
   id: string
   projectId: string
   name: string
   type: 'image' | 'video' | 'pdf' | 'presentation' | 'web'
-  status: 'draft' | 'waiting' | 'changes' | 'approved'
+  status: MaterialStatus
+  currentVersionId: string
   currentVersion: number
   commentCount: number
+  unresolvedCommentCount: number
   createdAt: string
   updatedAt: string
 }
@@ -66,28 +71,46 @@ export type MaterialVersion = {
   materialId: string
   number: number
   label: string
+  description?: string
+  imageUrl?: string
   createdBy: string
   createdAt: string
   approved: boolean
+  approvalId?: string
 }
 
-export type Comment = {
+export type CommentReply = {
+  id: string
+  commentId: string
+  authorId: string
+  authorName: string
+  text: string
+  createdAt: string
+}
+
+export type ReviewComment = {
   id: string
   materialId: string
   versionId: string
   authorId: string
-  content: string
+  authorName: string
+  text: string
+  x: number
+  y: number
   status: 'open' | 'resolved'
   createdAt: string
+  updatedAt: string
+  replies: CommentReply[]
+  originCommentId?: string
 }
 
 export type Approval = {
   id: string
   materialId: string
   versionId: string
-  approverId: string
-  status: 'waiting' | 'approved' | 'changes-requested'
-  createdAt: string
+  approvedBy: string
+  approvedAt: string
+  note?: string
 }
 
 export type Activity = {
@@ -98,6 +121,8 @@ export type Activity = {
   target: string
   tone: 'neutral' | 'approval' | 'revision' | 'brand'
   createdAt: string
+  materialId?: string
+  versionId?: string
 }
 
 export type TeamMember = {

@@ -10,45 +10,82 @@ export type AuthUser = {
   role: string
 }
 
-type AuthValue = {
+export type AuthState = {
   user: AuthUser | null
-  isAuthenticated: boolean
   pendingEmail: string
+  emailVerified: boolean
+  onboardingCompleted: boolean
+}
+
+type AuthValue = AuthState & {
+  isAuthenticated: boolean
   login: (email: string) => void
-  logout: () => void
   register: (name: string, email: string) => void
+  verifyEmail: () => void
+  completeOnboarding: () => void
+  logout: () => void
+  resetAuth: () => void
+}
+
+const emptyAuth: AuthState = {
+  user: null,
+  pendingEmail: '',
+  emailVerified: false,
+  onboardingCompleted: false,
+}
+
+function migrateAuth(stored: Partial<AuthState> & { user?: AuthUser | null }): AuthState {
+  if (!stored.user) return { ...emptyAuth, pendingEmail: stored.pendingEmail ?? '' }
+  const legacySession = stored.emailVerified === undefined
+  return {
+    user: stored.user,
+    pendingEmail: stored.pendingEmail ?? stored.user.email,
+    emailVerified: legacySession ? true : Boolean(stored.emailVerified),
+    onboardingCompleted: legacySession ? true : Boolean(stored.onboardingCompleted),
+  }
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
-type StoredAuth = { user: AuthUser | null; pendingEmail: string }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [auth, setAuth] = useState(() =>
-    localStorageService.get<StoredAuth>(storageKeys.auth, {
-      user: null,
-      pendingEmail: '',
-    }),
+  const [auth, setAuth] = useState<AuthState>(() =>
+    migrateAuth(localStorageService.get<Partial<AuthState>>(storageKeys.auth, emptyAuth)),
   )
-  const persist = (next: StoredAuth) => {
+  const persist = (next: AuthState) => {
     setAuth(next)
     localStorageService.set(storageKeys.auth, next)
   }
   const value = useMemo<AuthValue>(
     () => ({
-      user: auth.user,
-      pendingEmail: auth.pendingEmail,
-      isAuthenticated: Boolean(auth.user),
+      ...auth,
+      isAuthenticated: Boolean(auth.user && auth.emailVerified && auth.onboardingCompleted),
       login(email) {
-        persist({ user: { ...demoUser, email }, pendingEmail: email })
-      },
-      logout() {
-        persist({ user: null, pendingEmail: '' })
+        persist({
+          user: { ...demoUser, email },
+          pendingEmail: email,
+          emailVerified: true,
+          onboardingCompleted: true,
+        })
       },
       register(name, email) {
         persist({
           user: { id: `user-${Date.now()}`, name, email, role: 'Administrador' },
           pendingEmail: email,
+          emailVerified: false,
+          onboardingCompleted: false,
         })
+      },
+      verifyEmail() {
+        persist({ ...auth, emailVerified: true })
+      },
+      completeOnboarding() {
+        persist({ ...auth, emailVerified: true, onboardingCompleted: true })
+      },
+      logout() {
+        persist(emptyAuth)
+      },
+      resetAuth() {
+        persist(emptyAuth)
       },
     }),
     [auth],

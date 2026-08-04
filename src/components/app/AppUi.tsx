@@ -76,8 +76,9 @@ export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
 export function MaterialStatus({ status }: { status: Material['status'] }) {
   const config = {
     draft: ['Rascunho', 'neutral'],
-    waiting: ['Aguardando aprovação', 'warning'],
-    changes: ['Alterações solicitadas', 'revision'],
+    'in-review': ['Em revisão', 'brand'],
+    'waiting-approval': ['Aguardando aprovação', 'warning'],
+    'changes-requested': ['Alterações solicitadas', 'revision'],
     approved: ['Aprovado', 'approval'],
   } as const
   const [label, tone] = config[status]

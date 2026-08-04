@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/FormControls'
 import { useAppData } from '@/contexts/AppDataContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/cn'
 
 function Header({ title, description }: { title: string; description: string }) {
@@ -237,6 +238,7 @@ export function ProjectStep() {
 
 export function CompleteStep() {
   const navigate = useNavigate()
+  const { completeOnboarding } = useAuth()
   const { onboarding, clients, projects } = useAppData()
   const client = clients.find((item) => item.id === onboarding.clientId)
   const project = projects.find((item) => item.id === onboarding.projectId)
@@ -267,7 +269,13 @@ export function CompleteStep() {
           <dd className="font-semibold">{project?.name || 'Será criado depois'}</dd>
         </div>
       </dl>
-      <Button className="mt-7" onClick={() => navigate('/app/inicio')}>
+      <Button
+        className="mt-7"
+        onClick={() => {
+          completeOnboarding()
+          navigate('/app/inicio')
+        }}
+      >
         Acessar o Viztto
       </Button>
     </div>

@@ -8,7 +8,7 @@ export const demoActivities: Activity[] = [
     action: 'publicou a versão 4',
     target: 'Campanha de agosto',
     tone: 'brand',
-    createdAt: 'Há 18 min',
+    createdAt: '2026-08-03T14:12:00.000Z',
   },
   {
     id: 'activity-2',
@@ -17,7 +17,7 @@ export const demoActivities: Activity[] = [
     action: 'solicitou alterações',
     target: 'Apresentação institucional',
     tone: 'revision',
-    createdAt: 'Há 42 min',
+    createdAt: '2026-08-03T13:48:00.000Z',
   },
   {
     id: 'activity-3',
@@ -26,7 +26,7 @@ export const demoActivities: Activity[] = [
     action: 'aprovou o material',
     target: 'Vídeo institucional',
     tone: 'approval',
-    createdAt: 'Há 2 h',
+    createdAt: '2026-08-03T12:30:00.000Z',
   },
   {
     id: 'activity-4',
@@ -35,6 +35,6 @@ export const demoActivities: Activity[] = [
     action: 'adicionou um comentário',
     target: 'Landing page institucional',
     tone: 'neutral',
-    createdAt: 'Ontem',
+    createdAt: '2026-08-02T16:00:00.000Z',
   },
 ]

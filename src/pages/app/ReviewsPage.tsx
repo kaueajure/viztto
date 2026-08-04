@@ -1,19 +1,19 @@
+import { Link } from 'react-router-dom'
 import { PageHeader, MaterialStatus } from '@/components/app/AppUi'
 import { Badge } from '@/components/ui/DataDisplay'
 import { useAppData } from '@/contexts/AppDataContext'
-import { demoMaterials } from '@/data/mock/materials'
 
 export default function ReviewsPage() {
-  const { projects, clients } = useAppData()
+  const { projects, clients, materials } = useAppData()
   const context = (projectId: string) => {
     const project = projects.find((item) => item.id === projectId)
     return { project, client: clients.find((item) => item.id === project?.clientId) }
   }
   const groups = [
-    ['Aguardando aprovação', demoMaterials.filter((item) => item.status === 'waiting')],
-    ['Alterações solicitadas', demoMaterials.filter((item) => item.status === 'changes')],
-    ['Aprovadas recentemente', demoMaterials.filter((item) => item.status === 'approved')],
-    ['Sem responsável', demoMaterials.filter((item) => item.status === 'draft')],
+    ['Aguardando aprovação', materials.filter((item) => item.status === 'waiting-approval')],
+    ['Alterações solicitadas', materials.filter((item) => item.status === 'changes-requested')],
+    ['Em revisão', materials.filter((item) => item.status === 'in-review')],
+    ['Aprovadas recentemente', materials.filter((item) => item.status === 'approved')],
   ] as const
   return (
     <div>
@@ -22,36 +22,40 @@ export default function ReviewsPage() {
         description="Fila central de decisões, alterações e materiais aguardando responsáveis."
       />
       <div className="mt-6 grid gap-5 xl:grid-cols-2">
-        {groups.map(([title, materials]) => (
+        {groups.map(([title, items]) => (
           <section className="rounded-lg border border-line bg-surface" key={title}>
             <h2 className="border-b border-line p-4 font-semibold">
-              {title} <span className="ml-2 text-xs text-muted">{materials.length}</span>
+              {title} <span className="ml-2 text-xs text-muted">{items.length}</span>
             </h2>
             <div className="divide-y divide-line">
-              {materials.map((material) => {
-                const data = context(material.projectId)
+              {items.map((material) => {
+                const itemContext = context(material.projectId)
                 return (
-                  <div className="p-4" key={material.id}>
+                  <Link
+                    to={`/app/materiais/${material.id}/revisao`}
+                    className="block p-4 hover:bg-surface-secondary"
+                    key={material.id}
+                  >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold">{material.name}</p>
                         <p className="mt-1 text-xs text-muted">
-                          {data.client?.name} · {data.project?.name}
+                          {itemContext.client?.name} · {itemContext.project?.name}
                         </p>
                       </div>
                       <MaterialStatus status={material.status} />
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Badge>v{material.currentVersion}</Badge>
-                      <Badge>{material.commentCount} abertos</Badge>
-                      <span className="text-xs text-secondary">Aprovador: Marina</span>
+                      <Badge tone={material.unresolvedCommentCount ? 'revision' : 'neutral'}>
+                        {material.unresolvedCommentCount} pendentes
+                      </Badge>
+                      <span className="text-xs text-secondary">Responsável: Marina</span>
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
-              {!materials.length && (
-                <p className="p-4 text-sm text-muted">Nenhum item nesta fila.</p>
-              )}
+              {!items.length && <p className="p-4 text-sm text-muted">Nenhum item nesta fila.</p>}
             </div>
           </section>
         ))}

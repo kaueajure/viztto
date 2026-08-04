@@ -4,13 +4,14 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { IconButton } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/DataDisplay'
 import { useAuth } from '@/contexts/AuthContext'
-import { demoNotifications } from '@/data/mock/notifications'
+import { useAppData } from '@/contexts/AppDataContext'
 
 const labels: Record<string, string> = {
   inicio: 'Início',
   clientes: 'Clientes',
   projetos: 'Projetos',
   materiais: 'Materiais',
+  revisao: 'Revisão',
   revisoes: 'Revisões',
   equipe: 'Equipe',
   configuracoes: 'Configurações',
@@ -27,7 +28,8 @@ export function AppHeader({
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const [notifications, setNotifications] = useState(false)
+  const { notifications } = useAppData()
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [userMenu, setUserMenu] = useState(false)
   const search = useRef<HTMLInputElement>(null)
   const segment = pathname.split('/').filter(Boolean).at(-1) ?? 'inicio'
@@ -38,7 +40,7 @@ export function AppHeader({
         search.current?.focus()
       }
       if (event.key === 'Escape') {
-        setNotifications(false)
+        setNotificationsOpen(false)
         setUserMenu(false)
       }
     }
@@ -80,16 +82,16 @@ export function AppHeader({
         <IconButton
           label="Notificações"
           onClick={() => {
-            setNotifications(!notifications)
+            setNotificationsOpen(!notificationsOpen)
             setUserMenu(false)
           }}
         >
           <Bell className="h-4 w-4" />
         </IconButton>
-        {notifications && (
+        {notificationsOpen && (
           <div className="absolute right-0 top-12 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface-elevated p-2 shadow-raised">
             <p className="px-3 py-2 text-sm font-semibold">Notificações</p>
-            {demoNotifications.map((item) => (
+            {notifications.map((item) => (
               <div className="rounded-md px-3 py-2 hover:bg-surface-secondary" key={item.id}>
                 <p className="text-sm font-medium">{item.title}</p>
                 <p className="mt-1 text-xs text-secondary">{item.description}</p>
@@ -104,7 +106,7 @@ export function AppHeader({
           aria-expanded={userMenu}
           onClick={() => {
             setUserMenu(!userMenu)
-            setNotifications(false)
+            setNotificationsOpen(false)
           }}
           className="flex min-h-11 items-center gap-2 rounded-md px-1"
         >

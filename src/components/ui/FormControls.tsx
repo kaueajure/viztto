@@ -60,27 +60,29 @@ export const Input = forwardRef<
     </FieldWrap>
   )
 })
-export function Textarea({
-  label,
-  className,
-  id,
-  ...props
-}: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }) {
+export const Textarea = forwardRef<
+  HTMLTextAreaElement,
+  TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; hint?: string; error?: string }
+>(function Textarea({ label, hint, error, className, id, ...props }, ref) {
   const generated = useId()
   const fieldId = id ?? generated
   return (
-    <FieldWrap label={label} id={fieldId}>
+    <FieldWrap label={label} hint={hint} error={error} id={fieldId}>
       <textarea
+        ref={ref}
         id={fieldId}
         className={cn(
-          'min-h-28 resize-y rounded-md border border-line bg-surface p-3.5 text-sm text-ink outline-none transition placeholder:text-muted hover:border-line-strong focus:border-brand disabled:bg-surface-secondary disabled:text-disabled',
+          'min-h-28 resize-y rounded-md border bg-surface p-3.5 text-sm text-ink outline-none transition placeholder:text-muted hover:border-line-strong focus:border-brand disabled:bg-surface-secondary disabled:text-disabled',
+          error ? 'border-revision' : 'border-line',
           className,
         )}
+        aria-invalid={!!error}
+        aria-describedby={error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined}
         {...props}
       />
     </FieldWrap>
   )
-}
+})
 export function Select({
   label,
   children,

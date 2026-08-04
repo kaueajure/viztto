@@ -248,7 +248,7 @@ export function ForgotPasswordPage() {
 
 export function VerifyEmailPage() {
   const navigate = useNavigate()
-  const { pendingEmail } = useAuth()
+  const { pendingEmail, verifyEmail } = useAuth()
   const [cooldown, setCooldown] = useState(0)
   useEffect(() => {
     if (!cooldown) return
@@ -267,7 +267,13 @@ export function VerifyEmailPage() {
         </span>
         <p className="mt-5 text-sm text-secondary">Enviamos um link para</p>
         <p className="mt-1 font-semibold">{pendingEmail || 'seu e-mail informado'}</p>
-        <Button className="mt-7 w-full" onClick={() => navigate('/onboarding/workspace')}>
+        <Button
+          className="mt-7 w-full"
+          onClick={() => {
+            verifyEmail()
+            navigate('/onboarding/workspace')
+          }}
+        >
           Simular e-mail verificado
         </Button>
         <Button

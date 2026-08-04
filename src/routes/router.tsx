@@ -14,14 +14,29 @@ const AuthAreaLayout = lazy(() =>
     default: module.AuthAreaLayout,
   })),
 )
+const AuthVisualLayout = lazy(() =>
+  import('@/components/layout/ProductAreaLayouts').then((module) => ({
+    default: module.AuthVisualLayout,
+  })),
+)
 const OnboardingAreaLayout = lazy(() =>
   import('@/components/layout/ProductAreaLayouts').then((module) => ({
     default: module.OnboardingAreaLayout,
   })),
 )
+const OnboardingVisualLayout = lazy(() =>
+  import('@/components/layout/ProductAreaLayouts').then((module) => ({
+    default: module.OnboardingVisualLayout,
+  })),
+)
 const AppAreaLayout = lazy(() =>
   import('@/components/layout/ProductAreaLayouts').then((module) => ({
     default: module.AppAreaLayout,
+  })),
+)
+const AppVisualLayout = lazy(() =>
+  import('@/components/layout/ProductAreaLayouts').then((module) => ({
+    default: module.AppVisualLayout,
   })),
 )
 const LoginPage = lazy(() =>
@@ -81,6 +96,7 @@ const MaterialDetailPage = lazy(() =>
 const ReviewsPage = lazy(() => import('@/pages/app/ReviewsPage'))
 const TeamPage = lazy(() => import('@/pages/app/TeamPage'))
 const SettingsPage = lazy(() => import('@/pages/app/SettingsPage'))
+const ReviewWorkspacePage = lazy(() => import('@/pages/app/ReviewWorkspacePage'))
 const loading = (
   <div className="mx-auto max-w-page px-5 py-20">
     <LoadingSkeleton className="h-12 w-1/2" />
@@ -103,40 +119,56 @@ export const router = createBrowserRouter([
   {
     element: page(<AuthAreaLayout />),
     children: [
-      { path: '/entrar', element: page(<LoginPage />) },
-      { path: '/criar-conta', element: page(<RegisterPage />) },
-      { path: '/esqueci-senha', element: page(<ForgotPasswordPage />) },
-      { path: '/verificar-email', element: page(<VerifyEmailPage />) },
+      {
+        element: page(<AuthVisualLayout />),
+        children: [
+          { path: '/entrar', element: page(<LoginPage />) },
+          { path: '/criar-conta', element: page(<RegisterPage />) },
+          { path: '/esqueci-senha', element: page(<ForgotPasswordPage />) },
+          { path: '/verificar-email', element: page(<VerifyEmailPage />) },
+        ],
+      },
     ],
   },
   {
     element: page(<OnboardingAreaLayout />),
     children: [
-      { path: '/onboarding', element: <Navigate to="/onboarding/workspace" replace /> },
-      { path: '/onboarding/workspace', element: page(<WorkspaceStep />) },
-      { path: '/onboarding/perfil', element: page(<ProfileStep />) },
-      { path: '/onboarding/cliente', element: page(<ClientStep />) },
-      { path: '/onboarding/projeto', element: page(<ProjectStep />) },
-      { path: '/onboarding/concluido', element: page(<CompleteStep />) },
+      {
+        element: page(<OnboardingVisualLayout />),
+        children: [
+          { path: '/onboarding', element: <Navigate to="/onboarding/workspace" replace /> },
+          { path: '/onboarding/workspace', element: page(<WorkspaceStep />) },
+          { path: '/onboarding/perfil', element: page(<ProfileStep />) },
+          { path: '/onboarding/cliente', element: page(<ClientStep />) },
+          { path: '/onboarding/projeto', element: page(<ProjectStep />) },
+          { path: '/onboarding/concluido', element: page(<CompleteStep />) },
+        ],
+      },
     ],
   },
   {
     path: '/app',
     element: page(<AppAreaLayout />),
     children: [
-      { index: true, element: <Navigate to="/app/inicio" replace /> },
-      { path: 'inicio', element: page(<DashboardPage />) },
-      { path: 'clientes', element: page(<ClientsPage />) },
-      { path: 'clientes/novo', element: page(<NewClientPage />) },
-      { path: 'clientes/:clientId', element: page(<ClientDetailPage />) },
-      { path: 'projetos', element: page(<ProjectsPage />) },
-      { path: 'projetos/novo', element: page(<NewProjectPage />) },
-      { path: 'projetos/:projectId', element: page(<ProjectDetailPage />) },
-      { path: 'materiais', element: page(<MaterialsPage />) },
-      { path: 'materiais/:materialId', element: page(<MaterialDetailPage />) },
-      { path: 'revisoes', element: page(<ReviewsPage />) },
-      { path: 'equipe', element: page(<TeamPage />) },
-      { path: 'configuracoes', element: page(<SettingsPage />) },
+      {
+        element: page(<AppVisualLayout />),
+        children: [
+          { index: true, element: <Navigate to="/app/inicio" replace /> },
+          { path: 'inicio', element: page(<DashboardPage />) },
+          { path: 'clientes', element: page(<ClientsPage />) },
+          { path: 'clientes/novo', element: page(<NewClientPage />) },
+          { path: 'clientes/:clientId', element: page(<ClientDetailPage />) },
+          { path: 'projetos', element: page(<ProjectsPage />) },
+          { path: 'projetos/novo', element: page(<NewProjectPage />) },
+          { path: 'projetos/:projectId', element: page(<ProjectDetailPage />) },
+          { path: 'materiais', element: page(<MaterialsPage />) },
+          { path: 'materiais/:materialId', element: page(<MaterialDetailPage />) },
+          { path: 'materiais/:materialId/revisao', element: page(<ReviewWorkspacePage />) },
+          { path: 'revisoes', element: page(<ReviewsPage />) },
+          { path: 'equipe', element: page(<TeamPage />) },
+          { path: 'configuracoes', element: page(<SettingsPage />) },
+        ],
+      },
     ],
   },
   {

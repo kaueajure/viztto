@@ -1,19 +1,17 @@
-import { FileImage, Lock } from 'lucide-react'
+import { FileImage, Play } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { MaterialStatus, PageHeader, SearchField } from '@/components/app/AppUi'
-import { Button } from '@/components/ui/Button'
+import { LinkButton } from '@/components/ui/Button'
 import { Badge, EmptyState } from '@/components/ui/DataDisplay'
-import { Tooltip } from '@/components/ui/Interactive'
 import { useAppData } from '@/contexts/AppDataContext'
-import { demoMaterials, demoVersions } from '@/data/mock/materials'
 
 export function MaterialsPage() {
-  const { projects, clients } = useAppData()
+  const { projects, clients, materials } = useAppData()
   const [query, setQuery] = useState('')
   const [type, setType] = useState('all')
   const [status, setStatus] = useState('all')
-  const filtered = demoMaterials.filter(
+  const filtered = materials.filter(
     (item) =>
       (type === 'all' || item.type === type) &&
       (status === 'all' || item.status === status) &&
@@ -34,7 +32,7 @@ export function MaterialsPage() {
         <select
           aria-label="Filtrar por tipo"
           value={type}
-          onChange={(e) => setType(e.target.value)}
+          onChange={(event) => setType(event.target.value)}
           className="min-h-11 rounded-md border border-line bg-surface px-3 text-sm"
         >
           <option value="all">Todos os formatos</option>
@@ -45,18 +43,19 @@ export function MaterialsPage() {
         <select
           aria-label="Filtrar por status"
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          onChange={(event) => setStatus(event.target.value)}
           className="min-h-11 rounded-md border border-line bg-surface px-3 text-sm"
         >
           <option value="all">Todos os status</option>
-          <option value="waiting">Aguardando</option>
-          <option value="changes">Alterações</option>
+          <option value="in-review">Em revisão</option>
+          <option value="waiting-approval">Aguardando</option>
+          <option value="changes-requested">Alterações</option>
           <option value="approved">Aprovados</option>
         </select>
       </div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {filtered.map((material) => {
-          const data = context(material.projectId)
+          const itemContext = context(material.projectId)
           return (
             <Link
               to={`/app/materiais/${material.id}`}
@@ -71,16 +70,16 @@ export function MaterialsPage() {
                   <div>
                     <h2 className="font-semibold">{material.name}</h2>
                     <p className="mt-1 text-xs text-muted">
-                      {data.client?.name} · {data.project?.name}
+                      {itemContext.client?.name} · {itemContext.project?.name}
                     </p>
                   </div>
                   <MaterialStatus status={material.status} />
                 </div>
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <Badge>v{material.currentVersion}</Badge>
                   <Badge>{material.type}</Badge>
                   <span className="ml-auto text-xs text-muted">
-                    {material.commentCount} comentários
+                    {material.unresolvedCommentCount} pendentes
                   </span>
                 </div>
               </div>
@@ -102,8 +101,8 @@ export function MaterialsPage() {
 
 export function MaterialDetailPage() {
   const { materialId } = useParams()
-  const { projects, clients } = useAppData()
-  const material = demoMaterials.find((item) => item.id === materialId)
+  const { projects, clients, materials, materialVersions, comments, activities } = useAppData()
+  const material = materials.find((item) => item.id === materialId)
   if (!material)
     return (
       <EmptyState
@@ -113,20 +112,10 @@ export function MaterialDetailPage() {
     )
   const project = projects.find((item) => item.id === material.projectId)
   const client = clients.find((item) => item.id === project?.clientId)
-  const versions =
-    material.id === 'material-carousel'
-      ? demoVersions
-      : [
-          {
-            id: 'current',
-            materialId: material.id,
-            number: material.currentVersion,
-            label: 'Versão atual',
-            createdBy: 'Marina',
-            createdAt: material.updatedAt,
-            approved: material.status === 'approved',
-          },
-        ]
+  const versions = materialVersions
+    .filter((item) => item.materialId === material.id)
+    .sort((a, b) => b.number - a.number)
+  const recentActivity = activities.filter((item) => item.materialId === material.id).slice(0, 4)
   return (
     <div>
       <PageHeader
@@ -140,20 +129,29 @@ export function MaterialDetailPage() {
       </PageHeader>
       <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_21rem]">
         <section className="rounded-lg border border-line bg-surface p-5">
-          <div className="grid min-h-[24rem] place-items-center rounded-md border border-line bg-surface-secondary surface-grid">
-            <div className="text-center">
-              <FileImage className="mx-auto h-12 w-12 text-brand" />
-              <p className="mt-4 font-semibold">Pré-visualização preparatória</p>
-              <p className="mt-1 text-sm text-muted">
-                O visualizador completo será desenvolvido na próxima etapa.
-              </p>
-            </div>
+          <div className="grid min-h-[24rem] place-items-center overflow-hidden rounded-md border border-line bg-surface-secondary surface-grid">
+            {material.type === 'image' ? (
+              <img
+                src={
+                  versions.find((item) => item.id === material.currentVersionId)?.imageUrl ??
+                  '/demo/review-campaign-v4.svg'
+                }
+                alt={`Pré-visualização de ${material.name}`}
+                className="h-full max-h-[34rem] w-full object-contain"
+              />
+            ) : (
+              <div className="text-center">
+                <FileImage className="mx-auto h-12 w-12 text-brand" />
+                <p className="mt-4 font-semibold">Pré-visualização do material</p>
+                <p className="mt-1 text-sm text-muted">
+                  Este formato terá editor completo em uma próxima etapa.
+                </p>
+              </div>
+            )}
           </div>
-          <Tooltip label="O ambiente completo de revisão será desenvolvido na próxima etapa.">
-            <Button disabled className="mt-4 w-full">
-              <Lock className="h-4 w-4" /> Abrir revisão
-            </Button>
-          </Tooltip>
+          <LinkButton to={`/app/materiais/${material.id}/revisao`} className="mt-4 w-full">
+            <Play className="h-4 w-4" /> Abrir revisão
+          </LinkButton>
         </section>
         <aside className="space-y-5">
           <section className="rounded-lg border border-line bg-surface p-5">
@@ -164,25 +162,34 @@ export function MaterialDetailPage() {
                   className="rounded-md border border-line bg-surface-secondary p-3"
                   key={version.id}
                 >
-                  <p className="text-sm font-semibold">
-                    v{version.number} · {version.label}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">
+                      v{version.number} · {version.label}
+                    </p>
+                    {version.approved && <Badge tone="approval">Aprovada</Badge>}
+                  </div>
                   <p className="mt-1 text-xs text-muted">{version.createdBy}</p>
                 </div>
               ))}
             </div>
           </section>
           <section className="rounded-lg border border-line bg-surface p-5">
-            <h2 className="font-semibold">Comentários recentes</h2>
+            <h2 className="font-semibold">Comentários</h2>
             <p className="mt-3 text-sm text-secondary">
-              {material.commentCount
-                ? `${material.commentCount} comentários relacionados à versão atual.`
-                : 'Nenhum comentário aberto.'}
+              {comments.filter((item) => item.materialId === material.id).length} no histórico ·{' '}
+              {material.unresolvedCommentCount} pendentes.
             </p>
           </section>
           <section className="rounded-lg border border-line bg-surface p-5">
             <h2 className="font-semibold">Histórico</h2>
-            <p className="mt-3 text-sm text-secondary">Versão publicada por Marina · hoje, 14:20</p>
+            <div className="mt-3 space-y-3 text-sm text-secondary">
+              {recentActivity.map((item) => (
+                <p key={item.id}>
+                  <strong className="text-ink">{item.actor}</strong> {item.action}
+                </p>
+              ))}
+              {!recentActivity.length && <p>Nenhuma ação registrada.</p>}
+            </div>
           </section>
         </aside>
       </div>

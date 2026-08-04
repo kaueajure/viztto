@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom'
 import { MaterialStatus, PageHeader, ProjectStatusBadge } from '@/components/app/AppUi'
 import { Avatar, Card } from '@/components/ui/DataDisplay'
 import { useAppData } from '@/contexts/AppDataContext'
-import { demoActivities } from '@/data/mock/activities'
-import { demoMaterials } from '@/data/mock/materials'
 
 const greeting = () => {
   const hour = new Date().getHours()
@@ -12,7 +10,7 @@ const greeting = () => {
 }
 
 export default function DashboardPage() {
-  const { clients, projects } = useAppData()
+  const { clients, projects, materials, activities } = useAppData()
   if (!clients.length || !projects.length)
     return (
       <div>
@@ -46,13 +44,13 @@ export default function DashboardPage() {
   const stats = [
     [
       'Aguardando aprovação',
-      projects.filter((item) => item.status === 'waiting-approval').length,
+      materials.filter((item) => item.status === 'waiting-approval').length,
       Clock3,
       'text-warning',
     ],
     [
       'Alterações solicitadas',
-      projects.filter((item) => item.status === 'changes-requested').length,
+      materials.filter((item) => item.status === 'changes-requested').length,
       AlertCircle,
       'text-revision',
     ],
@@ -64,7 +62,7 @@ export default function DashboardPage() {
     ],
     [
       'Aprovados nesta semana',
-      projects.filter((item) => item.status === 'approved').length,
+      materials.filter((item) => item.status === 'approved').length,
       CheckCircle2,
       'text-approval',
     ],
@@ -131,7 +129,7 @@ export default function DashboardPage() {
         <section className="rounded-lg border border-line bg-surface p-5">
           <h2 className="font-semibold">Atividade recente</h2>
           <ol className="mt-5 space-y-5">
-            {demoActivities.map((activity) => (
+            {activities.slice(0, 6).map((activity) => (
               <li className="flex gap-3" key={activity.id}>
                 <Avatar name={activity.actor} />
                 <div>
@@ -139,7 +137,7 @@ export default function DashboardPage() {
                     <strong>{activity.actor}</strong> {activity.action}
                   </p>
                   <p className="mt-1 text-xs text-muted">
-                    {activity.target} · {activity.createdAt}
+                    {activity.target} · {new Date(activity.createdAt).toLocaleString('pt-BR')}
                   </p>
                 </div>
               </li>
@@ -151,7 +149,7 @@ export default function DashboardPage() {
         <section className="rounded-lg border border-line bg-surface p-5">
           <h2 className="font-semibold">Materiais recentes</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {demoMaterials.slice(0, 4).map((material) => (
+            {materials.slice(0, 4).map((material) => (
               <Link
                 to={`/app/materiais/${material.id}`}
                 className="rounded-md border border-line bg-background p-4 hover:border-line-strong"

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Campanha criativa, versão atual</title>
+  <desc id="desc">Peça gráfica escura com contraste refinado e composição reorganizada.</desc>
+  <rect width="1200" height="800" fill="#151b23"/>
+  <path d="M790 0h410v800H610c150-160 210-390 180-800Z" fill="#1b2330"/>
+  <circle cx="910" cy="365" r="220" fill="#202a38"/>
+  <circle cx="910" cy="365" r="154" fill="#b8ff4f"/>
+  <path d="M780 280 1030 440M805 470l220-220" stroke="#10150b" stroke-width="18" opacity=".25"/>
+  <text x="92" y="122" fill="#b8ff4f" font-family="Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="6">NOVA COLEÇÃO</text>
+  <text x="92" y="270" fill="#f5f7fa" font-family="Arial, sans-serif" font-size="96" font-weight="700">Movimento</text>
+  <text x="92" y="370" fill="#f5f7fa" font-family="Georgia, serif" font-size="96" font-style="italic">essencial.</text>
+  <text x="92" y="500" fill="#a7b0be" font-family="Arial, sans-serif" font-size="28">Formas que acompanham o seu ritmo.</text>
+  <rect x="92" y="572" width="250" height="68" rx="12" fill="#b8ff4f"/>
+  <text x="132" y="616" fill="#10150b" font-family="Arial, sans-serif" font-size="24" font-weight="700">Conheça a coleção</text>
+  <text x="92" y="716" fill="#a7b0be" font-family="Arial, sans-serif" font-size="20">VIZTTO / CAMPANHA</text>
+</svg>

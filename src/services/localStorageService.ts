@@ -7,7 +7,14 @@ export const storageKeys = {
   clients: `${prefix}clients`,
   projects: `${prefix}projects`,
   team: `${prefix}team`,
+  materials: `${prefix}materials`,
+  materialVersions: `${prefix}material-versions`,
+  comments: `${prefix}comments`,
+  approvals: `${prefix}approvals`,
+  activities: `${prefix}activities`,
+  notifications: `${prefix}notifications`,
   preferences: `${prefix}preferences`,
+  schemaVersion: `${prefix}schema-version`,
 } as const
 
 export const localStorageService = {

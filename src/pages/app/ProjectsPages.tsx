@@ -12,7 +12,6 @@ import { AvatarGroup, EmptyState } from '@/components/ui/DataDisplay'
 import { Input, Select, Textarea } from '@/components/ui/FormControls'
 import { Modal, Tabs } from '@/components/ui/Interactive'
 import { useAppData } from '@/contexts/AppDataContext'
-import { demoMaterials } from '@/data/mock/materials'
 import type { ProjectStatus } from '@/types/domain'
 
 const filters: Array<[string, ProjectStatus | 'all']> = [
@@ -202,9 +201,9 @@ export function NewProjectPage() {
 
 export function ProjectDetailPage() {
   const { projectId } = useParams()
-  const { projects, clients } = useAppData()
+  const { projects, clients, materials: allMaterials, addMaterial } = useAppData()
   const [materialModal, setMaterialModal] = useState(false)
-  const [added, setAdded] = useState(false)
+  const [materialForm, setMaterialForm] = useState({ name: '', type: 'image' })
   const project = projects.find((item) => item.id === projectId)
   if (!project)
     return (
@@ -214,7 +213,7 @@ export function ProjectDetailPage() {
       />
     )
   const client = clients.find((item) => item.id === project.clientId)
-  const materials = demoMaterials.filter((item) => item.projectId === project.id)
+  const materials = allMaterials.filter((item) => item.projectId === project.id)
   const overview = (
     <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
       <div>
@@ -298,26 +297,36 @@ export function ProjectDetailPage() {
         title="Adicionar material"
       >
         <div className="grid gap-4">
-          <Input label="Nome do material" placeholder="Ex.: Post principal" />
-          <Select label="Formato">
-            <option>Imagem</option>
-            <option>Vídeo</option>
-            <option>PDF</option>
-            <option>Apresentação</option>
-            <option>Página</option>
+          <Input
+            label="Nome do material"
+            placeholder="Ex.: Post principal"
+            value={materialForm.name}
+            onChange={(event) => setMaterialForm({ ...materialForm, name: event.target.value })}
+          />
+          <Select
+            label="Formato"
+            value={materialForm.type}
+            onChange={(event) => setMaterialForm({ ...materialForm, type: event.target.value })}
+          >
+            <option value="image">Imagem</option>
+            <option value="video">Vídeo</option>
+            <option value="pdf">PDF</option>
+            <option value="presentation">Apresentação</option>
+            <option value="web">Página</option>
           </Select>
-          {added && (
-            <p role="status" className="text-sm text-approval">
-              Material fictício adicionado ao fluxo.
-            </p>
-          )}
           <Button
+            disabled={!materialForm.name.trim()}
             onClick={() => {
-              setAdded(true)
-              window.setTimeout(() => setMaterialModal(false), 500)
+              addMaterial({
+                projectId: project.id,
+                name: materialForm.name.trim(),
+                type: materialForm.type as 'image' | 'video' | 'pdf' | 'presentation' | 'web',
+              })
+              setMaterialForm({ name: '', type: 'image' })
+              setMaterialModal(false)
             }}
           >
-            Adicionar material fictício
+            Adicionar material
           </Button>
         </div>
       </Modal>

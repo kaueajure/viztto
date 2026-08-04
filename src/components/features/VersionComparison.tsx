@@ -3,7 +3,17 @@ import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { VersionBadge } from '@/components/feedback/FeedbackComponents'
 import { IconButton } from '@/components/ui/Button'
 
-export function VersionComparison() {
+export function VersionComparison({
+  beforeImage,
+  afterImage,
+  beforeLabel = 'v3',
+  afterLabel = 'v4',
+}: {
+  beforeImage?: string
+  afterImage?: string
+  beforeLabel?: string
+  afterLabel?: string
+} = {}) {
   const [position, setPosition] = useState(50)
   const [dragging, setDragging] = useState(false)
   const frame = useRef<HTMLDivElement>(null)
@@ -50,8 +60,8 @@ export function VersionComparison() {
     <div className="rounded-xl border border-line bg-surface p-3 shadow-raised sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex gap-2">
-          <VersionBadge>v3</VersionBadge>
-          <VersionBadge current>v4</VersionBadge>
+          <VersionBadge>{beforeLabel}</VersionBadge>
+          <VersionBadge current>{afterLabel}</VersionBadge>
         </div>
         <IconButton
           label="Redefinir comparação para cinquenta por cento"
@@ -69,12 +79,28 @@ export function VersionComparison() {
         onPointerCancel={releasePointer}
         onLostPointerCapture={() => setDragging(false)}
       >
-        <VersionArtwork version="v3" />
+        {beforeImage ? (
+          <img
+            src={beforeImage}
+            alt="Versão anterior"
+            className="absolute inset-0 h-full w-full object-contain"
+          />
+        ) : (
+          <VersionArtwork version="v3" />
+        )}
         <div
           className="absolute inset-0 overflow-hidden"
           style={{ clipPath: `inset(0 0 0 ${position}%)` }}
         >
-          <VersionArtwork version="v4" />
+          {afterImage ? (
+            <img
+              src={afterImage}
+              alt="Versão atual"
+              className="absolute inset-0 h-full w-full object-contain"
+            />
+          ) : (
+            <VersionArtwork version="v4" />
+          )}
         </div>
         <div
           role="slider"
@@ -83,7 +109,7 @@ export function VersionComparison() {
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(position)}
-          aria-valuetext={`Divisor em ${Math.round(position)}%. A versão 3 ocupa a área à esquerda e a versão 4 ocupa a área à direita.`}
+          aria-valuetext={`Divisor em ${Math.round(position)}%. ${beforeLabel} ocupa a área à esquerda e ${afterLabel} ocupa a área à direita.`}
           onKeyDown={onKeyDown}
           className="version-comparison-slider absolute inset-y-0 z-20 w-0.5 bg-brand focus-visible:outline-none"
           style={{ left: `${position}%` }}
@@ -96,10 +122,10 @@ export function VersionComparison() {
           </span>
         </div>
         <span className="absolute left-3 top-3 z-10 rounded-sm bg-background/90 px-2 py-1 text-xs font-semibold">
-          v3 · anterior
+          {beforeLabel} · anterior
         </span>
         <span className="absolute right-3 top-3 z-10 rounded-sm bg-brand px-2 py-1 text-xs font-semibold text-brand-contrast">
-          v4 · atual
+          {afterLabel} · atual
         </span>
       </div>
       <p className="mt-3 text-center text-xs text-muted">
