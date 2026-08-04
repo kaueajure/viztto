@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#a7b0be" stroke-opacity=".075"/>
+    </pattern>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000" flood-opacity=".42"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="#0d1117"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <circle cx="1060" cy="-28" r="250" fill="none" stroke="#b8ff4f" stroke-opacity=".16" stroke-width="70"/>
+  <rect x="70" y="64" width="46" height="46" rx="11" fill="#151b23" stroke="#2a3442"/>
+  <path d="M82 77 91.5 98 93 102l1.5-4L104 77" fill="none" stroke="#b8ff4f" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="93" cy="103" r="2.5" fill="#ff6b57"/>
+  <text x="130" y="101" fill="#f5f7fa" font-family="Arial, sans-serif" font-size="37" font-weight="700" letter-spacing="-2">viztto</text>
+  <text x="72" y="236" fill="#a7b0be" font-family="Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="3">REVISÃO CRIATIVA, SEM RUÍDO</text>
+  <text x="70" y="326" fill="#f5f7fa" font-family="Arial, sans-serif" font-size="72" font-weight="700" letter-spacing="-4">Todo feedback</text>
+  <text x="70" y="404" fill="#b8ff4f" font-family="Georgia, serif" font-size="76" font-style="italic">no lugar certo.</text>
+  <text x="72" y="472" fill="#a7b0be" font-family="Arial, sans-serif" font-size="23">Comentários, versões e aprovações em um único fluxo.</text>
+  <g filter="url(#shadow)">
+    <rect x="736" y="164" width="388" height="354" rx="24" fill="#151b23" stroke="#3a4658"/>
+    <rect x="758" y="186" width="344" height="50" rx="12" fill="#202a38"/>
+    <circle cx="786" cy="211" r="7" fill="#b8ff4f"/>
+    <rect x="807" y="204" width="112" height="8" rx="4" fill="#a7b0be" fill-opacity=".7"/>
+    <rect x="758" y="256" width="228" height="236" rx="15" fill="#ff6b57"/>
+    <circle cx="943" cy="296" r="76" fill="none" stroke="#b8ff4f" stroke-width="23"/>
+    <text x="782" y="349" fill="#0d1117" font-family="Arial, sans-serif" font-size="38" font-weight="700">IDEIAS</text>
+    <text x="782" y="389" fill="#0d1117" font-family="Georgia, serif" font-size="36" font-style="italic">em revisão</text>
+    <rect x="1002" y="256" width="100" height="112" rx="13" fill="#202a38"/>
+    <rect x="1018" y="277" width="61" height="7" rx="3.5" fill="#f5f7fa" fill-opacity=".76"/>
+    <rect x="1018" y="295" width="69" height="6" rx="3" fill="#7f8998"/>
+    <rect x="1018" y="311" width="52" height="6" rx="3" fill="#7f8998"/>
+    <rect x="1018" y="339" width="54" height="16" rx="8" fill="#2d1714"/>
+    <circle cx="966" cy="394" r="19" fill="#b8ff4f"/>
+    <path d="m960 394 4 4 8-10" fill="none" stroke="#10150b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M966 410 958 422 974 422Z" fill="#b8ff4f"/>
+    <rect x="1002" y="386" width="100" height="106" rx="13" fill="#13281e" stroke="#7cffb2" stroke-opacity=".35"/>
+    <text x="1018" y="418" fill="#7cffb2" font-family="Arial, sans-serif" font-size="13" font-weight="700">APROVADO</text>
+    <text x="1018" y="444" fill="#a7b0be" font-family="Arial, sans-serif" font-size="12">Versão 4</text>
+    <text x="1018" y="465" fill="#a7b0be" font-family="Arial, sans-serif" font-size="12">Marina · 14:16</text>
+  </g>
+</svg>

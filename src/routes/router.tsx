@@ -1,6 +1,9 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
-import { SiteLayout } from '@/components/layout/SiteLayout'
+import { AuthLayout } from '@/components/layout/AuthLayout'
+import { DesignSystemLayout } from '@/components/layout/DesignSystemLayout'
+import { MarketingLayout } from '@/components/layout/MarketingLayout'
+import { UtilityLayout } from '@/components/layout/UtilityLayout'
 import { LoadingSkeleton } from '@/components/ui/DataDisplay'
 
 const HomePage = lazy(() => import('@/pages/HomePage'))
@@ -17,19 +20,32 @@ const page = (node: React.ReactNode) => <Suspense fallback={loading}>{node}</Sus
 
 export const router = createBrowserRouter([
   {
-    element: <SiteLayout />,
+    element: <MarketingLayout />,
     children: [
       { path: '/', element: page(<HomePage />) },
       { path: '/produto', element: page(<PlaceholderPage />) },
       { path: '/recursos', element: page(<PlaceholderPage />) },
       { path: '/precos', element: page(<PlaceholderPage />) },
+      { path: '/contato', element: page(<PlaceholderPage />) },
+    ],
+  },
+  {
+    element: <AuthLayout />,
+    children: [
       { path: '/entrar', element: page(<PlaceholderPage />) },
       { path: '/criar-conta', element: page(<PlaceholderPage />) },
-      { path: '/contato', element: page(<PlaceholderPage />) },
+    ],
+  },
+  {
+    element: <UtilityLayout />,
+    children: [
       { path: '/termos', element: page(<PlaceholderPage />) },
       { path: '/privacidade', element: page(<PlaceholderPage />) },
-      { path: '/design-system', element: page(<DesignSystemPage />) },
       { path: '*', element: page(<NotFoundPage />) },
     ],
+  },
+  {
+    element: <DesignSystemLayout />,
+    children: [{ path: '/design-system', element: page(<DesignSystemPage />) }],
   },
 ])

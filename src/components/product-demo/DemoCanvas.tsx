@@ -59,9 +59,9 @@ export function DemoCanvas({ step, reducedMotion }: { step: number; reducedMotio
           {pinVisible && (
             <motion.div
               className="absolute bottom-[35%] right-[28%]"
-              initial={{ opacity: 0, scale: 0.65 }}
+              initial={reducedMotion ? false : { opacity: 0, scale: 0.65 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.65 }}
+              exit={reducedMotion ? undefined : { opacity: 0, scale: 0.65 }}
               transition={{ duration: 0.26 }}
             >
               <CommentPin number={4} state="active" interactive={false} />
@@ -73,9 +73,9 @@ export function DemoCanvas({ step, reducedMotion }: { step: number; reducedMotio
           {cursorVisible && (
             <motion.div
               className="absolute left-[48%] top-[18%] z-20"
-              initial={{ opacity: 0, x: 52, y: -30 }}
+              initial={reducedMotion ? false : { opacity: 0, x: 52, y: -30 }}
               animate={{ opacity: 1, x: cursorMoved ? 62 : 0, y: cursorMoved ? 112 : 0 }}
-              exit={{ opacity: 0 }}
+              exit={reducedMotion ? undefined : { opacity: 0 }}
               transition={{ duration: reducedMotion ? 0 : 0.8, ease: 'easeInOut' }}
             >
               <CollaborativeCursor name="Marina" />
@@ -87,9 +87,9 @@ export function DemoCanvas({ step, reducedMotion }: { step: number; reducedMotio
           {approved && (
             <motion.div
               className="absolute bottom-[12%] left-[12%]"
-              initial={{ opacity: 0, scale: 0.86, rotate: -8 }}
+              initial={reducedMotion ? false : { opacity: 0, scale: 0.86, rotate: -8 }}
               animate={{ opacity: 1, scale: 1, rotate: 0 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              exit={reducedMotion ? undefined : { opacity: 0, scale: 0.9 }}
               transition={{ duration: reducedMotion ? 0 : 0.34 }}
             >
               <ApprovalStamp />

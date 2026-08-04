@@ -14,6 +14,7 @@ import { ClientExperienceSection } from '@/sections/home/ClientExperienceSection
 import { PricingSection } from '@/sections/home/PricingSection'
 import { FaqSection } from '@/sections/home/FaqSection'
 import { FinalCtaSection } from '@/sections/home/FinalCtaSection'
+import { scrollToHash } from '@/lib/scrollToHash'
 
 export default function HomePage() {
   const location = useLocation()
@@ -21,16 +22,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!location.hash) return
-    const id = decodeURIComponent(location.hash.slice(1))
-    const element = document.getElementById(id)
-    if (!element) return
-
-    window.requestAnimationFrame(() => {
-      element.scrollIntoView({
-        behavior: prefersReducedMotion ? 'auto' : 'smooth',
-        block: 'start',
-      })
-    })
+    scrollToHash(location.hash, prefersReducedMotion)
   }, [location.hash, prefersReducedMotion])
 
   return (

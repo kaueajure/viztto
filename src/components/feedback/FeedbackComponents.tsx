@@ -8,7 +8,8 @@ import {
   Send,
   Upload,
 } from 'lucide-react'
-import { motion } from 'motion/react'
+import { motion, useReducedMotion, type HTMLMotionProps } from 'motion/react'
+import type { MouseEventHandler } from 'react'
 import type { VizttoStatus } from '@/types/ui'
 import { cn } from '@/lib/cn'
 import { Avatar } from '@/components/ui/DataDisplay'
@@ -69,15 +70,26 @@ export function VersionBadge({
 }
 
 type PinState = 'normal' | 'active' | 'resolved' | 'pending'
-export function CommentPin({
-  number,
-  state = 'normal',
-  interactive = true,
-}: {
+type PinBaseProps = {
   number: number
   state?: PinState
-  interactive?: boolean
-}) {
+}
+type DecorativePinProps = PinBaseProps & { interactive?: false }
+type InteractivePinProps = PinBaseProps & {
+  interactive: true
+  onClick: MouseEventHandler<HTMLButtonElement>
+  buttonProps?: Omit<
+    HTMLMotionProps<'button'>,
+    'children' | 'onClick' | 'type' | 'whileHover' | 'whileTap'
+  >
+}
+
+export function CommentPin(props: DecorativePinProps | InteractivePinProps) {
+  const { number, state = 'normal' } = props
+  const reduceMotion = useReducedMotion()
+  const { className: interactiveClassName, ...buttonProps } = props.interactive
+    ? (props.buttonProps ?? {})
+    : {}
   const styles = {
     normal: {
       button: 'bg-brand text-brand-contrast',
@@ -104,7 +116,7 @@ export function CommentPin({
     <span className={cn('absolute -bottom-1 h-2.5 w-2.5 rotate-45', styles[state].pointer)} />
   )
 
-  if (!interactive) {
+  if (!props.interactive) {
     return (
       <motion.span aria-hidden="true" className={className}>
         {number}
@@ -117,9 +129,11 @@ export function CommentPin({
     <motion.button
       type="button"
       aria-label={`Comentário ${number}, ${state}`}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.93 }}
-      className={className}
+      whileHover={reduceMotion ? undefined : { scale: 1.1 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.93 }}
+      className={cn(className, interactiveClassName)}
+      onClick={props.onClick}
+      {...buttonProps}
     >
       {number}
       {pointer}
@@ -176,9 +190,10 @@ export function CommentCard({
 
 export function ApprovalStamp({ status = 'approved' }: { status?: VizttoStatus }) {
   const approved = status === 'approved'
+  const reduceMotion = useReducedMotion()
   return (
     <motion.div
-      whileHover={{ rotate: -2, scale: 1.02 }}
+      whileHover={reduceMotion ? undefined : { rotate: -2, scale: 1.02 }}
       className={cn(
         'inline-flex rotate-[-3deg] items-center gap-2 rounded-sm border-2 px-4 py-2 text-sm font-bold uppercase tracking-[.1em]',
         approved ? 'border-approval text-approval' : 'border-revision text-revision',
@@ -201,6 +216,7 @@ export function CollaborativeCursor({
   color?: 'brand' | 'revision' | 'approval' | 'warning' | 'accent'
   className?: string
 }) {
+  const reduceMotion = useReducedMotion()
   const colors = {
     brand: { cursor: 'text-brand', label: 'bg-brand text-brand-contrast' },
     revision: { cursor: 'text-revision', label: 'bg-revision text-background' },
@@ -210,8 +226,8 @@ export function CollaborativeCursor({
   }
   return (
     <motion.div
-      animate={{ y: [0, -3, 0] }}
-      transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+      animate={reduceMotion ? undefined : { y: [0, -3, 0] }}
+      transition={reduceMotion ? undefined : { duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
       className={cn('inline-flex flex-col items-start', className)}
     >
       <svg

@@ -8,9 +8,11 @@ import { Button, IconButton } from '@/components/ui/Button'
 export function DemoToolbar({
   approved,
   currentVersion,
+  reducedMotion,
 }: {
   approved: boolean
   currentVersion: 2 | 3
+  reducedMotion: boolean
 }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-3 py-3 sm:px-4">
@@ -23,10 +25,10 @@ export function DemoToolbar({
           <AnimatePresence mode="wait" initial={false}>
             <motion.span
               key={currentVersion}
-              initial={{ opacity: 0, y: 4 }}
+              initial={reducedMotion ? false : { opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.2 }}
+              exit={reducedMotion ? undefined : { opacity: 0, y: -4 }}
+              transition={{ duration: reducedMotion ? 0 : 0.2 }}
             >
               <VersionBadge current>{`v${currentVersion}`}</VersionBadge>
             </motion.span>
@@ -40,10 +42,10 @@ export function DemoToolbar({
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={approved ? 'approved' : 'waiting'}
-            initial={{ opacity: 0, scale: 0.96 }}
+            initial={reducedMotion ? false : { opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ duration: 0.22 }}
+            exit={reducedMotion ? undefined : { opacity: 0, scale: 0.96 }}
+            transition={{ duration: reducedMotion ? 0 : 0.22 }}
             className="hidden md:block"
           >
             <StatusBadge status={approved ? 'approved' : 'waiting'} />

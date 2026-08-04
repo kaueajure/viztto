@@ -61,7 +61,7 @@ html {
 }
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
   overflow-x: hidden;
   background: var(--background);
@@ -114,6 +114,13 @@ button:disabled {
 
 *::-webkit-scrollbar-thumb:hover {
   background: var(--surface-elevated);
+}
+
+.version-comparison-slider:focus-visible > span {
+  box-shadow:
+    0 0 0 4px var(--background),
+    0 0 0 8px color-mix(in srgb, var(--brand-primary) 45%, transparent),
+    var(--shadow-raised);
 }
 
 @layer components {

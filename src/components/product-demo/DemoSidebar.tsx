@@ -2,7 +2,13 @@ import { motion } from 'motion/react'
 import { CommentCard } from '@/components/feedback/FeedbackComponents'
 import { productDemo } from '@/data/productDemo'
 
-export function DemoSidebar({ highlighted }: { highlighted: boolean }) {
+export function DemoSidebar({
+  highlighted,
+  reducedMotion,
+}: {
+  highlighted: boolean
+  reducedMotion: boolean
+}) {
   return (
     <aside className="border-t border-line bg-surface p-3 xl:border-l xl:border-t-0 xl:p-4">
       <div className="mb-3 flex items-center justify-between">
@@ -10,8 +16,8 @@ export function DemoSidebar({ highlighted }: { highlighted: boolean }) {
         <span className="text-[10px] text-muted">4 de {productDemo.commentCount}</span>
       </div>
       <motion.div
-        animate={{ opacity: highlighted ? 1 : 0.66, y: highlighted ? 0 : 4 }}
-        transition={{ duration: 0.28 }}
+        animate={{ opacity: highlighted ? 1 : 0.66, y: reducedMotion || highlighted ? 0 : 4 }}
+        transition={{ duration: reducedMotion ? 0 : 0.28 }}
       >
         <CommentCard
           compact

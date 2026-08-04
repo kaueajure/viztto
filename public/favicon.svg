@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Viztto">
+  <rect width="64" height="64" rx="14" fill="#151b23"/>
+  <rect x=".75" y=".75" width="62.5" height="62.5" rx="13.25" fill="none" stroke="#2a3442" stroke-width="1.5"/>
+  <path d="M17 16.5 29.5 43 32 48l2.5-5L47 16.5" fill="none" stroke="#b8ff4f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="32" cy="48" r="3.25" fill="#ff6b57"/>
+</svg>

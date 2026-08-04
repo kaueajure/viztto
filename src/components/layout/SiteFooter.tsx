@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Logo } from '@/components/brand/Logo'
 import { Container } from '@/components/layout/Container'
+import { HashLink } from '@/components/navigation/HashLink'
 
 const columns = [
   {
@@ -52,12 +53,21 @@ export function SiteFooter() {
               <ul className="mt-4 grid gap-3">
                 {column.links.map(([label, to]) => (
                   <li key={label}>
-                    <Link
-                      to={to}
-                      className="text-sm text-secondary transition-colors hover:text-brand"
-                    >
-                      {label}
-                    </Link>
+                    {to.includes('#') ? (
+                      <HashLink
+                        to={to}
+                        className="inline-flex min-h-11 items-center text-sm text-secondary transition-colors hover:text-brand"
+                      >
+                        {label}
+                      </HashLink>
+                    ) : (
+                      <Link
+                        to={to}
+                        className="inline-flex min-h-11 items-center text-sm text-secondary transition-colors hover:text-brand"
+                      >
+                        {label}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

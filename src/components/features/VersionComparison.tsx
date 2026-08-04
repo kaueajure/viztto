@@ -20,12 +20,21 @@ export function VersionComparison() {
     updateFromPointer(event.clientX)
   }
 
+  const releasePointer = (event: PointerEvent<HTMLDivElement>) => {
+    setDragging(false)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const changes: Record<string, number> = {
       ArrowLeft: -2,
       ArrowDown: -2,
       ArrowRight: 2,
       ArrowUp: 2,
+      PageDown: -10,
+      PageUp: 10,
     }
     if (event.key in changes) {
       event.preventDefault()
@@ -56,8 +65,9 @@ export function VersionComparison() {
         className="relative min-h-[24rem] touch-none select-none overflow-hidden rounded-lg border border-line bg-background sm:min-h-[32rem]"
         onPointerDown={onPointerDown}
         onPointerMove={(event) => dragging && updateFromPointer(event.clientX)}
-        onPointerUp={() => setDragging(false)}
-        onPointerCancel={() => setDragging(false)}
+        onPointerUp={releasePointer}
+        onPointerCancel={releasePointer}
+        onLostPointerCapture={() => setDragging(false)}
       >
         <VersionArtwork version="v3" />
         <div
@@ -73,9 +83,9 @@ export function VersionComparison() {
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(position)}
-          aria-valuetext={`${Math.round(position)}% da versão 3 visível`}
+          aria-valuetext={`Divisor em ${Math.round(position)}%. A versão 3 ocupa a área à esquerda e a versão 4 ocupa a área à direita.`}
           onKeyDown={onKeyDown}
-          className="absolute inset-y-0 z-20 w-px bg-ink focus-visible:outline-none"
+          className="version-comparison-slider absolute inset-y-0 z-20 w-px bg-ink focus-visible:outline-none"
           style={{ left: `${position}%` }}
         >
           <span
@@ -93,7 +103,7 @@ export function VersionComparison() {
         </span>
       </div>
       <p className="mt-3 text-center text-xs text-muted">
-        Arraste o divisor ou use as setas do teclado.
+        Arraste o divisor ou use as setas, Home, End, Page Up e Page Down.
       </p>
     </div>
   )

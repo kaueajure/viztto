@@ -1,7 +1,8 @@
 import { LoaderCircle } from 'lucide-react'
-import { motion, type HTMLMotionProps } from 'motion/react'
+import { motion, useReducedMotion, type HTMLMotionProps } from 'motion/react'
 import type { ReactNode } from 'react'
 import { Link, type LinkProps } from 'react-router-dom'
+import { HashLink } from '@/components/navigation/HashLink'
 import { cn } from '@/lib/cn'
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive' | 'link'
@@ -31,11 +32,12 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
+  const reduceMotion = useReducedMotion()
   return (
     <motion.button
-      whileTap={{ scale: 0.97 }}
-      whileHover={{ y: -1 }}
-      transition={{ duration: 0.16 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+      whileHover={reduceMotion ? undefined : { y: -1 }}
+      transition={{ duration: reduceMotion ? 0 : 0.16 }}
       className={cn(
         'inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-4 text-sm font-semibold transition-colors disabled:opacity-45',
         variants[variant],
@@ -56,9 +58,10 @@ export function IconButton({
   className,
   ...props
 }: HTMLMotionProps<'button'> & { label: string }) {
+  const reduceMotion = useReducedMotion()
   return (
     <motion.button
-      whileTap={{ scale: 0.94 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.94 }}
       aria-label={label}
       className={cn(
         'inline-flex h-11 w-11 items-center justify-center rounded-md border border-line bg-surface transition-colors hover:border-line-strong hover:bg-surface-secondary',
@@ -77,8 +80,9 @@ export function LinkButton({
   children,
   ...props
 }: LinkProps & { variant?: Variant }) {
+  const Component = typeof props.to === 'string' && props.to.includes('#') ? HashLink : Link
   return (
-    <Link
+    <Component
       className={cn(
         'inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-4 text-sm font-semibold transition-colors',
         variants[variant],
@@ -87,6 +91,6 @@ export function LinkButton({
       {...props}
     >
       {children}
-    </Link>
+    </Component>
   )
 }

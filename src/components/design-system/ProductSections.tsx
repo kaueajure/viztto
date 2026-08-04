@@ -23,6 +23,7 @@ import {
 import { Avatar, AvatarGroup, Badge, Card } from '@/components/ui/DataDisplay'
 import { IconButton } from '@/components/ui/Button'
 import { ShowcaseSection } from './Showcase'
+import { useState } from 'react'
 
 export function ProductSections() {
   return (
@@ -57,6 +58,7 @@ export function ProductSections() {
               <CommentPin number={2} state="active" />
               <CommentPin number={3} state="resolved" />
               <CommentPin number={4} state="pending" />
+              <InteractivePinExample />
             </div>
           </div>
           <CommentCard />
@@ -149,5 +151,20 @@ export function ProductSections() {
         </div>
       </ShowcaseSection>
     </>
+  )
+}
+
+function InteractivePinExample() {
+  const [active, setActive] = useState(false)
+  return (
+    <CommentPin
+      number={5}
+      state={active ? 'active' : 'normal'}
+      interactive
+      onClick={() => setActive((value) => !value)}
+      buttonProps={{
+        'aria-label': active ? 'Desativar comentário 5' : 'Ativar comentário 5',
+      }}
+    />
   )
 }

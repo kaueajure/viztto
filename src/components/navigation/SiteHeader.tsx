@@ -7,12 +7,17 @@ import { Logo } from '@/components/brand/Logo'
 import { Container } from '@/components/layout/Container'
 import { LinkButton } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
+import { useActiveSection } from '@/hooks/useActiveSection'
+import { commercialLinks } from './navigationData'
+
+const observedSections = commercialLinks.map((link) => link.to.split('#')[1])
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const menuButton = useRef<HTMLButtonElement>(null)
   const location = useLocation()
+  const activeSection = useActiveSection(observedSections)
 
   const closeMenu = useCallback((returnFocus = true) => {
     setOpen(false)
@@ -80,7 +85,7 @@ export function SiteHeader() {
         <Link to="/" aria-label="Viztto — página inicial" onClick={() => open && closeMenu(false)}>
           <Logo />
         </Link>
-        <DesktopNavigation />
+        <DesktopNavigation activeSection={activeSection} />
         <div className="hidden items-center gap-2 md:flex">
           <LinkButton to="/entrar" variant="ghost">
             Entrar
