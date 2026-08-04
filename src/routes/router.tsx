@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter } from 'react-router-dom'
-import { AuthLayout } from '@/components/layout/AuthLayout'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { DesignSystemLayout } from '@/components/layout/DesignSystemLayout'
 import { MarketingLayout } from '@/components/layout/MarketingLayout'
 import { UtilityLayout } from '@/components/layout/UtilityLayout'
@@ -10,6 +9,78 @@ const HomePage = lazy(() => import('@/pages/HomePage'))
 const PlaceholderPage = lazy(() => import('@/pages/PlaceholderPage'))
 const DesignSystemPage = lazy(() => import('@/pages/DesignSystemPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
+const AuthAreaLayout = lazy(() =>
+  import('@/components/layout/ProductAreaLayouts').then((module) => ({
+    default: module.AuthAreaLayout,
+  })),
+)
+const OnboardingAreaLayout = lazy(() =>
+  import('@/components/layout/ProductAreaLayouts').then((module) => ({
+    default: module.OnboardingAreaLayout,
+  })),
+)
+const AppAreaLayout = lazy(() =>
+  import('@/components/layout/ProductAreaLayouts').then((module) => ({
+    default: module.AppAreaLayout,
+  })),
+)
+const LoginPage = lazy(() =>
+  import('@/pages/auth/AuthPages').then((module) => ({ default: module.LoginPage })),
+)
+const RegisterPage = lazy(() =>
+  import('@/pages/auth/AuthPages').then((module) => ({ default: module.RegisterPage })),
+)
+const ForgotPasswordPage = lazy(() =>
+  import('@/pages/auth/AuthPages').then((module) => ({ default: module.ForgotPasswordPage })),
+)
+const VerifyEmailPage = lazy(() =>
+  import('@/pages/auth/AuthPages').then((module) => ({ default: module.VerifyEmailPage })),
+)
+const WorkspaceStep = lazy(() =>
+  import('@/pages/onboarding/OnboardingPages').then((module) => ({
+    default: module.WorkspaceStep,
+  })),
+)
+const ProfileStep = lazy(() =>
+  import('@/pages/onboarding/OnboardingPages').then((module) => ({ default: module.ProfileStep })),
+)
+const ClientStep = lazy(() =>
+  import('@/pages/onboarding/OnboardingPages').then((module) => ({ default: module.ClientStep })),
+)
+const ProjectStep = lazy(() =>
+  import('@/pages/onboarding/OnboardingPages').then((module) => ({ default: module.ProjectStep })),
+)
+const CompleteStep = lazy(() =>
+  import('@/pages/onboarding/OnboardingPages').then((module) => ({ default: module.CompleteStep })),
+)
+const DashboardPage = lazy(() => import('@/pages/app/DashboardPage'))
+const ClientsPage = lazy(() =>
+  import('@/pages/app/ClientsPages').then((module) => ({ default: module.ClientsPage })),
+)
+const NewClientPage = lazy(() =>
+  import('@/pages/app/ClientsPages').then((module) => ({ default: module.NewClientPage })),
+)
+const ClientDetailPage = lazy(() =>
+  import('@/pages/app/ClientsPages').then((module) => ({ default: module.ClientDetailPage })),
+)
+const ProjectsPage = lazy(() =>
+  import('@/pages/app/ProjectsPages').then((module) => ({ default: module.ProjectsPage })),
+)
+const NewProjectPage = lazy(() =>
+  import('@/pages/app/ProjectsPages').then((module) => ({ default: module.NewProjectPage })),
+)
+const ProjectDetailPage = lazy(() =>
+  import('@/pages/app/ProjectsPages').then((module) => ({ default: module.ProjectDetailPage })),
+)
+const MaterialsPage = lazy(() =>
+  import('@/pages/app/MaterialsPages').then((module) => ({ default: module.MaterialsPage })),
+)
+const MaterialDetailPage = lazy(() =>
+  import('@/pages/app/MaterialsPages').then((module) => ({ default: module.MaterialDetailPage })),
+)
+const ReviewsPage = lazy(() => import('@/pages/app/ReviewsPage'))
+const TeamPage = lazy(() => import('@/pages/app/TeamPage'))
+const SettingsPage = lazy(() => import('@/pages/app/SettingsPage'))
 const loading = (
   <div className="mx-auto max-w-page px-5 py-20">
     <LoadingSkeleton className="h-12 w-1/2" />
@@ -30,10 +101,42 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    element: <AuthLayout />,
+    element: page(<AuthAreaLayout />),
     children: [
-      { path: '/entrar', element: page(<PlaceholderPage />) },
-      { path: '/criar-conta', element: page(<PlaceholderPage />) },
+      { path: '/entrar', element: page(<LoginPage />) },
+      { path: '/criar-conta', element: page(<RegisterPage />) },
+      { path: '/esqueci-senha', element: page(<ForgotPasswordPage />) },
+      { path: '/verificar-email', element: page(<VerifyEmailPage />) },
+    ],
+  },
+  {
+    element: page(<OnboardingAreaLayout />),
+    children: [
+      { path: '/onboarding', element: <Navigate to="/onboarding/workspace" replace /> },
+      { path: '/onboarding/workspace', element: page(<WorkspaceStep />) },
+      { path: '/onboarding/perfil', element: page(<ProfileStep />) },
+      { path: '/onboarding/cliente', element: page(<ClientStep />) },
+      { path: '/onboarding/projeto', element: page(<ProjectStep />) },
+      { path: '/onboarding/concluido', element: page(<CompleteStep />) },
+    ],
+  },
+  {
+    path: '/app',
+    element: page(<AppAreaLayout />),
+    children: [
+      { index: true, element: <Navigate to="/app/inicio" replace /> },
+      { path: 'inicio', element: page(<DashboardPage />) },
+      { path: 'clientes', element: page(<ClientsPage />) },
+      { path: 'clientes/novo', element: page(<NewClientPage />) },
+      { path: 'clientes/:clientId', element: page(<ClientDetailPage />) },
+      { path: 'projetos', element: page(<ProjectsPage />) },
+      { path: 'projetos/novo', element: page(<NewProjectPage />) },
+      { path: 'projetos/:projectId', element: page(<ProjectDetailPage />) },
+      { path: 'materiais', element: page(<MaterialsPage />) },
+      { path: 'materiais/:materialId', element: page(<MaterialDetailPage />) },
+      { path: 'revisoes', element: page(<ReviewsPage />) },
+      { path: 'equipe', element: page(<TeamPage />) },
+      { path: 'configuracoes', element: page(<SettingsPage />) },
     ],
   },
   {

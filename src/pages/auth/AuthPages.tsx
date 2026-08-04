@@ -1,0 +1,290 @@
+import { CheckCircle2, Mail, ShieldCheck } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/Button'
+import { Checkbox, Input } from '@/components/ui/FormControls'
+
+function AuthCard({
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  description: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="mx-auto grid min-h-[calc(100vh-85px)] max-w-page items-center gap-8 px-5 py-10 lg:grid-cols-[minmax(0,1fr)_26rem]">
+      <div className="hidden max-w-lg lg:block">
+        <span className="grid h-12 w-12 place-items-center rounded-lg border border-brand/30 bg-brand-soft text-brand">
+          <ShieldCheck />
+        </span>
+        <p className="mt-6 text-3xl font-semibold tracking-tight">
+          Feedback, versões e aprovações organizados desde o primeiro acesso.
+        </p>
+        <div className="mt-8 rounded-lg border border-line bg-surface p-5 shadow-soft">
+          <p className="eyebrow">Campanha de agosto</p>
+          <div className="mt-4 flex items-center justify-between rounded-md bg-surface-secondary p-4">
+            <span>Carrossel principal</span>
+            <span className="rounded-full bg-approval-soft px-2 py-1 text-xs text-approval">
+              Aprovado · v4
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="rounded-xl border border-line bg-surface p-6 shadow-raised sm:p-8">
+        <p className="eyebrow">{eyebrow}</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight">{title}</h1>
+        <p className="mt-3 text-secondary">{description}</p>
+        <div className="mt-7">{children}</div>
+      </div>
+    </section>
+  )
+}
+
+const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+
+export function LoginPage() {
+  const navigate = useNavigate()
+  const { login } = useAuth()
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(true)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    const next: Record<string, string> = {}
+    if (!validEmail(email)) next.email = 'Informe um e-mail válido.'
+    if (password.length < 6) next.password = 'Use pelo menos seis caracteres.'
+    setErrors(next)
+    if (next.email) return emailRef.current?.focus()
+    if (next.password) return passwordRef.current?.focus()
+    login(email)
+    navigate('/app/inicio')
+  }
+  return (
+    <AuthCard
+      eyebrow="Acesso ao Viztto"
+      title="Entre no seu espaço de revisão"
+      description="Acesse seus clientes, projetos, materiais e aprovações."
+    >
+      <form onSubmit={submit} noValidate className="grid gap-4">
+        <Input
+          ref={emailRef}
+          label="E-mail"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          error={errors.email}
+        />
+        <Input
+          ref={passwordRef}
+          label="Senha"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={errors.password}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Checkbox label="Lembrar acesso" checked={remember} onChange={setRemember} />
+          <Link className="text-sm text-brand hover:underline" to="/esqueci-senha">
+            Esqueci minha senha
+          </Link>
+        </div>
+        <Button type="submit" className="w-full">
+          Entrar
+        </Button>
+        <p className="text-center text-sm text-secondary">
+          Ainda não tem acesso?{' '}
+          <Link className="font-semibold text-brand" to="/criar-conta">
+            Criar conta
+          </Link>
+        </p>
+      </form>
+    </AuthCard>
+  )
+}
+
+export function RegisterPage() {
+  const navigate = useNavigate()
+  const { register } = useAuth()
+  const nameRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
+  const [terms, setTerms] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) =>
+    setForm({ ...form, [key]: event.target.value })
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    const next: Record<string, string> = {}
+    if (!form.name.trim()) next.name = 'Informe seu nome.'
+    if (!validEmail(form.email)) next.email = 'Informe um e-mail válido.'
+    if (form.password.length < 6) next.password = 'Use pelo menos seis caracteres.'
+    if (form.confirm !== form.password) next.confirm = 'As senhas precisam ser iguais.'
+    if (!terms) next.terms = 'Você precisa aceitar os termos para continuar.'
+    setErrors(next)
+    if (next.name) return nameRef.current?.focus()
+    if (next.email) return emailRef.current?.focus()
+    if (next.password || next.confirm) return passwordRef.current?.focus()
+    if (Object.keys(next).length) return
+    register(form.name, form.email)
+    navigate('/verificar-email')
+  }
+  return (
+    <AuthCard
+      eyebrow="Começar gratuitamente"
+      title="Crie seu espaço no Viztto"
+      description="Comece com sua equipe, clientes e projetos em um único fluxo."
+    >
+      <form onSubmit={submit} noValidate className="grid gap-4">
+        <Input
+          ref={nameRef}
+          label="Nome"
+          autoComplete="name"
+          value={form.name}
+          onChange={set('name')}
+          error={errors.name}
+        />
+        <Input
+          ref={emailRef}
+          label="E-mail"
+          type="email"
+          autoComplete="email"
+          value={form.email}
+          onChange={set('email')}
+          error={errors.email}
+        />
+        <Input
+          ref={passwordRef}
+          label="Senha"
+          type="password"
+          autoComplete="new-password"
+          value={form.password}
+          onChange={set('password')}
+          error={errors.password}
+        />
+        <Input
+          label="Confirmar senha"
+          type="password"
+          autoComplete="new-password"
+          value={form.confirm}
+          onChange={set('confirm')}
+          error={errors.confirm}
+        />
+        <Checkbox
+          label="Concordo com os termos e a política de privacidade."
+          checked={terms}
+          onChange={setTerms}
+        />
+        {errors.terms && (
+          <p role="alert" className="text-xs text-revision">
+            {errors.terms}
+          </p>
+        )}
+        <Button type="submit" className="w-full">
+          Criar conta gratuitamente
+        </Button>
+        <p className="text-center text-sm text-secondary">
+          Já possui conta?{' '}
+          <Link className="font-semibold text-brand" to="/entrar">
+            Entrar
+          </Link>
+        </p>
+      </form>
+    </AuthCard>
+  )
+}
+
+export function ForgotPasswordPage() {
+  const [email, setEmail] = useState('')
+  const [error, setError] = useState('')
+  const [sent, setSent] = useState(false)
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    if (!validEmail(email)) return setError('Informe um e-mail válido.')
+    setSent(true)
+  }
+  return (
+    <AuthCard
+      eyebrow="Recuperação de acesso"
+      title="Recupere seu acesso"
+      description="Informe seu e-mail para simular o envio das instruções."
+    >
+      {sent ? (
+        <div role="status" className="rounded-lg border border-approval/30 bg-approval-soft p-5">
+          <CheckCircle2 className="text-approval" />
+          <p className="mt-3 font-semibold">Instruções enviadas</p>
+          <p className="mt-1 text-sm text-secondary">
+            Enviamos as instruções de recuperação para o e-mail informado.
+          </p>
+          <Link to="/entrar" className="mt-5 inline-block text-sm font-semibold text-brand">
+            Voltar para entrar
+          </Link>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="grid gap-4">
+          <Input
+            label="E-mail"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            error={error}
+          />
+          <Button type="submit">Enviar instruções</Button>
+        </form>
+      )}
+    </AuthCard>
+  )
+}
+
+export function VerifyEmailPage() {
+  const navigate = useNavigate()
+  const { pendingEmail } = useAuth()
+  const [cooldown, setCooldown] = useState(0)
+  useEffect(() => {
+    if (!cooldown) return
+    const timer = window.setInterval(() => setCooldown((value) => Math.max(0, value - 1)), 1000)
+    return () => window.clearInterval(timer)
+  }, [cooldown])
+  return (
+    <AuthCard
+      eyebrow="Confirme seu endereço"
+      title="Verifique seu e-mail"
+      description="Esta verificação é simulada durante o desenvolvimento."
+    >
+      <div className="text-center">
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-brand">
+          <Mail />
+        </span>
+        <p className="mt-5 text-sm text-secondary">Enviamos um link para</p>
+        <p className="mt-1 font-semibold">{pendingEmail || 'seu e-mail informado'}</p>
+        <Button className="mt-7 w-full" onClick={() => navigate('/onboarding/workspace')}>
+          Simular e-mail verificado
+        </Button>
+        <Button
+          variant="ghost"
+          className="mt-2 w-full"
+          disabled={cooldown > 0}
+          onClick={() => setCooldown(30)}
+        >
+          {cooldown ? `Reenviar em ${cooldown}s` : 'Reenviar e-mail'}
+        </Button>
+        <Link
+          to="/criar-conta"
+          className="mt-4 inline-block text-sm text-secondary hover:text-brand"
+        >
+          Alterar o endereço
+        </Link>
+      </div>
+    </AuthCard>
+  )
+}

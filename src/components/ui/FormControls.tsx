@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react'
 import {
   useId,
+  forwardRef,
   type InputHTMLAttributes,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
@@ -25,7 +26,10 @@ function FieldWrap({
       <span>{label}</span>
       {children}
       {(hint || error) && (
-        <span className={cn('text-xs font-normal', error ? 'text-revision' : 'text-muted')}>
+        <span
+          id={`${id}-${error ? 'error' : 'hint'}`}
+          className={cn('text-xs font-normal', error ? 'text-revision' : 'text-muted')}
+        >
           {error ?? hint}
         </span>
       )}
@@ -33,19 +37,16 @@ function FieldWrap({
   )
 }
 
-export function Input({
-  label,
-  hint,
-  error,
-  className,
-  id,
-  ...props
-}: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string }) {
+export const Input = forwardRef<
+  HTMLInputElement,
+  InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string }
+>(function Input({ label, hint, error, className, id, ...props }, ref) {
   const generated = useId()
   const fieldId = id ?? generated
   return (
     <FieldWrap label={label} hint={hint} error={error} id={fieldId}>
       <input
+        ref={ref}
         id={fieldId}
         className={cn(
           'min-h-11 rounded-md border bg-surface px-3.5 text-sm text-ink outline-none transition placeholder:text-muted hover:border-line-strong focus:border-brand disabled:border-line-subtle disabled:bg-surface-secondary disabled:text-disabled',
@@ -53,11 +54,12 @@ export function Input({
           className,
         )}
         aria-invalid={!!error}
+        aria-describedby={error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined}
         {...props}
       />
     </FieldWrap>
   )
-}
+})
 export function Textarea({
   label,
   className,
