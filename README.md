@@ -4,7 +4,7 @@ Aplicacao full-stack de revisao, feedback, versoes e aprovacao de materiais cria
 
 ## Requisitos
 
-- Node.js 22 LTS ou superior
+- Node.js 22.22 ou superior; produção e CI usam Node.js 24
 - MySQL 8 ou MariaDB compativel
 - npm
 
@@ -32,6 +32,8 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run build:verificar
+npm run test:smoke
 ```
 
 `npm test` se recusa a preparar um banco sem o sufixo `_testes`. Configure um usuario que tenha acesso somente ao banco de testes.
@@ -40,12 +42,12 @@ npm run build
 
 ```bash
 npm ci
-npm run banco:migrar
 npm run build
-NODE_ENV=production npm start
+npm run banco:migrar:producao
+npm start
 ```
 
-Um unico processo serve `/api`, arquivos protegidos em `/arquivos`, assets de `dist` e o fallback do React Router. Consulte [deploy na Hostinger](docs/deploy-hostinger.md), [backup](docs/backup.md) e [API](docs/api.md).
+`server.js` é o entrypoint permanente. Um único processo serve `/api`, arquivos protegidos em `/arquivos`, assets de `dist` e o fallback do React Router. Em ambientes gerenciados, `PORT` prevalece sobre `PORTA`. Consulte [deploy na Hostinger](docs/deploy-hostinger.md), [backup](docs/backup.md) e [API](docs/api.md).
 
 ## Banco
 

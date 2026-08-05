@@ -6,6 +6,7 @@ dist
 *.tsbuildinfo
 .env
 build-servidor
+.smoke-uploads-*
 uploads/*
 !uploads/.gitkeep
 !uploads/imagens/.gitkeep

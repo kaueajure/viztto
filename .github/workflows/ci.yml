@@ -37,21 +37,29 @@ jobs:
       TAMANHO_MAXIMO_IMAGEM_MB: 15
       COOKIE_SEGURO: false
       CONFIAR_PROXY: false
+      EXECUTAR_MIGRATIONS: false
+      SMOKE_EXIGIR_PRONTIDAO: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Lint
-        run: npm run lint
+      - name: Production dependency audit
+        run: npm audit --omit=dev
       - name: Typecheck
         run: npm run typecheck
+      - name: Lint
+        run: npm run lint
       - name: Integration tests
         run: npm test
       - name: Build
         run: npm run build
+      - name: Verify build artifacts
+        run: npm run build:verificar
+      - name: Production startup smoke test
+        run: npm run test:smoke

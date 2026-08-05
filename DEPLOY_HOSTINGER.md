@@ -1,5 +1,5 @@
 # Deploy do Viztto na Hostinger
 
-O procedimento completo de publicação, configuração do Node.js, MySQL, proxy reverso, variáveis de ambiente, migrações, uploads persistentes e operação com PM2 está em [docs/deploy-hostinger.md](docs/deploy-hostinger.md).
+Use o guia único e atualizado para o **Node.js Web App gerenciado** em [docs/deploy-hostinger.md](docs/deploy-hostinger.md).
 
-Antes da publicação, substitua todos os segredos de desenvolvimento, configure `NODE_ENV=production`, habilite cookies seguros e valide a rotina descrita em [docs/backup.md](docs/backup.md).
+Configuração resumida: Express, Node.js 24.x, raiz `./`, npm e entrypoint `server.js`. Não use as antigas instruções de VPS/PM2 para este produto gerenciado.
