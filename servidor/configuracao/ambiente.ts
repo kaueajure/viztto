@@ -48,7 +48,6 @@ if (resultado.data.NODE_ENV === 'production' && !resultado.data.CONFIAR_PROXY)
 export const ambiente = {
   ...resultado.data,
   PORTA_SERVIDOR: resultado.data.PORT ?? resultado.data.PORTA ?? 3000,
-  HOST_SERVIDOR: '0.0.0.0' as const,
   URL_APLICACAO: resultado.data.URL_APLICACAO ?? 'http://localhost:3000',
 }
 export const emProducao = ambiente.NODE_ENV === 'production'

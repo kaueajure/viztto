@@ -4,19 +4,32 @@ import { pool } from './configuracao/banco.js'
 import { validarDiretorioUploads } from './configuracao/upload.js'
 import { executarMigrationsComTrava } from './banco/migrations.js'
 
-await validarDiretorioUploads()
-if (ambiente.EXECUTAR_MIGRATIONS) {
-  await executarMigrationsComTrava()
-  console.log('Migrations de produção aplicadas com trava exclusiva.')
+async function prepararAplicacao() {
+  await validarDiretorioUploads()
+  if (ambiente.EXECUTAR_MIGRATIONS) {
+    await executarMigrationsComTrava()
+    console.log('Migrations de produção aplicadas com trava exclusiva.')
+  }
 }
 
-const app = criarAplicacao()
-const servidor = app.listen(ambiente.PORTA_SERVIDOR, ambiente.HOST_SERVIDOR, () => {
-  console.log('Viztto iniciado.')
+const preparacao = prepararAplicacao()
+const app = criarAplicacao(preparacao)
+const servidor = app.listen(ambiente.PORTA_SERVIDOR, () => {
+  console.log('Viztto escutando.')
   console.log(`Ambiente: ${ambiente.NODE_ENV}`)
-  console.log(`Host: ${ambiente.HOST_SERVIDOR}`)
+  console.log('Host: gerenciado pelo runtime')
   console.log(`Porta: ${ambiente.PORT ? 'fornecida pela plataforma' : ambiente.PORTA_SERVIDOR}`)
 })
+
+void preparacao
+  .then(() => console.log('Viztto pronto para receber requisições.'))
+  .catch((erro: unknown) => {
+    console.error(
+      'Falha ao preparar o Viztto.',
+      erro instanceof Error ? erro.message : 'erro desconhecido',
+    )
+    servidor.close(() => void pool.end().finally(() => process.exit(1)))
+  })
 
 async function encerrar(sinal: string) {
   console.log(`Encerrando por ${sinal}`)

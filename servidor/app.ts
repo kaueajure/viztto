@@ -20,7 +20,7 @@ import { pool } from './configuracao/banco.js'
 import { diretorioDist } from './configuracao/caminhos.js'
 import { uploadsDisponiveis } from './configuracao/upload.js'
 
-export function criarAplicacao() {
+export function criarAplicacao(preparacao: Promise<void> = Promise.resolve()) {
   const app = express()
   if (ambiente.CONFIAR_PROXY) app.set('trust proxy', 1)
   app.disable('x-powered-by')
@@ -57,11 +57,20 @@ export function criarAplicacao() {
   app.get('/api/saude', (_req, res) => res.json({ estado: 'ok' }))
   app.get('/api/prontidao', async (_req, res) => {
     try {
+      await preparacao
       await pool.query('SELECT 1')
       if (!(await uploadsDisponiveis())) throw new Error('uploads_indisponiveis')
       res.json({ estado: 'pronto', banco: 'conectado', uploads: 'disponivel' })
     } catch {
       res.status(503).json({ estado: 'indisponivel' })
+    }
+  })
+  app.use(async (_req, res, next) => {
+    try {
+      await preparacao
+      next()
+    } catch {
+      res.status(503).json({ estado: 'inicializacao_falhou' })
     }
   })
   app.get('/api/autenticacao/csrf', emitirCsrf)
