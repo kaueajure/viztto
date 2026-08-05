@@ -34,7 +34,7 @@ npm ci
 
 O CI define `VIZTTO_IGNORAR_BUILD_POS_INSTALL=true` durante o `npm ci` porque executa o build explicitamente depois de typecheck, lint e testes. Não configure essa variável na Hostinger.
 
-O loader gerenciado da Hostinger carrega o entrypoint com `require()` e precisa observar o `listen()` durante esse carregamento. Por isso, `server.js` carrega o backend ESM de forma síncrona, o backend não usa top-level await e o Express começa a escutar na porta 3000 antes da preparação assíncrona de uploads e migrations. As demais requisições aguardam essa preparação; `/api/saude` permanece disponível para indicar que o processo está vivo. O smoke test reproduz o carregamento via `require()` antes de validar as rotas.
+O loader gerenciado da Hostinger carrega o entrypoint com `require()` e precisa observar o `listen()` durante esse carregamento. Por isso, `server.js` carrega o backend ESM de forma síncrona, o backend não usa top-level await e o Express começa a escutar em `0.0.0.0` (porta `PORT` da plataforma, com fallback 3000) antes da preparação assíncrona de uploads e migrations. As demais requisições aguardam essa preparação; `/api/saude` permanece disponível para indicar que o processo está vivo. O smoke test reproduz o carregamento via `require()` antes de validar as rotas.
 
 ## Variáveis
 

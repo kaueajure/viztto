@@ -14,11 +14,13 @@ async function prepararAplicacao() {
 
 const preparacao = prepararAplicacao()
 const app = criarAplicacao(preparacao)
-const servidor = app.listen(ambiente.PORTA_SERVIDOR, () => {
+const servidor = app.listen(ambiente.PORTA_SERVIDOR, ambiente.HOST_SERVIDOR, () => {
   console.log('Viztto escutando.')
   console.log(`Ambiente: ${ambiente.NODE_ENV}`)
-  console.log('Host: gerenciado pelo runtime')
-  console.log(`Porta: ${ambiente.PORT ? 'fornecida pela plataforma' : ambiente.PORTA_SERVIDOR}`)
+  console.log(`Host: ${ambiente.HOST_SERVIDOR}`)
+  console.log(
+    `Porta: ${ambiente.PORTA_SERVIDOR}${ambiente.PORT ? ' (fornecida pela plataforma)' : ''}`,
+  )
 })
 
 void preparacao
