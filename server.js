@@ -11,9 +11,7 @@ if (!existsSync(arquivoServidor)) {
   process.exit(1)
 }
 
-try {
-  await import(pathToFileURL(arquivoServidor).href)
-} catch (erro) {
+import(pathToFileURL(arquivoServidor).href).catch((erro) => {
   console.error('Falha ao iniciar o Viztto.', erro instanceof Error ? erro.message : erro)
   process.exit(1)
-}
+})

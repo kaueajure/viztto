@@ -37,7 +37,9 @@ const ambiente = {
         BANCO_SENHA: 'nao-utilizada',
       }),
 }
-const processo = spawn(process.execPath, [path.join(raizProjeto, 'server.js')], {
+const entrada = path.join(raizProjeto, 'server.js')
+const entradaRequire = entrada.replaceAll('\\', '/')
+const processo = spawn(process.execPath, ['--eval', `require(${JSON.stringify(entradaRequire)})`], {
   cwd: path.dirname(raizProjeto),
   env: ambiente,
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -80,7 +82,7 @@ try {
   if (arquivoAusente.status !== 404 || arquivoAusente.headers.get('content-type')?.includes('html'))
     throw new Error('Um arquivo ausente caiu incorretamente no fallback SPA.')
   console.log(
-    `Smoke test aprovado: start, SPA, health, readiness ${exigirProntidao ? 'conectado' : 'indisponível controlado'} e fallbacks validados.`,
+    `Smoke test aprovado: entrypoint carregado via require(), SPA, health, readiness ${exigirProntidao ? 'conectado' : 'indisponível controlado'} e fallbacks validados.`,
   )
 } finally {
   if (processo.exitCode === null) {

@@ -31,6 +31,8 @@ npm ci
 → node server.js
 ```
 
+O loader gerenciado da Hostinger carrega o entrypoint com `require()`. Por isso, `server.js` não possui top-level await: ele dispara o import dinâmico do backend ESM compilado e trata a rejeição da Promise. O smoke test reproduz esse carregamento antes de validar as rotas.
+
 ## Variáveis
 
 ```env
