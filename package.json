@@ -14,6 +14,7 @@
     "build:frontend": "tsc -b && vite build",
     "build:backend": "tsc -p tsconfig.servidor.json",
     "build:verificar": "node scripts/verificar-build.mjs",
+    "postinstall": "node scripts/build-pos-instalacao.mjs",
     "prestart": "npm run build:verificar",
     "start": "node server.js",
     "lint": "eslint .",

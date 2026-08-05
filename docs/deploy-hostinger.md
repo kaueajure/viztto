@@ -1,6 +1,6 @@
 # Deploy gerenciado na Hostinger
 
-Este guia cobre **Node.js Web App gerenciado**, não VPS. A Hostinger instala dependências, executa o build configurado e inicia o arquivo de entrada. O projeto não usa `postinstall`, evitando uma segunda compilação durante a mesma implantação.
+Este guia cobre **Node.js Web App gerenciado**, não VPS. No ambiente atual do Viztto, a Hostinger instalou as dependências e iniciou o arquivo de entrada sem executar `npm run build`. Por isso, o projeto utiliza um `postinstall` explícito para produzir os artefatos antes do start.
 
 Referências oficiais:
 
@@ -20,16 +20,19 @@ Arquivo de entrada: server.js
 
 O repositório mantém apenas `package-lock.json`. A cadeia estritamente necessária para compilar — Vite, TypeScript, plugin React, Tailwind/PostCSS e tipos usados pelo compilador — permanece em `dependencies`. Ferramentas de teste, lint, Drizzle Kit e desenvolvimento permanecem em `devDependencies`. Assim, não é necessário configurar `NPM_CONFIG_INCLUDE=dev` nem manter um `.npmrc` que altere o comportamento global do npm.
 
-O build selecionado deve ser `npm run build`. Se o hPanel exibir uma lista de comandos, confirme esse valor antes de implantar. O fluxo é:
+Se o hPanel exibir uma configuração de build, mantenha `npm run build`. O `postinstall` garante o mesmo resultado quando essa etapa não é executada pela plataforma. O fluxo observado e suportado é:
 
 ```text
 npm ci
+→ postinstall
 → npm run limpar
 → npm run build:frontend
 → npm run build:backend
 → npm run build:verificar
 → node server.js
 ```
+
+O CI define `VIZTTO_IGNORAR_BUILD_POS_INSTALL=true` durante o `npm ci` porque executa o build explicitamente depois de typecheck, lint e testes. Não configure essa variável na Hostinger.
 
 O loader gerenciado da Hostinger carrega o entrypoint com `require()`. Por isso, `server.js` não possui top-level await: ele dispara o import dinâmico do backend ESM compilado e trata a rejeição da Promise. O smoke test reproduz esse carregamento antes de validar as rotas.
 
