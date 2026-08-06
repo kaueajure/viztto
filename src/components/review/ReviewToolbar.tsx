@@ -84,7 +84,7 @@ export function ReviewToolbar({
           </Button>
         </div>
         <div className="hidden xl:block">
-          <AvatarGroup names={project?.members ?? ['Marina']} />
+          <AvatarGroup names={project?.members?.length ? project.members : []} />
         </div>
         <Button
           variant={creationMode ? 'primary' : 'secondary'}

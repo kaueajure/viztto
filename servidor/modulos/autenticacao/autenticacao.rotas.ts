@@ -100,11 +100,21 @@ export const autenticacaoRotas = Router()
 autenticacaoRotas.post('/cadastro', acesso, validarCorpo(cadastro), async (req, res) => {
   const email = normalizarEmail(req.body.email)
   const [existente] = await banco
-    .select({ id: usuarios.id })
+    .select({
+      id: usuarios.id,
+      emailVerificadoEm: usuarios.emailVerificadoEm,
+    })
     .from(usuarios)
     .where(eq(usuarios.email, email))
     .limit(1)
-  if (existente) throw new ErroHttp(409, 'Ja existe uma conta com este e-mail.', 'email_em_uso')
+  if (existente?.emailVerificadoEm)
+    throw new ErroHttp(409, 'Ja existe uma conta com este e-mail.', 'email_em_uso')
+  if (existente && !existente.emailVerificadoEm)
+    throw new ErroHttp(
+      403,
+      'Este e-mail ja possui cadastro, mas ainda nao foi verificado.',
+      'email_nao_verificado',
+    )
   const usuarioId = novoId()
   const agora = new Date()
   await banco.insert(usuarios).values({

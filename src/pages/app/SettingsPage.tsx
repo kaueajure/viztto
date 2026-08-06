@@ -9,7 +9,7 @@ import { useAppData } from '@/contexts/AppDataContext'
 
 export default function SettingsPage() {
   const { user } = useAuth()
-  const { workspace, updateWorkspace, restoreDemo } = useAppData()
+  const { workspace, updateWorkspace } = useAppData()
   const [saved, setSaved] = useState('')
   const [name, setName] = useState(workspace.name)
   const [slug, setSlug] = useState(workspace.slug)
@@ -36,9 +36,9 @@ export default function SettingsPage() {
         label="Slug"
         value={slug}
         onChange={(e) => setSlug(e.target.value)}
-        hint={`viztto.app/${slug}`}
+        hint={`viztto.site/${slug}`}
       />
-      <Input label="Logo simulado" type="file" />
+      <Input label="Logo" type="file" />
       <Input label="Cor principal" type="color" defaultValue="#b8ff4f" className="h-11 p-1" />
       <Button
         onClick={() => {
@@ -78,22 +78,12 @@ export default function SettingsPage() {
   )
   const plan = (
     <div>
-      <Badge tone="brand">Studio</Badge>
+      <Badge tone="brand">{workspace.plan || 'freelancer'}</Badge>
       <h3 className="mt-4 text-xl font-semibold text-ink">Plano atual</h3>
-      <p className="mt-2">25 projetos ativos · 100 GB · até 5 pessoas.</p>
+      <p className="mt-2">Limites do plano serão configuráveis em breve.</p>
       <p className="mt-4 text-xs text-warning">
         Valores e limites provisórios durante a fase de desenvolvimento.
       </p>
-      <Button
-        variant="outline"
-        className="mt-5"
-        onClick={() => {
-          restoreDemo()
-          setSaved('Dados de demonstração restaurados.')
-        }}
-      >
-        Restaurar dados de demonstração
-      </Button>
     </div>
   )
   return (

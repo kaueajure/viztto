@@ -75,8 +75,9 @@ export function CriarEmpresaModal({ open, nomeUsuario, onConcluido, onCriar }: P
       return
     }
     let ativo = true
-    setSlugStatus('verificando')
+    setSlugStatus('idle')
     const timer = window.setTimeout(() => {
+      setSlugStatus('verificando')
       void autenticacaoApi
         .slugDisponivel(candidato)
         .then(({ disponivel }) => {
@@ -86,7 +87,7 @@ export function CriarEmpresaModal({ open, nomeUsuario, onConcluido, onCriar }: P
         .catch(() => {
           if (ativo) setSlugStatus('idle')
         })
-    }, 350)
+    }, 3000)
     return () => {
       ativo = false
       window.clearTimeout(timer)
@@ -157,7 +158,7 @@ export function CriarEmpresaModal({ open, nomeUsuario, onConcluido, onCriar }: P
           label={usoPessoal ? 'Nome do espaço' : 'Nome da empresa'}
           value={nome}
           onChange={(e) => setNome(e.target.value)}
-          placeholder={usoPessoal ? 'Espaço de Kauê' : 'Estúdio Aurora'}
+          placeholder={usoPessoal ? 'Meu espaço' : 'Nome da empresa'}
           required
         />
         <div>

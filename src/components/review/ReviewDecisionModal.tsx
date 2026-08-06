@@ -48,7 +48,7 @@ export function ReviewDecisionModal({
         <div>
           <p className="font-semibold">{materialName}</p>
           <p className="mt-1 text-sm text-secondary">
-            {clientName} · versão {version} · responsável Marina
+            {clientName} · versão {version}
           </p>
           <div className="mt-2">
             <Badge tone={openComments ? 'revision' : 'approval'}>

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 import { carregarDadosApi, dadosApi } from '@/services/api/dadosApi'
 import type {
   Activity,
@@ -58,7 +59,6 @@ type Valor = Estado & {
   approveVersion: (id: string, v: string) => Promise<Approval>
   reopenReview: (id: string) => Promise<void>
   addActivity: () => never
-  restoreDemo: () => Promise<void>
 }
 const vazio: Estado = {
   workspace: { id: '', name: 'Workspace', slug: '', plan: 'freelancer', createdAt: '' },
@@ -76,6 +76,7 @@ const inicialOnboarding: OnboardingState = { workspaceName: '', slug: '', profil
 const Contexto = createContext<Valor | null>(null)
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth()
   const [estado, setEstado] = useState<Estado>(vazio)
   const [onboarding, setOnboarding] = useState(inicialOnboarding)
   const [loading, setLoading] = useState(true)
@@ -212,7 +213,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           id: `approval-${Date.now()}`,
           materialId: id,
           versionId,
-          approvedBy: 'Usuario atual',
+          approvedBy: user?.name || 'Usuário',
           approvedAt: new Date().toISOString(),
         }
       },
@@ -223,11 +224,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       addActivity() {
         throw new Error('Atividades sao criadas exclusivamente pelas transacoes do servidor.')
       },
-      async restoreDemo() {
-        await refresh()
-      },
     }),
-    [estado, onboarding, loading, error],
+    [estado, onboarding, loading, error, user?.name],
   )
   return <Contexto.Provider value={value}>{children}</Contexto.Provider>
 }

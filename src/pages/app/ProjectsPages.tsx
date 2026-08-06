@@ -127,7 +127,7 @@ export function NewProjectPage() {
     description: '',
     type: 'Campanha',
     dueDate: '',
-    members: 'Marina, Rafael',
+    members: '',
   })
   const set =
     (key: keyof typeof form) =>
@@ -178,7 +178,7 @@ export function NewProjectPage() {
             value={form.members}
             onChange={set('members')}
           />
-          <Input label="Aprovadores" placeholder="Bianca, cliente" />
+          <Input label="Aprovadores" placeholder="Nome dos aprovadores" />
           <div className="sm:col-span-2">
             <Textarea label="Descrição" value={form.description} onChange={set('description')} />
           </div>

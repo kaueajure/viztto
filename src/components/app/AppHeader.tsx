@@ -28,7 +28,7 @@ export function AppHeader({
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const { notifications } = useAppData()
+  const { notifications, workspace } = useAppData()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [userMenu, setUserMenu] = useState(false)
   const search = useRef<HTMLInputElement>(null)
@@ -60,7 +60,9 @@ export function AppHeader({
         <Menu className="h-5 w-5" />
       </button>
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wider text-muted">Estúdio Aurora</p>
+        <p className="text-[10px] uppercase tracking-wider text-muted">
+          {workspace.name || 'Workspace'}
+        </p>
         <p className="truncate text-sm font-semibold">{labels[segment] ?? 'Viztto'}</p>
       </div>
       <label className="relative ml-auto hidden w-full max-w-md md:block">
@@ -97,6 +99,9 @@ export function AppHeader({
                 <p className="mt-1 text-xs text-secondary">{item.description}</p>
               </div>
             ))}
+            {!notifications.length && (
+              <p className="px-3 py-2 text-sm text-muted">Nenhuma notificação.</p>
+            )}
           </div>
         )}
       </div>
@@ -110,7 +115,7 @@ export function AppHeader({
           }}
           className="flex min-h-11 items-center gap-2 rounded-md px-1"
         >
-          <Avatar name={user?.name ?? 'Marina Costa'} />
+          <Avatar name={user?.name || 'Usuário'} />
           <ChevronDown className="h-4 w-4 text-muted" />
         </button>
         {userMenu && (

@@ -174,10 +174,10 @@ export default function TeamPage() {
           </Select>
           {success && (
             <p role="status" className="text-sm text-approval">
-              Convite adicionado localmente.
+              Membro adicionado à equipe.
             </p>
           )}
-          <Button onClick={invite}>Enviar convite simulado</Button>
+          <Button onClick={invite}>Adicionar membro</Button>
         </div>
       </Modal>
     </div>

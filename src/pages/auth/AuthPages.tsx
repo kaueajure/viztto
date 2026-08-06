@@ -172,19 +172,6 @@ export function LoginPage() {
             Criar conta
           </Link>
         </p>
-        <p className="text-center text-sm text-secondary">
-          Precisa confirmar o e-mail?{' '}
-          <Link
-            className="font-semibold text-brand"
-            to={
-              validEmail(email)
-                ? `/verificar-email?email=${encodeURIComponent(email.trim().toLowerCase())}`
-                : '/verificar-email'
-            }
-          >
-            Reenviar verificação
-          </Link>
-        </p>
       </form>
     </AuthCard>
   )
@@ -192,7 +179,7 @@ export function LoginPage() {
 
 export function RegisterPage() {
   const navigate = useNavigate()
-  const { register } = useAuth()
+  const { register, resendVerification } = useAuth()
   const nameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
@@ -202,6 +189,9 @@ export function RegisterPage() {
   const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [key]: event.target.value })
   const [submitting, setSubmitting] = useState(false)
+  const [precisaVerificar, setPrecisaVerificar] = useState(false)
+  const [reenviando, setReenviando] = useState(false)
+  const [reenviado, setReenviado] = useState(false)
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     const next: Record<string, string> = {}
@@ -212,6 +202,8 @@ export function RegisterPage() {
     if (form.confirm !== form.password) next.confirm = 'As senhas precisam ser iguais.'
     if (!terms) next.terms = 'Você precisa aceitar os termos para continuar.'
     setErrors(next)
+    setPrecisaVerificar(false)
+    setReenviado(false)
     if (next.name) return nameRef.current?.focus()
     if (next.email) return emailRef.current?.focus()
     if (next.password || next.confirm) return passwordRef.current?.focus()
@@ -221,9 +213,20 @@ export function RegisterPage() {
       await register(form.name, form.email, form.password)
       navigate('/verificar-email')
     } catch (error) {
-      setErrors({
-        form: error instanceof Error ? error.message : 'Nao foi possivel criar a conta.',
-      })
+      if (error instanceof ApiError && error.codigo === 'email_nao_verificado') {
+        sessionStorage.setItem(
+          'viztto_cadastro_pendente',
+          JSON.stringify({ name: form.name, email: form.email.trim().toLowerCase() }),
+        )
+        setPrecisaVerificar(true)
+        setErrors({
+          form: 'Este e-mail ja possui cadastro, mas ainda nao foi verificado.',
+        })
+      } else {
+        setErrors({
+          form: error instanceof Error ? error.message : 'Nao foi possivel criar a conta.',
+        })
+      }
     } finally {
       setSubmitting(false)
     }
@@ -284,9 +287,39 @@ export function RegisterPage() {
             {errors.form}
           </p>
         )}
+        {reenviado && (
+          <p role="status" className="text-sm text-approval">
+            Novo e-mail de verificacao enviado. Confira sua caixa de entrada.
+          </p>
+        )}
         <Button type="submit" className="w-full" loading={submitting}>
           Criar conta gratuitamente
         </Button>
+        {precisaVerificar && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            loading={reenviando}
+            onClick={async () => {
+              setReenviando(true)
+              setReenviado(false)
+              try {
+                await resendVerification(form.email.trim().toLowerCase())
+                setReenviado(true)
+                navigate(`/verificar-email?email=${encodeURIComponent(form.email.trim().toLowerCase())}`)
+              } catch (erro) {
+                setErrors({
+                  form: erro instanceof Error ? erro.message : 'Nao foi possivel reenviar.',
+                })
+              } finally {
+                setReenviando(false)
+              }
+            }}
+          >
+            Reenviar e-mail de verificação
+          </Button>
+        )}
         <p className="text-center text-sm text-secondary">
           Já possui conta?{' '}
           <Link className="font-semibold text-brand" to="/entrar">

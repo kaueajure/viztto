@@ -2,6 +2,7 @@ import { AlertCircle, CheckCircle2, Clock3, FolderKanban } from 'lucide-react'
 import { Link } from 'react-router'
 import { MaterialStatus, PageHeader, ProjectStatusBadge } from '@/components/app/AppUi'
 import { Avatar, Card } from '@/components/ui/DataDisplay'
+import { useAuth } from '@/contexts/AuthContext'
 import { useAppData } from '@/contexts/AppDataContext'
 
 const greeting = () => {
@@ -9,15 +10,19 @@ const greeting = () => {
   return hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
 }
 
+function primeiroNome(nome?: string) {
+  const trecho = nome?.trim().split(/\s+/)[0]
+  return trecho || 'bem-vindo'
+}
+
 export default function DashboardPage() {
+  const { user } = useAuth()
   const { clients, projects, materials, activities } = useAppData()
+  const titulo = `${greeting()}, ${primeiroNome(user?.name)}`
   if (!clients.length || !projects.length)
     return (
       <div>
-        <PageHeader
-          title={`${greeting()}, Marina`}
-          description="Aqui está o que precisa da sua atenção hoje."
-        />
+        <PageHeader title={titulo} description="Aqui está o que precisa da sua atenção hoje." />
         <div className="mt-10 rounded-xl border border-dashed border-line-strong bg-surface p-8 text-center">
           <FolderKanban className="mx-auto text-brand" />
           <h2 className="mt-4 text-2xl font-semibold">Crie seu primeiro fluxo de revisão</h2>
@@ -71,7 +76,7 @@ export default function DashboardPage() {
   return (
     <div>
       <PageHeader
-        title={`${greeting()}, Marina`}
+        title={titulo}
         description="Aqui está o que precisa da sua atenção hoje."
         action={{ label: 'Novo projeto', to: '/app/projetos/novo' }}
       />
@@ -142,6 +147,9 @@ export default function DashboardPage() {
                 </div>
               </li>
             ))}
+            {!activities.length && (
+              <li className="text-sm text-muted">Nenhuma atividade recente ainda.</li>
+            )}
           </ol>
         </section>
       </div>
@@ -166,6 +174,7 @@ export default function DashboardPage() {
                 </div>
               </Link>
             ))}
+            {!materials.length && <p className="text-sm text-muted">Nenhum material enviado ainda.</p>}
           </div>
         </section>
         <section className="rounded-lg border border-line bg-surface p-5">
@@ -188,6 +197,9 @@ export default function DashboardPage() {
                   </span>
                 </div>
               ))}
+            {!projects.some((item) => item.dueDate && item.status !== 'approved') && (
+              <p className="text-sm text-muted">Nenhum prazo definido.</p>
+            )}
           </div>
         </section>
       </div>

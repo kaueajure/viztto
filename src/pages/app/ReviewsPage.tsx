@@ -50,7 +50,11 @@ export default function ReviewsPage() {
                       <Badge tone={material.unresolvedCommentCount ? 'revision' : 'neutral'}>
                         {material.unresolvedCommentCount} pendentes
                       </Badge>
-                      <span className="text-xs text-secondary">Responsável: Marina</span>
+                      <span className="text-xs text-secondary">
+                        {itemContext.project?.members?.[0]
+                          ? `Responsável: ${itemContext.project.members[0]}`
+                          : 'Sem responsável'}
+                      </span>
                     </div>
                   </Link>
                 )

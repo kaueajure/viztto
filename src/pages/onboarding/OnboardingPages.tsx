@@ -68,10 +68,10 @@ export function WorkspaceStep() {
           label="Nome do workspace"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Estúdio Aurora"
+          placeholder="Nome do workspace"
         />
         <div className="flex flex-wrap gap-2">
-          {['Estúdio Aurora', 'Agência Lume', 'Equipe de Marketing', 'Meu workspace'].map(
+          {['Meu workspace', 'Agência', 'Equipe de Marketing', 'Estúdio'].map(
             (item) => (
               <button
                 className="rounded-full border border-line px-3 py-2 text-xs text-secondary hover:border-brand"
@@ -88,7 +88,7 @@ export function WorkspaceStep() {
           label="URL curta (opcional)"
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
-          hint={`viztto.app/${slug || 'estudio-aurora'}`}
+          hint={`viztto.site/${slug || 'sua-empresa'}`}
         />
         <Button type="submit">Continuar</Button>
       </div>
@@ -256,7 +256,7 @@ export function CompleteStep() {
       <dl className="mx-auto mt-7 grid max-w-md gap-3 rounded-lg border border-line bg-surface-secondary p-5 text-left text-sm">
         <div className="flex justify-between gap-4">
           <dt className="text-muted">Workspace</dt>
-          <dd className="font-semibold">{onboarding.workspaceName || 'Estúdio Aurora'}</dd>
+          <dd className="font-semibold">{onboarding.workspaceName || 'Meu workspace'}</dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-muted">Perfil</dt>

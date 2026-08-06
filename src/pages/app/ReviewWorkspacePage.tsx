@@ -14,12 +14,14 @@ import { EmptyState } from '@/components/ui/DataDisplay'
 import { Textarea } from '@/components/ui/FormControls'
 import { Modal } from '@/components/ui/Interactive'
 import { useAppData } from '@/contexts/AppDataContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/cn'
 
 type Panel = 'comments' | 'versions' | 'activity' | 'info'
 
 export default function ReviewWorkspacePage() {
   const { materialId } = useParams()
+  const { user } = useAuth()
   const data = useAppData()
   const material = data.materials.find((item) => item.id === materialId)
   const project = data.projects.find((item) => item.id === material?.projectId)
@@ -194,7 +196,10 @@ export default function ReviewWorkspacePage() {
     if (activeVersion.id !== material.currentVersionId) return
     await data.approveVersion(material.id, activeVersion.id)
     setDecision(null)
-    setNotice({ tone: 'success', text: `Versão ${material.currentVersion} aprovada por Marina.` })
+    setNotice({
+      tone: 'success',
+      text: `Versão ${material.currentVersion} aprovada${user?.name ? ` por ${user.name}` : ''}.`,
+    })
   }
 
   return (

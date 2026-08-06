@@ -130,6 +130,7 @@ function WorkspaceSwitcher({ close }: { close?: () => void }) {
 
 function SidebarContent({ close }: { close?: () => void }) {
   const navigate = useNavigate()
+  const { workspace } = useAppData()
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center justify-between border-b border-line px-4">
@@ -173,8 +174,8 @@ function SidebarContent({ close }: { close?: () => void }) {
         ))}
       </nav>
       <div className="m-3 rounded-md border border-line bg-surface-secondary p-3">
-        <p className="text-xs font-semibold">Plano Studio</p>
-        <p className="mt-1 text-[11px] text-muted">25 projetos ativos · limites provisórios</p>
+        <p className="text-xs font-semibold">Plano {workspace.plan || 'freelancer'}</p>
+        <p className="mt-1 text-[11px] text-muted">Limites do plano em configuração</p>
       </div>
     </div>
   )

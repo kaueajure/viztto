@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Avatar, Badge, EmptyState } from '@/components/ui/DataDisplay'
 import { Input, Select, Textarea } from '@/components/ui/FormControls'
 import { Modal } from '@/components/ui/Interactive'
+import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/cn'
 import type { MaterialVersion, ReviewComment } from '@/types/domain'
 
@@ -40,6 +41,7 @@ export function CommentsPanel({
   onEdit: (commentId: string, text: string) => void
   onDelete: (commentId: string) => void
 }) {
+  const { user } = useAuth()
   const [filter, setFilter] = useState<Filter>('current')
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
   const [replying, setReplying] = useState<string | null>(null)
@@ -202,7 +204,7 @@ export function CommentsPanel({
                       <RotateCcw className="h-3.5 w-3.5" /> Reabrir
                     </Button>
                   )}
-                  {comment.authorId === 'user-marina' && (
+                  {comment.authorId === user?.id && (
                     <>
                       <Button
                         variant="ghost"
