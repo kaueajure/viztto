@@ -7,6 +7,7 @@ Todas as rotas de dominio exigem cookie de sessao. Rotas de escrita tambem exige
 - `POST /api/autenticacao/cadastro`
 - `POST /api/autenticacao/verificar-email`
 - `POST /api/autenticacao/reenviar-verificacao`
+- `GET /api/autenticacao/slug-disponivel`
 - `POST /api/autenticacao/onboarding`
 - `POST /api/autenticacao/entrar`
 - `POST /api/autenticacao/trocar-workspace`

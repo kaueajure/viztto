@@ -24,7 +24,7 @@ type AuthValue = AuthState & {
   register: (name: string, email: string, senha: string) => Promise<void>
   verifyEmail: (token?: string) => Promise<void>
   resendVerification: (emailInformado?: string) => Promise<void>
-  completeOnboarding: (nome: string, slug: string) => Promise<void>
+  completeOnboarding: (nome: string, slug: string, tipo?: string) => Promise<void>
   switchWorkspace: (workspaceId: string) => Promise<void>
   logout: () => Promise<void>
   resetAuth: () => Promise<void>
@@ -198,10 +198,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (r.tokenVerificacao)
           sessionStorage.setItem('viztto_token_verificacao', r.tokenVerificacao)
       },
-      async completeOnboarding(nome, slug) {
+      async completeOnboarding(nome, slug, tipo = 'outro') {
         const usuarioId = auth.user?.id || sessionStorage.getItem('viztto_usuario_pendente')
         if (!usuarioId) throw new Error('Sessao de cadastro nao encontrada.')
-        await autenticacaoApi.onboarding(usuarioId, nome, slug)
+        await autenticacaoApi.onboarding(usuarioId, nome, slug, tipo)
         const { sessao } = await autenticacaoApi.sessao()
         setAuth({
           user: usuarioDaSessao(sessao),

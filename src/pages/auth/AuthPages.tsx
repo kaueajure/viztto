@@ -1,6 +1,7 @@
 import { CheckCircle2, Mail, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
+import { CriarEmpresaModal } from '@/components/auth/CriarEmpresaModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Checkbox, Input } from '@/components/ui/FormControls'
@@ -342,12 +343,21 @@ export function ForgotPasswordPage() {
 export function VerifyEmailPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const { pendingEmail, verifyEmail, resendVerification } = useAuth()
+  const {
+    user,
+    pendingEmail,
+    emailVerified,
+    onboardingCompleted,
+    verifyEmail,
+    resendVerification,
+    completeOnboarding,
+  } = useAuth()
   const [cooldown, setCooldown] = useState(0)
   const [error, setError] = useState('')
   const [status, setStatus] = useState<'idle' | 'verificando' | 'ok'>('idle')
   const [temTokenLocal, setTemTokenLocal] = useState(false)
   const [reenviado, setReenviado] = useState(false)
+  const [modalEmpresa, setModalEmpresa] = useState(false)
   const emailQuery = params.get('email')?.trim().toLowerCase() || ''
   const [emailManual, setEmailManual] = useState(emailQuery || pendingEmail || '')
   const tokenUrl = params.get('token')?.trim() || ''
@@ -371,6 +381,10 @@ export function VerifyEmailPage() {
   }, [emailQuery])
 
   useEffect(() => {
+    if (emailVerified && !onboardingCompleted) setModalEmpresa(true)
+  }, [emailVerified, onboardingCompleted])
+
+  useEffect(() => {
     if (!cooldown) return
     const timer = window.setInterval(() => setCooldown((value) => Math.max(0, value - 1)), 1000)
     return () => window.clearInterval(timer)
@@ -384,7 +398,7 @@ export function VerifyEmailPage() {
       .then(() => {
         if (!ativo) return
         setStatus('ok')
-        navigate('/onboarding/workspace')
+        setModalEmpresa(true)
       })
       .catch((erro) => {
         if (!ativo) return
@@ -394,87 +408,110 @@ export function VerifyEmailPage() {
     return () => {
       ativo = false
     }
-  }, [tokenUrl, status, verifyEmail, navigate])
+  }, [tokenUrl, status, verifyEmail])
 
   return (
-    <AuthCard
-      eyebrow="Confirme seu endereço"
-      title="Verifique seu e-mail"
-      description="Abrimos um link seguro no seu e-mail para confirmar a conta."
-    >
-      <div className="text-center">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-brand">
-          <Mail />
-        </span>
-        <p className="mt-5 text-sm text-secondary">
-          {status === 'verificando' ? 'Confirmando seu e-mail...' : 'Enviamos um link para'}
-        </p>
-        {emailAtual ? (
-          <p className="mt-1 font-semibold">{emailAtual}</p>
-        ) : (
-          <div className="mt-4 text-left">
-            <Input
-              label="E-mail da conta"
-              type="email"
-              value={emailManual}
-              onChange={(e) => setEmailManual(e.target.value)}
-            />
-          </div>
-        )}
-        {podeSimularDev && (
-          <Button
-            className="mt-7 w-full"
-            onClick={async () => {
-              try {
-                await verifyEmail()
-                navigate('/onboarding/workspace')
-              } catch (erro) {
-                setError(erro instanceof Error ? erro.message : 'Nao foi possivel verificar.')
-              }
-            }}
+    <>
+      <AuthCard
+        eyebrow="Confirme seu endereço"
+        title="Verifique seu e-mail"
+        description="Abrimos um link seguro no seu e-mail para confirmar a conta."
+      >
+        <div className="text-center">
+          <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-brand">
+            <Mail />
+          </span>
+          <p className="mt-5 text-sm text-secondary">
+            {status === 'verificando'
+              ? 'Confirmando seu e-mail...'
+              : status === 'ok' || emailVerified
+                ? 'E-mail confirmado. Finalize a criação da sua empresa.'
+                : 'Enviamos um link para'}
+          </p>
+          {emailAtual ? (
+            <p className="mt-1 font-semibold">{emailAtual}</p>
+          ) : (
+            <div className="mt-4 text-left">
+              <Input
+                label="E-mail da conta"
+                type="email"
+                value={emailManual}
+                onChange={(e) => setEmailManual(e.target.value)}
+              />
+            </div>
+          )}
+          {podeSimularDev && !emailVerified && (
+            <Button
+              className="mt-7 w-full"
+              onClick={async () => {
+                try {
+                  await verifyEmail()
+                  setStatus('ok')
+                  setModalEmpresa(true)
+                } catch (erro) {
+                  setError(erro instanceof Error ? erro.message : 'Nao foi possivel verificar.')
+                }
+              }}
+            >
+              Usar token de desenvolvimento
+            </Button>
+          )}
+          {reenviado && (
+            <p role="status" className="mt-3 text-sm text-approval">
+              Novo e-mail enviado. Confira sua caixa de entrada e o spam.
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="mt-3 text-sm text-revision">
+              {error}
+            </p>
+          )}
+          {!emailVerified && (
+            <Button
+              variant={podeSimularDev ? 'ghost' : 'primary'}
+              className={podeSimularDev ? 'mt-2 w-full' : 'mt-7 w-full'}
+              disabled={cooldown > 0 || status === 'verificando'}
+              onClick={async () => {
+                try {
+                  setError('')
+                  setReenviado(false)
+                  if (!validEmail(emailAtual)) {
+                    setError('Informe um e-mail valido para reenviar a verificacao.')
+                    return
+                  }
+                  await resendVerification(emailAtual)
+                  setReenviado(true)
+                  setCooldown(30)
+                } catch (erro) {
+                  setError(erro instanceof Error ? erro.message : 'Nao foi possivel reenviar.')
+                }
+              }}
+            >
+              {cooldown ? `Reenviar em ${cooldown}s` : 'Reenviar e-mail'}
+            </Button>
+          )}
+          {emailVerified && !onboardingCompleted && (
+            <Button className="mt-7 w-full" onClick={() => setModalEmpresa(true)}>
+              Criar empresa
+            </Button>
+          )}
+          <Link
+            to="/criar-conta"
+            className="mt-4 inline-block text-sm text-secondary hover:text-brand"
           >
-            Usar token de desenvolvimento
-          </Button>
-        )}
-        {reenviado && (
-          <p role="status" className="mt-3 text-sm text-approval">
-            Novo e-mail enviado. Confira sua caixa de entrada e o spam.
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="mt-3 text-sm text-revision">
-            {error}
-          </p>
-        )}
-        <Button
-          variant={podeSimularDev ? 'ghost' : 'primary'}
-          className={podeSimularDev ? 'mt-2 w-full' : 'mt-7 w-full'}
-          disabled={cooldown > 0 || status === 'verificando'}
-          onClick={async () => {
-            try {
-              setError('')
-              setReenviado(false)
-              if (!validEmail(emailAtual)) {
-                setError('Informe um e-mail valido para reenviar a verificacao.')
-                return
-              }
-              await resendVerification(emailAtual)
-              setReenviado(true)
-              setCooldown(30)
-            } catch (erro) {
-              setError(erro instanceof Error ? erro.message : 'Nao foi possivel reenviar.')
-            }
-          }}
-        >
-          {cooldown ? `Reenviar em ${cooldown}s` : 'Reenviar e-mail'}
-        </Button>
-        <Link
-          to="/criar-conta"
-          className="mt-4 inline-block text-sm text-secondary hover:text-brand"
-        >
-          Alterar o endereço
-        </Link>
-      </div>
-    </AuthCard>
+            Alterar o endereço
+          </Link>
+        </div>
+      </AuthCard>
+      <CriarEmpresaModal
+        open={modalEmpresa && emailVerified && !onboardingCompleted}
+        nomeUsuario={user?.name || ''}
+        onCriar={({ nome, slug, tipo }) => completeOnboarding(nome, slug, tipo)}
+        onConcluido={() => {
+          setModalEmpresa(false)
+          navigate('/app/inicio')
+        }}
+      />
+    </>
   )
 }

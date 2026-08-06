@@ -8,7 +8,7 @@ export function AuthGuard() {
     return <div className="min-h-screen bg-background" aria-label="Carregando sessao" />
   if (!auth.user) return <Navigate to="/entrar" replace state={{ from: location.pathname }} />
   if (!auth.emailVerified) return <Navigate to="/verificar-email" replace />
-  if (!auth.onboardingCompleted) return <Navigate to="/onboarding/workspace" replace />
+  if (!auth.onboardingCompleted) return <Navigate to="/verificar-email" replace />
   return <Outlet />
 }
 
@@ -19,7 +19,7 @@ export function OnboardingGuard() {
   if (!auth.user) return <Navigate to="/entrar" replace />
   if (!auth.emailVerified) return <Navigate to="/verificar-email" replace />
   if (auth.onboardingCompleted) return <Navigate to="/app/inicio" replace />
-  return <Outlet />
+  return <Navigate to="/verificar-email" replace />
 }
 
 export function GuestGuard() {
@@ -31,6 +31,8 @@ export function GuestGuard() {
   if (!auth.emailVerified) {
     return path === '/verificar-email' ? <Outlet /> : <Navigate to="/verificar-email" replace />
   }
-  if (!auth.onboardingCompleted) return <Navigate to="/onboarding/workspace" replace />
+  if (!auth.onboardingCompleted) {
+    return path === '/verificar-email' ? <Outlet /> : <Navigate to="/verificar-email" replace />
+  }
   return <Navigate to="/app/inicio" replace />
 }

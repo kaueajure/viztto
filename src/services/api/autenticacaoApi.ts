@@ -38,11 +38,15 @@ export const autenticacaoApi = {
         body: json({ email }),
       },
     ),
-  onboarding: (usuarioId: string, nome: string, slug: string) =>
+  onboarding: (usuarioId: string, nome: string, slug: string, tipo: string) =>
     requisicaoApi('/api/autenticacao/onboarding', {
       method: 'POST',
-      body: json({ usuarioId, nome, slug }),
+      body: json({ usuarioId, nome, slug, tipo }),
     }),
+  slugDisponivel: (slug: string) =>
+    requisicaoApi<{ disponivel: boolean }>(
+      `/api/autenticacao/slug-disponivel?slug=${encodeURIComponent(slug)}`,
+    ),
   trocarWorkspace: (workspaceId: string) =>
     requisicaoApi<{ workspaceId: string }>('/api/autenticacao/trocar-workspace', {
       method: 'POST',

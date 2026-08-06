@@ -43,6 +43,7 @@ export const workspaces = mysqlTable(
     id: id().primaryKey(),
     nome: varchar('nome', { length: 160 }).notNull(),
     slug: varchar('slug', { length: 120 }).notNull(),
+    tipo: varchar('tipo', { length: 80 }).notNull().default('outro'),
     plano: mysqlEnum('plano', ['freelancer', 'studio', 'agency']).notNull().default('freelancer'),
     logoUrl: varchar('logo_url', { length: 500 }),
     corPrincipal: char('cor_principal', { length: 7 }).notNull().default('#b8ff4f'),

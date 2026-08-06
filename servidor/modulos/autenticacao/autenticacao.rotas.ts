@@ -45,6 +45,7 @@ const onboarding = z.object({
     .regex(/^[a-z0-9-]+$/)
     .min(2)
     .max(120),
+  tipo: z.string().trim().min(2).max(80).default('outro'),
 })
 
 const opcoesCookie = {
@@ -181,6 +182,21 @@ autenticacaoRotas.post('/verificar-email', acesso, validarCorpo(verificacao), as
   })
 })
 
+autenticacaoRotas.get('/slug-disponivel', async (req, res) => {
+  const slug = String(req.query.slug ?? '')
+    .trim()
+    .toLowerCase()
+  if (!/^[a-z0-9-]{2,120}$/.test(slug)) {
+    throw new ErroHttp(422, 'Slug invalido.', 'dados_invalidos')
+  }
+  const [existente] = await banco
+    .select({ id: workspaces.id })
+    .from(workspaces)
+    .where(and(eq(workspaces.slug, slug), isNull(workspaces.excluidoEm)))
+    .limit(1)
+  res.json({ disponivel: !existente })
+})
+
 autenticacaoRotas.post('/onboarding', acesso, validarCorpo(onboarding), async (req, res) => {
   const usuarioId = String(req.body.usuarioId ?? '')
   if (!usuarioId) throw new ErroHttp(422, 'Usuario ausente.', 'dados_invalidos')
@@ -191,13 +207,24 @@ autenticacaoRotas.post('/onboarding', acesso, validarCorpo(onboarding), async (r
     .limit(1)
   if (!usuario?.emailVerificadoEm)
     throw new ErroHttp(403, 'Verifique o e-mail antes do onboarding.', 'email_nao_verificado')
+  const [slugEmUso] = await banco
+    .select({ id: workspaces.id })
+    .from(workspaces)
+    .where(and(eq(workspaces.slug, req.body.slug), isNull(workspaces.excluidoEm)))
+    .limit(1)
+  if (slugEmUso) throw new ErroHttp(409, 'Essa URL ja esta em uso.', 'slug_em_uso')
   const workspaceId = novoId()
   const agora = new Date()
+  const tipo = String(req.body.tipo ?? 'outro').slice(0, 80)
+  const plano =
+    tipo === 'agencia' ? 'agency' : tipo === 'estudio' ? 'studio' : ('freelancer' as const)
   await banco.transaction(async (tx) => {
     await tx.insert(workspaces).values({
       id: workspaceId,
       nome: req.body.nome,
       slug: req.body.slug,
+      tipo,
+      plano,
       criadoPorUsuarioId: usuarioId,
       criadoEm: agora,
       atualizadoEm: agora,

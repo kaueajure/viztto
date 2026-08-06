@@ -1,0 +1,1 @@
+ALTER TABLE `workspaces` ADD `tipo` varchar(80) DEFAULT 'outro' NOT NULL;

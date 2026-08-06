@@ -44,11 +44,13 @@ export function Modal({
   onClose,
   title,
   children,
+  dismissible = true,
 }: {
   open: boolean
   onClose: () => void
   title: string
   children: ReactNode
+  dismissible?: boolean
 }) {
   const panel = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -61,7 +63,7 @@ export function Modal({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        onClose()
+        if (dismissible) onClose()
       }
       if (event.key === 'Tab' && panel.current) {
         const elements = Array.from(
@@ -88,13 +90,13 @@ export function Modal({
 
     document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', onKey)
-    requestAnimationFrame(() => panel.current?.querySelector<HTMLElement>('button')?.focus())
+    requestAnimationFrame(() => panel.current?.querySelector<HTMLElement>('button,input,select')?.focus())
     return () => {
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', onKey)
       previous?.focus()
     }
-  }, [open, onClose])
+  }, [open, onClose, dismissible])
 
   return (
     <AnimatePresence>
@@ -105,7 +107,7 @@ export function Modal({
           animate={{ opacity: 1 }}
           exit={reduceMotion ? undefined : { opacity: 0 }}
           onPointerDown={(event) => {
-            if (event.target === event.currentTarget) onClose()
+            if (dismissible && event.target === event.currentTarget) onClose()
           }}
         >
           <motion.div
@@ -114,7 +116,7 @@ export function Modal({
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
-            className="w-full max-w-lg rounded-t-xl border border-line bg-surface-elevated p-5 shadow-raised sm:rounded-xl sm:p-7"
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-xl border border-line bg-surface-elevated p-5 shadow-raised sm:rounded-xl sm:p-7"
             initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduceMotion ? undefined : { opacity: 0, y: 18 }}
@@ -124,9 +126,11 @@ export function Modal({
               <h2 id={titleId} className="text-xl font-semibold">
                 {title}
               </h2>
-              <IconButton label="Fechar modal" onClick={onClose}>
-                <X className="h-4 w-4" />
-              </IconButton>
+              {dismissible && (
+                <IconButton label="Fechar modal" onClick={onClose}>
+                  <X className="h-4 w-4" />
+                </IconButton>
+              )}
             </div>
             {children}
           </motion.div>
