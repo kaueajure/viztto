@@ -1,5 +1,6 @@
 import {
   Archive,
+  ChevronDown,
   FolderKanban,
   LayoutDashboard,
   Settings,
@@ -8,11 +9,13 @@ import {
   Workflow,
   X,
 } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
 import { Logo } from '@/components/brand/Logo'
 import { Button, IconButton } from '@/components/ui/Button'
 import { useAppData } from '@/contexts/AppDataContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { autenticacaoApi } from '@/services/api/autenticacaoApi'
 import { cn } from '@/lib/cn'
 
 const links = [
@@ -25,9 +28,108 @@ const links = [
   ['/app/configuracoes', 'Configurações', Settings],
 ] as const
 
+type WorkspaceOpcao = { id: string; nome: string; slug: string; plano: string }
+
+function WorkspaceSwitcher({ close }: { close?: () => void }) {
+  const { workspace, refresh } = useAppData()
+  const { user, switchWorkspace } = useAuth()
+  const [aberto, setAberto] = useState(false)
+  const [opcoes, setOpcoes] = useState<WorkspaceOpcao[]>([])
+  const [trocando, setTrocando] = useState(false)
+  const painel = useRef<HTMLDivElement>(null)
+  const podeTrocar = Boolean(user?.admin || opcoes.length > 1)
+
+  useEffect(() => {
+    let ativo = true
+    autenticacaoApi
+      .listarWorkspaces()
+      .then(({ dados }) => {
+        if (ativo) setOpcoes(dados)
+      })
+      .catch(() => {
+        if (ativo) setOpcoes([])
+      })
+    return () => {
+      ativo = false
+    }
+  }, [user?.workspaceId, user?.admin])
+
+  useEffect(() => {
+    if (!aberto) return
+    const fechar = (event: MouseEvent) => {
+      if (!painel.current?.contains(event.target as Node)) setAberto(false)
+    }
+    document.addEventListener('mousedown', fechar)
+    return () => document.removeEventListener('mousedown', fechar)
+  }, [aberto])
+
+  async function selecionar(workspaceId: string) {
+    if (workspaceId === workspace.id || trocando) return
+    setTrocando(true)
+    try {
+      await switchWorkspace(workspaceId)
+      await refresh()
+      setAberto(false)
+      close?.()
+    } finally {
+      setTrocando(false)
+    }
+  }
+
+  return (
+    <div ref={painel} className="relative">
+      <button
+        type="button"
+        disabled={!podeTrocar || trocando}
+        onClick={() => podeTrocar && setAberto((valor) => !valor)}
+        className="flex w-full items-center justify-between rounded-md border border-line bg-surface-secondary px-3 py-3 text-left disabled:opacity-100"
+        aria-haspopup="listbox"
+        aria-expanded={aberto}
+      >
+        <span>
+          <span className="block text-[10px] uppercase tracking-wider text-muted">
+            {user?.admin ? 'Visão da empresa' : 'Workspace'}
+          </span>
+          <span className="mt-1 block text-sm font-semibold">{workspace.name}</span>
+        </span>
+        <span className="flex items-center gap-1 text-xs text-brand">
+          {user?.admin ? 'Admin' : workspace.plan}
+          {podeTrocar && <ChevronDown className="h-3.5 w-3.5" />}
+        </span>
+      </button>
+      {aberto && (
+        <ul
+          role="listbox"
+          className="absolute inset-x-0 z-20 mt-1 max-h-56 overflow-auto rounded-md border border-line bg-surface py-1 shadow-raised"
+        >
+          {opcoes.map((opcao) => (
+            <li key={opcao.id}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={opcao.id === workspace.id}
+                disabled={trocando}
+                onClick={() => void selecionar(opcao.id)}
+                className={cn(
+                  'flex w-full items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-surface-secondary',
+                  opcao.id === workspace.id && 'bg-brand-soft text-brand',
+                )}
+              >
+                <span>
+                  <span className="block font-medium">{opcao.nome}</span>
+                  <span className="block text-[11px] text-muted">{opcao.slug}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 function SidebarContent({ close }: { close?: () => void }) {
   const navigate = useNavigate()
-  const { workspace } = useAppData()
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center justify-between border-b border-line px-4">
@@ -39,13 +141,7 @@ function SidebarContent({ close }: { close?: () => void }) {
         )}
       </div>
       <div className="p-3">
-        <button className="flex w-full items-center justify-between rounded-md border border-line bg-surface-secondary px-3 py-3 text-left">
-          <span>
-            <span className="block text-[10px] uppercase tracking-wider text-muted">Workspace</span>
-            <span className="mt-1 block text-sm font-semibold">{workspace.name}</span>
-          </span>
-          <span className="text-xs text-brand">Studio</span>
-        </button>
+        <WorkspaceSwitcher close={close} />
         <Button
           className="mt-3 w-full"
           onClick={() => {

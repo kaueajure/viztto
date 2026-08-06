@@ -10,6 +10,7 @@ declare global {
         usuarioEmail: string
         workspaceId: string
         funcao: FuncaoMembro
+        admin: boolean
       }
     }
   }

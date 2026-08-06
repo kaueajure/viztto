@@ -56,9 +56,18 @@ TAMANHO_MAXIMO_IMAGEM_MB=15
 COOKIE_SEGURO=true
 CONFIAR_PROXY=true
 EXECUTAR_MIGRATIONS=true
+
+EMAIL_HOST=smtp.hostinger.com
+EMAIL_PORTA=465
+EMAIL_USUARIO=contato@viztto.site
+EMAIL_SENHA=senha_da_caixa
+EMAIL_REMETENTE=contato@viztto.site
+EMAIL_NOME=Viztto
 ```
 
 Não configure `PORT=3000`: a porta injetada pela Hostinger tem prioridade. `PORTA` existe apenas como fallback local.
+
+O SMTP usa a caixa `contato@viztto.site` (Hostinger: `smtp.hostinger.com`, porta `465` com SSL). Em produção, `EMAIL_HOST`, `EMAIL_USUARIO` e `EMAIL_SENHA` são obrigatórios.
 
 `EXECUTAR_MIGRATIONS=true` aplica migrations antes do `listen`. O runner usa `GET_LOCK` no MySQL/MariaDB para impedir execução concorrente. Seed nunca é executado automaticamente. Também é possível migrar explicitamente, após o build, com:
 

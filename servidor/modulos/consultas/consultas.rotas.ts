@@ -8,6 +8,7 @@ import {
   usuarios,
   workspaces,
 } from '../../banco/esquema/index.js'
+import { exigirAdmin } from '../../middlewares/autorizacao.js'
 
 export const consultasRotas = Router()
 
@@ -56,6 +57,56 @@ consultasRotas.get('/workspaces/atual', async (req, res) => {
     .where(eq(workspaces.id, req.sessao!.workspaceId))
     .limit(1)
   res.json({ dado })
+})
+consultasRotas.get('/workspaces', async (req, res) => {
+  if (req.sessao!.admin) {
+    const dados = await banco
+      .select({
+        id: workspaces.id,
+        nome: workspaces.nome,
+        slug: workspaces.slug,
+        plano: workspaces.plano,
+      })
+      .from(workspaces)
+      .where(and(eq(workspaces.ativo, true), isNull(workspaces.excluidoEm)))
+      .orderBy(workspaces.nome)
+    return res.json({ dados })
+  }
+  const dados = await banco
+    .select({
+      id: workspaces.id,
+      nome: workspaces.nome,
+      slug: workspaces.slug,
+      plano: workspaces.plano,
+    })
+    .from(membrosWorkspace)
+    .innerJoin(workspaces, eq(workspaces.id, membrosWorkspace.workspaceId))
+    .where(
+      and(
+        eq(membrosWorkspace.usuarioId, req.sessao!.usuarioId),
+        eq(membrosWorkspace.status, 'ativo'),
+        eq(workspaces.ativo, true),
+        isNull(workspaces.excluidoEm),
+      ),
+    )
+    .orderBy(workspaces.nome)
+  res.json({ dados })
+})
+consultasRotas.get('/usuarios', exigirAdmin, async (_req, res) => {
+  const dados = await banco
+    .select({
+      id: usuarios.id,
+      nome: usuarios.nome,
+      email: usuarios.email,
+      avatarUrl: usuarios.avatarUrl,
+      admin: usuarios.admin,
+      ativo: usuarios.ativo,
+      criadoEm: usuarios.criadoEm,
+    })
+    .from(usuarios)
+    .where(isNull(usuarios.excluidoEm))
+    .orderBy(usuarios.nome)
+  res.json({ dados })
 })
 consultasRotas.get('/usuarios/equipe', async (req, res) => {
   const dados = await banco

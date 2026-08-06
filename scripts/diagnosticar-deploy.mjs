@@ -13,6 +13,9 @@ const obrigatorias = [
   'SEGREDO_SESSAO',
   'URL_APLICACAO',
   'DIRETORIO_UPLOADS',
+  'EMAIL_HOST',
+  'EMAIL_USUARIO',
+  'EMAIL_SENHA',
 ]
 
 const npm = process.env.npm_config_user_agent?.match(/npm\/([^\s]+)/)?.[1] ?? 'não informado'

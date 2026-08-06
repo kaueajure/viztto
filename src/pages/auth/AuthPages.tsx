@@ -1,6 +1,6 @@
 import { CheckCircle2, Mail, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Checkbox, Input } from '@/components/ui/FormControls'
@@ -277,49 +277,92 @@ export function ForgotPasswordPage() {
 
 export function VerifyEmailPage() {
   const navigate = useNavigate()
-  const { pendingEmail, verifyEmail } = useAuth()
+  const [params] = useSearchParams()
+  const { pendingEmail, verifyEmail, resendVerification } = useAuth()
   const [cooldown, setCooldown] = useState(0)
   const [error, setError] = useState('')
+  const [status, setStatus] = useState<'idle' | 'verificando' | 'ok'>('idle')
+  const [temTokenLocal, setTemTokenLocal] = useState(false)
+  const tokenUrl = params.get('token')?.trim() || ''
+  const podeSimularDev = temTokenLocal && !tokenUrl
+
+  useEffect(() => {
+    setTemTokenLocal(Boolean(sessionStorage.getItem('viztto_token_verificacao')))
+  }, [])
+
   useEffect(() => {
     if (!cooldown) return
     const timer = window.setInterval(() => setCooldown((value) => Math.max(0, value - 1)), 1000)
     return () => window.clearInterval(timer)
   }, [cooldown])
+
+  useEffect(() => {
+    if (!tokenUrl || status !== 'idle') return
+    let ativo = true
+    setStatus('verificando')
+    void verifyEmail(tokenUrl)
+      .then(() => {
+        if (!ativo) return
+        setStatus('ok')
+        navigate('/onboarding/workspace')
+      })
+      .catch((erro) => {
+        if (!ativo) return
+        setStatus('idle')
+        setError(erro instanceof Error ? erro.message : 'Nao foi possivel verificar.')
+      })
+    return () => {
+      ativo = false
+    }
+  }, [tokenUrl, status, verifyEmail, navigate])
+
   return (
     <AuthCard
       eyebrow="Confirme seu endereço"
       title="Verifique seu e-mail"
-      description="Esta verificação é simulada durante o desenvolvimento."
+      description="Abrimos um link seguro no seu e-mail para confirmar a conta."
     >
       <div className="text-center">
         <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-brand">
           <Mail />
         </span>
-        <p className="mt-5 text-sm text-secondary">Enviamos um link para</p>
+        <p className="mt-5 text-sm text-secondary">
+          {status === 'verificando' ? 'Confirmando seu e-mail...' : 'Enviamos um link para'}
+        </p>
         <p className="mt-1 font-semibold">{pendingEmail || 'seu e-mail informado'}</p>
-        <Button
-          className="mt-7 w-full"
-          onClick={async () => {
-            try {
-              await verifyEmail()
-              navigate('/onboarding/workspace')
-            } catch (erro) {
-              setError(erro instanceof Error ? erro.message : 'Nao foi possivel verificar.')
-            }
-          }}
-        >
-          Simular e-mail verificado
-        </Button>
+        {podeSimularDev && (
+          <Button
+            className="mt-7 w-full"
+            onClick={async () => {
+              try {
+                await verifyEmail()
+                navigate('/onboarding/workspace')
+              } catch (erro) {
+                setError(erro instanceof Error ? erro.message : 'Nao foi possivel verificar.')
+              }
+            }}
+          >
+            Usar token de desenvolvimento
+          </Button>
+        )}
         {error && (
           <p role="alert" className="mt-3 text-sm text-revision">
             {error}
           </p>
         )}
         <Button
-          variant="ghost"
-          className="mt-2 w-full"
-          disabled={cooldown > 0}
-          onClick={() => setCooldown(30)}
+          variant={podeSimularDev ? 'ghost' : 'primary'}
+          className={podeSimularDev ? 'mt-2 w-full' : 'mt-7 w-full'}
+          disabled={cooldown > 0 || status === 'verificando'}
+          onClick={async () => {
+            try {
+              setError('')
+              await resendVerification()
+              setCooldown(30)
+            } catch (erro) {
+              setError(erro instanceof Error ? erro.message : 'Nao foi possivel reenviar.')
+            }
+          }}
         >
           {cooldown ? `Reenviar em ${cooldown}s` : 'Reenviar e-mail'}
         </Button>

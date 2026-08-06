@@ -28,36 +28,13 @@ export const usuarios = mysqlTable(
     avatarUrl: varchar('avatar_url', { length: 500 }),
     emailVerificadoEm: data('email_verificado_em'),
     ultimoAcessoEm: data('ultimo_acesso_em'),
+    admin: boolean('admin').notNull().default(false),
     ativo: boolean('ativo').notNull().default(true),
     criadoEm: data('criado_em').notNull(),
     atualizadoEm: data('atualizado_em').notNull(),
     excluidoEm: data('excluido_em'),
   },
   (t) => [uniqueIndex('unq_usuarios_email').on(t.email), index('idx_usuarios_ativo').on(t.ativo)],
-)
-
-export const sessoes = mysqlTable(
-  'sessoes',
-  {
-    id: id().primaryKey(),
-    usuarioId: id('usuario_id'),
-    tokenHash: char('token_hash', { length: 64 }).notNull(),
-    enderecoIp: varchar('endereco_ip', { length: 64 }),
-    agenteUsuario: varchar('agente_usuario', { length: 500 }),
-    expiraEm: data('expira_em').notNull(),
-    criadoEm: data('criado_em').notNull(),
-    revogadoEm: data('revogado_em'),
-  },
-  (t) => [
-    uniqueIndex('unq_sessoes_token_hash').on(t.tokenHash),
-    index('idx_sessoes_usuario').on(t.usuarioId),
-    index('idx_sessoes_expiracao').on(t.expiraEm),
-    foreignKey({
-      columns: [t.usuarioId],
-      foreignColumns: [usuarios.id],
-      name: 'fk_sessoes_usuarios',
-    }).onDelete('cascade'),
-  ],
 )
 
 export const workspaces = mysqlTable(
@@ -83,6 +60,37 @@ export const workspaces = mysqlTable(
       foreignColumns: [usuarios.id],
       name: 'fk_workspaces_usuarios',
     }),
+  ],
+)
+
+export const sessoes = mysqlTable(
+  'sessoes',
+  {
+    id: id().primaryKey(),
+    usuarioId: id('usuario_id'),
+    workspaceAtivoId: char('workspace_ativo_id', { length: 36 }),
+    tokenHash: char('token_hash', { length: 64 }).notNull(),
+    enderecoIp: varchar('endereco_ip', { length: 64 }),
+    agenteUsuario: varchar('agente_usuario', { length: 500 }),
+    expiraEm: data('expira_em').notNull(),
+    criadoEm: data('criado_em').notNull(),
+    revogadoEm: data('revogado_em'),
+  },
+  (t) => [
+    uniqueIndex('unq_sessoes_token_hash').on(t.tokenHash),
+    index('idx_sessoes_usuario').on(t.usuarioId),
+    index('idx_sessoes_expiracao').on(t.expiraEm),
+    index('idx_sessoes_workspace_ativo').on(t.workspaceAtivoId),
+    foreignKey({
+      columns: [t.usuarioId],
+      foreignColumns: [usuarios.id],
+      name: 'fk_sessoes_usuarios',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.workspaceAtivoId],
+      foreignColumns: [workspaces.id],
+      name: 'fk_sessoes_workspace_ativo',
+    }).onDelete('set null'),
   ],
 )
 

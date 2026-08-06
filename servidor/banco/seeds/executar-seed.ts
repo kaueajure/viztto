@@ -34,7 +34,7 @@ try {
     const [img2, img4] = await Promise.all([copiarDemonstracao('review-campaign-v2.svg'), copiarDemonstracao('review-campaign-v4.svg')])
     await banco.transaction(async (tx) => {
       await tx.insert(usuarios).values([
-        { id: ids.marina, nome: 'Marina Costa', email: 'marina@viztto.local', senhaHash, emailVerificadoEm: agora, ativo: true, criadoEm: agora, atualizadoEm: agora },
+        { id: ids.marina, nome: 'Marina Costa', email: 'marina@viztto.local', senhaHash, emailVerificadoEm: agora, admin: true, ativo: true, criadoEm: agora, atualizadoEm: agora },
         { id: ids.rafael, nome: 'Rafael Lima', email: 'rafael@viztto.local', senhaHash, emailVerificadoEm: agora, ativo: true, criadoEm: agora, atualizadoEm: agora },
         { id: ids.bianca, nome: 'Bianca Alves', email: 'bianca@viztto.local', senhaHash, emailVerificadoEm: agora, ativo: true, criadoEm: agora, atualizadoEm: agora },
       ])

@@ -27,6 +27,12 @@ const ambiente = {
   COOKIE_SEGURO: 'true',
   CONFIAR_PROXY: 'true',
   EXECUTAR_MIGRATIONS: 'false',
+  EMAIL_HOST: 'smtp.smoke.local',
+  EMAIL_PORTA: '465',
+  EMAIL_USUARIO: 'contato@viztto.site',
+  EMAIL_SENHA: 'senha-smoke-nao-utilizada',
+  EMAIL_REMETENTE: 'contato@viztto.site',
+  EMAIL_NOME: 'Viztto',
   ...(exigirProntidao
     ? {}
     : {

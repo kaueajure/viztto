@@ -28,6 +28,12 @@ const esquema = z.object({
   COOKIE_SEGURO: booleano(false),
   CONFIAR_PROXY: booleano(false),
   EXECUTAR_MIGRATIONS: booleano(false),
+  EMAIL_HOST: z.string().min(1).optional(),
+  EMAIL_PORTA: z.coerce.number().int().min(1).max(65535).default(465),
+  EMAIL_USUARIO: z.string().min(1).optional(),
+  EMAIL_SENHA: z.string().optional(),
+  EMAIL_REMETENTE: z.string().email().default('contato@viztto.site'),
+  EMAIL_NOME: z.string().min(1).default('Viztto'),
 })
 
 const resultado = esquema.safeParse(process.env)
@@ -44,6 +50,14 @@ if (resultado.data.NODE_ENV === 'production' && !resultado.data.COOKIE_SEGURO)
   throw new Error('Variáveis de ambiente inválidas:\nCOOKIE_SEGURO: deve ser true em produção')
 if (resultado.data.NODE_ENV === 'production' && !resultado.data.CONFIAR_PROXY)
   throw new Error('Variáveis de ambiente inválidas:\nCONFIAR_PROXY: deve ser true em produção')
+if (
+  resultado.data.NODE_ENV === 'production' &&
+  !(resultado.data.EMAIL_HOST && resultado.data.EMAIL_USUARIO && resultado.data.EMAIL_SENHA)
+) {
+  throw new Error(
+    'Variáveis de ambiente inválidas:\nEMAIL_HOST, EMAIL_USUARIO e EMAIL_SENHA: obrigatórias em produção',
+  )
+}
 
 export const ambiente = {
   ...resultado.data,

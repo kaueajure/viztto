@@ -126,6 +126,51 @@ describe('API integrada com MySQL', () => {
     const r = await agente.get('/api/autenticacao/sessao').expect(200)
     expect(r.body.sessao.usuarioEmail).toBe('marina@viztto.local')
     expect(r.body.sessao.workspaceId).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+    expect(r.body.sessao.admin).toBe(false)
+  })
+  it('permite admin trocar de workspace e listar todos', async () => {
+    const agora = new Date()
+    const workspaceExtra = 'acacacac-acac-4cac-8cac-acacacacacac'
+    await banco
+      .update(esquema.usuarios)
+      .set({ admin: true, atualizadoEm: agora })
+      .where(eq(esquema.usuarios.id, '11111111-1111-4111-8111-111111111111'))
+    await banco
+      .insert(esquema.workspaces)
+      .values({
+        id: workspaceExtra,
+        nome: 'Workspace Admin',
+        slug: 'workspace-admin',
+        criadoPorUsuarioId: '11111111-1111-4111-8111-111111111111',
+        criadoEm: agora,
+        atualizadoEm: agora,
+      })
+      .onDuplicateKeyUpdate({ set: { atualizadoEm: agora } })
+
+    const sessaoAdmin = await agente.get('/api/autenticacao/sessao').expect(200)
+    expect(sessaoAdmin.body.sessao.admin).toBe(true)
+
+    const lista = await agente.get('/api/workspaces').expect(200)
+    expect(lista.body.dados.some((item: { id: string }) => item.id === workspaceExtra)).toBe(true)
+
+    await agente
+      .post('/api/autenticacao/trocar-workspace')
+      .set('x-csrf-token', csrf)
+      .send({ workspaceId: workspaceExtra })
+      .expect(200)
+    const trocada = await agente.get('/api/autenticacao/sessao').expect(200)
+    expect(trocada.body.sessao.workspaceId).toBe(workspaceExtra)
+    expect(trocada.body.sessao.admin).toBe(true)
+
+    await agente
+      .post('/api/autenticacao/trocar-workspace')
+      .set('x-csrf-token', csrf)
+      .send({ workspaceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' })
+      .expect(200)
+    await banco
+      .update(esquema.usuarios)
+      .set({ admin: false, atualizadoEm: agora })
+      .where(eq(esquema.usuarios.id, '11111111-1111-4111-8111-111111111111'))
   })
   it('cria e lista cliente no workspace da sessao', async () => {
     const nome = `Cliente teste ${Date.now()}`

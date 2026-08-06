@@ -66,4 +66,4 @@ O schema fica em `servidor/banco/esquema`, e migrations versionadas em `servidor
 
 ## Observacoes
 
-Precos e limites da landing continuam provisórios. Envio de e-mail, recuperacao de senha, convites, video/PDF/apresentacao e armazenamento externo permanecem fora desta macroetapa.
+Precos e limites da landing continuam provisórios. Recuperacao de senha, convites, video/PDF/apresentacao e armazenamento externo permanecem fora desta macroetapa.
