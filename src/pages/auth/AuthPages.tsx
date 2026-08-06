@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Checkbox, Input } from '@/components/ui/FormControls'
 import { ApiError } from '@/services/api/clienteHttp'
+import { autenticacaoApi } from '@/services/api/autenticacaoApi'
 
 function AuthCard({
   eyebrow,
@@ -179,11 +180,17 @@ export function LoginPage() {
 
 export function RegisterPage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const { register, resendVerification } = useAuth()
   const nameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
+  const [form, setForm] = useState({
+    name: '',
+    email: params.get('email') ?? '',
+    password: '',
+    confirm: '',
+  })
   const [terms, setTerms] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) =>
@@ -197,7 +204,11 @@ export function RegisterPage() {
     const next: Record<string, string> = {}
     if (!form.name.trim()) next.name = 'Informe seu nome.'
     if (!validEmail(form.email)) next.email = 'Informe um e-mail válido.'
-    if (form.password.length < 8 || !/[A-Za-zÀ-ÿ]/.test(form.password) || !/[0-9]/.test(form.password))
+    if (
+      form.password.length < 8 ||
+      !/[A-Za-zÀ-ÿ]/.test(form.password) ||
+      !/[0-9]/.test(form.password)
+    )
       next.password = 'Use pelo menos oito caracteres, com uma letra e um número.'
     if (form.confirm !== form.password) next.confirm = 'As senhas precisam ser iguais.'
     if (!terms) next.terms = 'Você precisa aceitar os termos para continuar.'
@@ -307,7 +318,9 @@ export function RegisterPage() {
               try {
                 await resendVerification(form.email.trim().toLowerCase())
                 setReenviado(true)
-                navigate(`/verificar-email?email=${encodeURIComponent(form.email.trim().toLowerCase())}`)
+                navigate(
+                  `/verificar-email?email=${encodeURIComponent(form.email.trim().toLowerCase())}`,
+                )
               } catch (erro) {
                 setErrors({
                   form: erro instanceof Error ? erro.message : 'Nao foi possivel reenviar.',
@@ -335,16 +348,28 @@ export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [sent, setSent] = useState(false)
-  const submit = (event: FormEvent) => {
+  const [submitting, setSubmitting] = useState(false)
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!validEmail(email)) return setError('Informe um e-mail válido.')
-    setSent(true)
+    setSubmitting(true)
+    setError('')
+    try {
+      const resposta = await autenticacaoApi.esqueciSenha(email.trim().toLowerCase())
+      if (resposta.tokenRecuperacao)
+        sessionStorage.setItem('viztto_token_recuperacao', resposta.tokenRecuperacao)
+      setSent(true)
+    } catch (erro) {
+      setError(erro instanceof Error ? erro.message : 'Não foi possível enviar as instruções.')
+    } finally {
+      setSubmitting(false)
+    }
   }
   return (
     <AuthCard
       eyebrow="Recuperação de acesso"
       title="Recupere seu acesso"
-      description="Informe seu e-mail para simular o envio das instruções."
+      description="Informe seu e-mail para receber um link seguro de redefinição."
     >
       {sent ? (
         <div role="status" className="rounded-lg border border-approval/30 bg-approval-soft p-5">
@@ -366,8 +391,139 @@ export function ForgotPasswordPage() {
             onChange={(e) => setEmail(e.target.value)}
             error={error}
           />
-          <Button type="submit">Enviar instruções</Button>
+          <Button type="submit" loading={submitting}>
+            Enviar instruções
+          </Button>
         </form>
+      )}
+    </AuthCard>
+  )
+}
+
+export function ResetPasswordPage() {
+  const [params] = useSearchParams()
+  const token = params.get('token') || sessionStorage.getItem('viztto_token_recuperacao') || ''
+  const [senha, setSenha] = useState('')
+  const [confirmacao, setConfirmacao] = useState('')
+  const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  return (
+    <AuthCard
+      eyebrow="Segurança"
+      title="Crie uma nova senha"
+      description="O link pode ser usado uma única vez e expira em uma hora."
+    >
+      {done ? (
+        <div role="status" className="rounded-lg border border-approval/30 bg-approval-soft p-5">
+          <CheckCircle2 className="text-approval" />
+          <p className="mt-3 font-semibold">Senha atualizada</p>
+          <Link to="/entrar" className="mt-5 inline-block text-sm font-semibold text-brand">
+            Entrar no Viztto
+          </Link>
+        </div>
+      ) : (
+        <form
+          className="grid gap-4"
+          onSubmit={async (event) => {
+            event.preventDefault()
+            if (!token) return setError('Abra o link enviado para o seu e-mail.')
+            if (senha.length < 8 || !/[A-Za-zÀ-ÿ]/.test(senha) || !/[0-9]/.test(senha))
+              return setError('Use pelo menos oito caracteres, com uma letra e um número.')
+            if (senha !== confirmacao) return setError('As senhas precisam ser iguais.')
+            setSubmitting(true)
+            setError('')
+            try {
+              await autenticacaoApi.redefinirSenha(token, senha)
+              sessionStorage.removeItem('viztto_token_recuperacao')
+              setDone(true)
+            } catch (erro) {
+              setError(erro instanceof Error ? erro.message : 'Não foi possível redefinir a senha.')
+            } finally {
+              setSubmitting(false)
+            }
+          }}
+        >
+          <Input
+            label="Nova senha"
+            type="password"
+            autoComplete="new-password"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+          />
+          <Input
+            label="Confirmar nova senha"
+            type="password"
+            autoComplete="new-password"
+            value={confirmacao}
+            onChange={(e) => setConfirmacao(e.target.value)}
+            error={error}
+          />
+          <Button type="submit" loading={submitting}>
+            Salvar nova senha
+          </Button>
+        </form>
+      )}
+    </AuthCard>
+  )
+}
+
+export function AcceptInvitePage() {
+  const [params] = useSearchParams()
+  const token = params.get('token') ?? ''
+  const email = params.get('email') ?? ''
+  const [status, setStatus] = useState<'loading' | 'done' | 'account' | 'error'>('loading')
+  const [message, setMessage] = useState('')
+  useEffect(() => {
+    if (!token) {
+      setStatus('error')
+      setMessage('Convite ausente.')
+      return
+    }
+    void autenticacaoApi
+      .aceitarConvite(token)
+      .then((r) => {
+        setMessage(r.mensagem)
+        setStatus('done')
+      })
+      .catch((erro) => {
+        if (erro instanceof ApiError && erro.codigo === 'conta_necessaria') setStatus('account')
+        else {
+          setMessage(erro instanceof Error ? erro.message : 'Não foi possível aceitar o convite.')
+          setStatus('error')
+        }
+      })
+  }, [token])
+  return (
+    <AuthCard
+      eyebrow="Convite de equipe"
+      title="Entre no workspace"
+      description="Confirme o convite enviado ao seu e-mail."
+    >
+      {status === 'loading' && <p role="status">Validando convite...</p>}
+      {status === 'done' && (
+        <>
+          <p className="text-approval">{message}</p>
+          <Link className="mt-5 inline-block font-semibold text-brand" to="/entrar">
+            Entrar no Viztto
+          </Link>
+        </>
+      )}
+      {status === 'account' && (
+        <>
+          <p>Crie e verifique uma conta usando o e-mail convidado.</p>
+          <Link
+            className="mt-5 inline-block font-semibold text-brand"
+            to={`/criar-conta?email=${encodeURIComponent(email)}`}
+          >
+            Criar conta
+          </Link>
+        </>
+      )}
+      {status === 'error' && (
+        <p role="alert" className="text-revision">
+          {message}
+        </p>
       )}
     </AuthCard>
   )
@@ -404,8 +560,11 @@ export function VerifyEmailPage() {
         'viztto_cadastro_pendente',
         JSON.stringify({
           name:
-            (JSON.parse(sessionStorage.getItem('viztto_cadastro_pendente') || '{}') as { name?: string })
-              .name || '',
+            (
+              JSON.parse(sessionStorage.getItem('viztto_cadastro_pendente') || '{}') as {
+                name?: string
+              }
+            ).name || '',
           email: emailQuery,
         }),
       )
@@ -428,10 +587,10 @@ export function VerifyEmailPage() {
     let ativo = true
     setStatus('verificando')
     void verifyEmail(tokenUrl)
-      .then(() => {
+      .then((conviteAceito) => {
         if (!ativo) return
         setStatus('ok')
-        setModalEmpresa(true)
+        if (!conviteAceito) setModalEmpresa(true)
       })
       .catch((erro) => {
         if (!ativo) return
@@ -478,9 +637,9 @@ export function VerifyEmailPage() {
               className="mt-7 w-full"
               onClick={async () => {
                 try {
-                  await verifyEmail()
+                  const conviteAceito = await verifyEmail()
                   setStatus('ok')
-                  setModalEmpresa(true)
+                  if (!conviteAceito) setModalEmpresa(true)
                 } catch (erro) {
                   setError(erro instanceof Error ? erro.message : 'Nao foi possivel verificar.')
                 }

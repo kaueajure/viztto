@@ -23,7 +23,7 @@ export const autenticacaoApi = {
       body: json({ nome, email, senha }),
     }),
   verificar: (token: string) =>
-    requisicaoApi<{ usuarioId: string; nome: string; email: string }>(
+    requisicaoApi<{ usuarioId: string; nome: string; email: string; workspaceId?: string }>(
       '/api/autenticacao/verificar-email',
       {
         method: 'POST',
@@ -38,6 +38,24 @@ export const autenticacaoApi = {
         body: json({ email }),
       },
     ),
+  esqueciSenha: (email: string) =>
+    requisicaoApi<{ mensagem: string; tokenRecuperacao?: string }>(
+      '/api/autenticacao/esqueci-senha',
+      {
+        method: 'POST',
+        body: json({ email }),
+      },
+    ),
+  redefinirSenha: (token: string, senha: string) =>
+    requisicaoApi<{ mensagem: string }>('/api/autenticacao/redefinir-senha', {
+      method: 'POST',
+      body: json({ token, senha }),
+    }),
+  aceitarConvite: (token: string) =>
+    requisicaoApi<{ mensagem: string; workspaceId: string }>('/api/autenticacao/aceitar-convite', {
+      method: 'POST',
+      body: json({ token }),
+    }),
   onboarding: (usuarioId: string, nome: string, slug: string, tipo: string) =>
     requisicaoApi('/api/autenticacao/onboarding', {
       method: 'POST',

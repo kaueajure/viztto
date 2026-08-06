@@ -12,6 +12,7 @@ import { AvatarGroup, EmptyState } from '@/components/ui/DataDisplay'
 import { Input, Select, Textarea } from '@/components/ui/FormControls'
 import { Modal, Tabs } from '@/components/ui/Interactive'
 import { useAppData } from '@/contexts/AppDataContext'
+import { dadosApi } from '@/services/api/dadosApi'
 import type { ProjectStatus } from '@/types/domain'
 
 const filters: Array<[string, ProjectStatus | 'all']> = [
@@ -207,6 +208,9 @@ export function ProjectDetailPage() {
   const [materialFile, setMaterialFile] = useState<File | null>(null)
   const [materialSubmitting, setMaterialSubmitting] = useState(false)
   const [materialError, setMaterialError] = useState('')
+  const [portalSending, setPortalSending] = useState(false)
+  const [portalMessage, setPortalMessage] = useState('')
+  const [portalError, setPortalError] = useState('')
   const project = projects.find((item) => item.id === projectId)
   if (!project)
     return (
@@ -239,8 +243,43 @@ export function ProjectDetailPage() {
   const materialList = (
     <div>
       <div className="mb-4 flex justify-end">
-        <Button onClick={() => setMaterialModal(true)}>Adicionar material</Button>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="ghost"
+            loading={portalSending}
+            onClick={async () => {
+              if (!window.confirm('Gerar uma nova senha? A senha anterior deixará de funcionar.'))
+                return
+              setPortalSending(true)
+              setPortalMessage('')
+              setPortalError('')
+              try {
+                const resposta = await dadosApi.reenviarSenhaPortal(project.id)
+                setPortalMessage(resposta.mensagem)
+              } catch (erro) {
+                setPortalError(
+                  erro instanceof Error ? erro.message : 'Não foi possível enviar a senha.',
+                )
+              } finally {
+                setPortalSending(false)
+              }
+            }}
+          >
+            Regenerar e reenviar senha
+          </Button>
+          <Button onClick={() => setMaterialModal(true)}>Adicionar material</Button>
+        </div>
       </div>
+      {portalMessage && (
+        <p role="status" className="mt-3 text-sm text-approval">
+          {portalMessage}
+        </p>
+      )}
+      {portalError && (
+        <p role="alert" className="mt-3 text-sm text-revision">
+          {portalError}
+        </p>
+      )}
       <div className="divide-y divide-line rounded-md border border-line">
         {materials.map((material) => (
           <Link

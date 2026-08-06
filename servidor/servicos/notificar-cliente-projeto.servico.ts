@@ -76,6 +76,27 @@ export async function notificarClienteProjetoCriado(entrada: {
   }
 }
 
+/** Envia uma nova credencial do portal e informa ao chamador se o SMTP aceitou o envio. */
+export async function reenviarSenhaPortalProjeto(entrada: {
+  projetoId: string
+  workspaceId: string
+  criadorNome: string
+  senhaAcesso: string
+}) {
+  const destino = await destinoDoProjeto(entrada.projetoId, entrada.workspaceId)
+  if (!destino) return { enviado: false as const, motivo: 'cliente_sem_email' as const }
+  const enviado = await enviarEmailProjetoCriado({
+    destino: destino.email,
+    clienteNome: destino.clienteNome,
+    projetoNome: destino.projetoNome,
+    criadorNome: entrada.criadorNome.trim() || 'Alguem da equipe',
+    empresaNome: destino.empresaNome,
+    link: linkPortalProjeto(destino.projetoId),
+    senhaAcesso: entrada.senhaAcesso,
+  })
+  return { enviado, motivo: enviado ? null : ('email_falhou' as const) }
+}
+
 /** Avisa o cliente quando ha qualquer alteracao relevante no projeto. */
 export async function notificarClienteProjetoAlterado(entrada: {
   projetoId: string

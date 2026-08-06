@@ -1,13 +1,15 @@
 import { Router, type Request } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import bcrypt from 'bcryptjs'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, gt, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
 import { ambiente } from '../../configuracao/ambiente.js'
 import {
+  convitesWorkspace,
   membrosWorkspace,
   sessoes,
+  tokensRecuperacaoSenha,
   tokensVerificacaoEmail,
   usuarios,
   workspaces,
@@ -15,7 +17,10 @@ import {
 import { autenticar, COOKIE_SESSAO } from '../../middlewares/autenticacao.js'
 import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
-import { enviarEmailVerificacao } from '../../servicos/email.servico.js'
+import {
+  enviarEmailRecuperacaoSenha,
+  enviarEmailVerificacao,
+} from '../../servicos/email.servico.js'
 import { gerarHash, normalizarEmail, novoId, novoToken } from '../../utilitarios/seguranca.js'
 
 const acesso = rateLimit({
@@ -36,6 +41,7 @@ const credenciais = z.object({
 const cadastro = credenciais.extend({ nome: z.string().trim().min(2).max(160) })
 const verificacao = z.object({ token: z.string().min(20) })
 const reenvio = z.object({ email: z.string().email() })
+const redefinicao = z.object({ token: z.string().min(20), senha: credenciais.shape.senha })
 const onboarding = z.object({
   usuarioId: z.string().uuid(),
   nome: z.string().trim().min(2).max(160),
@@ -81,7 +87,10 @@ async function emitirTokenVerificacao(usuarioId: string, nome: string, email: st
       .update(tokensVerificacaoEmail)
       .set({ utilizadoEm: agora })
       .where(
-        and(eq(tokensVerificacaoEmail.usuarioId, usuarioId), isNull(tokensVerificacaoEmail.utilizadoEm)),
+        and(
+          eq(tokensVerificacaoEmail.usuarioId, usuarioId),
+          isNull(tokensVerificacaoEmail.utilizadoEm),
+        ),
       )
     await tx.insert(tokensVerificacaoEmail).values({
       id: novoId(),
@@ -143,7 +152,9 @@ autenticacaoRotas.post('/reenviar-verificacao', acesso, validarCorpo(reenvio), a
     .where(and(eq(usuarios.email, email), eq(usuarios.ativo, true), isNull(usuarios.excluidoEm)))
     .limit(1)
   if (!usuario || usuario.emailVerificadoEm) {
-    res.json({ mensagem: 'Se a conta existir e ainda nao estiver verificada, enviaremos um novo e-mail.' })
+    res.json({
+      mensagem: 'Se a conta existir e ainda nao estiver verificada, enviaremos um novo e-mail.',
+    })
     return
   }
   const { token, enviado } = await emitirTokenVerificacao(usuario.id, usuario.nome, usuario.email)
@@ -153,6 +164,128 @@ autenticacaoRotas.post('/reenviar-verificacao', acesso, validarCorpo(reenvio), a
       : 'Novo token de verificacao gerado para desenvolvimento.',
     ...(ambiente.NODE_ENV === 'development' ? { tokenVerificacao: token } : {}),
   })
+})
+
+autenticacaoRotas.post('/esqueci-senha', acesso, validarCorpo(reenvio), async (req, res) => {
+  const email = normalizarEmail(req.body.email)
+  const [usuario] = await banco
+    .select({ id: usuarios.id, nome: usuarios.nome, email: usuarios.email })
+    .from(usuarios)
+    .where(and(eq(usuarios.email, email), eq(usuarios.ativo, true), isNull(usuarios.excluidoEm)))
+    .limit(1)
+  if (!usuario) {
+    res.json({ mensagem: 'Se a conta existir, enviaremos as instrucoes de recuperacao.' })
+    return
+  }
+  const agora = new Date()
+  const token = novoToken()
+  await banco.transaction(async (tx) => {
+    await tx
+      .update(tokensRecuperacaoSenha)
+      .set({ utilizadoEm: agora })
+      .where(
+        and(
+          eq(tokensRecuperacaoSenha.usuarioId, usuario.id),
+          isNull(tokensRecuperacaoSenha.utilizadoEm),
+        ),
+      )
+    await tx.insert(tokensRecuperacaoSenha).values({
+      id: novoId(),
+      usuarioId: usuario.id,
+      tokenHash: gerarHash(token),
+      expiraEm: new Date(agora.getTime() + 60 * 60_000),
+      criadoEm: agora,
+    })
+  })
+  const envio = await enviarEmailRecuperacaoSenha(usuario.email, usuario.nome, token)
+  res.json({
+    mensagem: 'Se a conta existir, enviaremos as instrucoes de recuperacao.',
+    ...(ambiente.NODE_ENV !== 'production' && !envio.enviado ? { tokenRecuperacao: token } : {}),
+  })
+})
+
+autenticacaoRotas.post('/redefinir-senha', acesso, validarCorpo(redefinicao), async (req, res) => {
+  const agora = new Date()
+  const [registro] = await banco
+    .select()
+    .from(tokensRecuperacaoSenha)
+    .where(
+      and(
+        eq(tokensRecuperacaoSenha.tokenHash, gerarHash(req.body.token)),
+        isNull(tokensRecuperacaoSenha.utilizadoEm),
+        gt(tokensRecuperacaoSenha.expiraEm, agora),
+      ),
+    )
+    .limit(1)
+  if (!registro) throw new ErroHttp(400, 'Link invalido ou expirado.', 'token_invalido')
+  await banco.transaction(async (tx) => {
+    await tx
+      .update(usuarios)
+      .set({ senhaHash: await bcrypt.hash(req.body.senha, 12), atualizadoEm: agora })
+      .where(eq(usuarios.id, registro.usuarioId))
+    await tx
+      .update(tokensRecuperacaoSenha)
+      .set({ utilizadoEm: agora })
+      .where(eq(tokensRecuperacaoSenha.usuarioId, registro.usuarioId))
+    await tx
+      .update(sessoes)
+      .set({ revogadoEm: agora })
+      .where(and(eq(sessoes.usuarioId, registro.usuarioId), isNull(sessoes.revogadoEm)))
+  })
+  res.json({ mensagem: 'Senha redefinida. Entre novamente.' })
+})
+
+autenticacaoRotas.post('/aceitar-convite', acesso, validarCorpo(verificacao), async (req, res) => {
+  const agora = new Date()
+  const [convite] = await banco
+    .select()
+    .from(convitesWorkspace)
+    .where(
+      and(
+        eq(convitesWorkspace.tokenHash, gerarHash(req.body.token)),
+        isNull(convitesWorkspace.aceitoEm),
+        isNull(convitesWorkspace.canceladoEm),
+        gt(convitesWorkspace.expiraEm, agora),
+      ),
+    )
+    .limit(1)
+  if (!convite) throw new ErroHttp(400, 'Convite invalido ou expirado.', 'convite_invalido')
+  const [usuario] = await banco
+    .select({ id: usuarios.id, emailVerificadoEm: usuarios.emailVerificadoEm })
+    .from(usuarios)
+    .where(
+      and(eq(usuarios.email, convite.email), eq(usuarios.ativo, true), isNull(usuarios.excluidoEm)),
+    )
+    .limit(1)
+  if (!usuario?.emailVerificadoEm)
+    throw new ErroHttp(
+      409,
+      'Crie e verifique uma conta com o e-mail convidado.',
+      'conta_necessaria',
+    )
+  await banco.transaction(async (tx) => {
+    await tx
+      .insert(membrosWorkspace)
+      .values({
+        id: novoId(),
+        workspaceId: convite.workspaceId,
+        usuarioId: usuario.id,
+        funcao: convite.funcao,
+        status: 'ativo',
+        convidadoPorUsuarioId: convite.convidadoPorUsuarioId,
+        entrouEm: agora,
+        criadoEm: agora,
+        atualizadoEm: agora,
+      })
+      .onDuplicateKeyUpdate({
+        set: { funcao: convite.funcao, status: 'ativo', entrouEm: agora, atualizadoEm: agora },
+      })
+    await tx
+      .update(convitesWorkspace)
+      .set({ aceitoEm: agora })
+      .where(eq(convitesWorkspace.id, convite.id))
+  })
+  res.json({ mensagem: 'Convite aceito.', workspaceId: convite.workspaceId })
 })
 
 autenticacaoRotas.post('/verificar-email', acesso, validarCorpo(verificacao), async (req, res) => {
@@ -184,11 +317,54 @@ autenticacaoRotas.post('/verificar-email', acesso, validarCorpo(verificacao), as
     .from(usuarios)
     .where(eq(usuarios.id, registro.usuarioId))
     .limit(1)
+  const convites = usuario
+    ? await banco
+        .select()
+        .from(convitesWorkspace)
+        .where(
+          and(
+            eq(convitesWorkspace.email, usuario.email),
+            isNull(convitesWorkspace.aceitoEm),
+            isNull(convitesWorkspace.canceladoEm),
+            gt(convitesWorkspace.expiraEm, agora),
+          ),
+        )
+    : []
+  for (const convite of convites) {
+    await banco.transaction(async (tx) => {
+      await tx
+        .insert(membrosWorkspace)
+        .values({
+          id: novoId(),
+          workspaceId: convite.workspaceId,
+          usuarioId: registro.usuarioId,
+          funcao: convite.funcao,
+          status: 'ativo',
+          convidadoPorUsuarioId: convite.convidadoPorUsuarioId,
+          entrouEm: agora,
+          criadoEm: agora,
+          atualizadoEm: agora,
+        })
+        .onDuplicateKeyUpdate({
+          set: { funcao: convite.funcao, status: 'ativo', entrouEm: agora, atualizadoEm: agora },
+        })
+      await tx
+        .update(convitesWorkspace)
+        .set({ aceitoEm: agora })
+        .where(eq(convitesWorkspace.id, convite.id))
+    })
+  }
+  const workspaceId = convites[0]?.workspaceId
+  if (workspaceId) {
+    const token = await criarSessao(registro.usuarioId, req, workspaceId)
+    res.cookie(COOKIE_SESSAO, token, opcoesCookie)
+  }
   res.json({
     mensagem: 'E-mail verificado.',
     usuarioId: registro.usuarioId,
     nome: usuario?.nome ?? '',
     email: usuario?.email ?? '',
+    workspaceId,
   })
 })
 
@@ -300,7 +476,13 @@ autenticacaoRotas.post(
     const [workspace] = await banco
       .select({ id: workspaces.id })
       .from(workspaces)
-      .where(and(eq(workspaces.id, workspaceId), eq(workspaces.ativo, true), isNull(workspaces.excluidoEm)))
+      .where(
+        and(
+          eq(workspaces.id, workspaceId),
+          eq(workspaces.ativo, true),
+          isNull(workspaces.excluidoEm),
+        ),
+      )
       .limit(1)
     if (!workspace) throw new ErroHttp(404, 'Workspace nao encontrado.', 'workspace_ausente')
 
@@ -316,7 +498,8 @@ autenticacaoRotas.post(
           ),
         )
         .limit(1)
-      if (!membro) throw new ErroHttp(403, 'Voce nao possui acesso a este workspace.', 'sem_permissao')
+      if (!membro)
+        throw new ErroHttp(403, 'Voce nao possui acesso a este workspace.', 'sem_permissao')
     }
 
     await banco

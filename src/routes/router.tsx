@@ -48,6 +48,12 @@ const RegisterPage = lazy(() =>
 const ForgotPasswordPage = lazy(() =>
   import('@/pages/auth/AuthPages').then((module) => ({ default: module.ForgotPasswordPage })),
 )
+const ResetPasswordPage = lazy(() =>
+  import('@/pages/auth/AuthPages').then((module) => ({ default: module.ResetPasswordPage })),
+)
+const AcceptInvitePage = lazy(() =>
+  import('@/pages/auth/AuthPages').then((module) => ({ default: module.AcceptInvitePage })),
+)
 const VerifyEmailPage = lazy(() =>
   import('@/pages/auth/AuthPages').then((module) => ({ default: module.VerifyEmailPage })),
 )
@@ -127,6 +133,8 @@ export const router = createBrowserRouter([
           { path: '/entrar', element: page(<LoginPage />) },
           { path: '/criar-conta', element: page(<RegisterPage />) },
           { path: '/esqueci-senha', element: page(<ForgotPasswordPage />) },
+          { path: '/redefinir-senha', element: page(<ResetPasswordPage />) },
+          { path: '/aceitar-convite', element: page(<AcceptInvitePage />) },
           { path: '/verificar-email', element: page(<VerifyEmailPage />) },
         ],
       },

@@ -24,9 +24,10 @@ export default function TeamPage() {
   const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [inviteError, setInviteError] = useState('')
   const [usuarios, setUsuarios] = useState<UsuarioPlataforma[]>([])
-  const [form, setForm] = useState<{ name: string; email: string; role: TeamMember['role'] }>({
-    name: '',
+  const [form, setForm] = useState<{ email: string; role: TeamMember['role'] }>({
     email: '',
     role: 'Criativo',
   })
@@ -47,15 +48,23 @@ export default function TeamPage() {
       ativo = false
     }
   }, [user?.admin])
-  const invite = () => {
-    if (!form.name || !form.email) return
-    void addTeamMember(form)
-    setSuccess(true)
-    window.setTimeout(() => {
-      setOpen(false)
-      setSuccess(false)
-      setForm({ name: '', email: '', role: 'Criativo' })
-    }, 550)
+  const invite = async () => {
+    if (!form.email) return
+    setSubmitting(true)
+    setInviteError('')
+    try {
+      await addTeamMember(form)
+      setSuccess(true)
+      window.setTimeout(() => {
+        setOpen(false)
+        setSuccess(false)
+        setForm({ email: '', role: 'Criativo' })
+      }, 550)
+    } catch (erro) {
+      setInviteError(erro instanceof Error ? erro.message : 'Não foi possível enviar o convite.')
+    } finally {
+      setSubmitting(false)
+    }
   }
   return (
     <div>
@@ -113,7 +122,9 @@ export default function TeamPage() {
       {user?.admin && usuarios.length > 0 && (
         <div className="mt-8">
           <h2 className="text-sm font-semibold">Todos os usuários</h2>
-          <p className="mt-1 text-xs text-muted">Visão de plataforma disponível apenas para admin.</p>
+          <p className="mt-1 text-xs text-muted">
+            Visão de plataforma disponível apenas para admin.
+          </p>
           <div className="mt-4 overflow-hidden rounded-lg border border-line bg-surface">
             <table className="w-full text-left text-sm">
               <thead className="hidden bg-surface-secondary text-xs text-muted md:table-header-group">
@@ -151,11 +162,6 @@ export default function TeamPage() {
       <Modal open={open} onClose={() => setOpen(false)} title="Convidar membro">
         <div className="grid gap-4">
           <Input
-            label="Nome"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <Input
             label="E-mail"
             type="email"
             value={form.email}
@@ -166,18 +172,23 @@ export default function TeamPage() {
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value as TeamMember['role'] })}
           >
-            {['Administrador', 'Gestor', 'Criativo', 'Atendimento', 'Cliente', 'Visualizador'].map(
-              (role) => (
-                <option key={role}>{role}</option>
-              ),
-            )}
+            {['Administrador', 'Gestor', 'Criativo', 'Atendimento', 'Visualizador'].map((role) => (
+              <option key={role}>{role}</option>
+            ))}
           </Select>
           {success && (
             <p role="status" className="text-sm text-approval">
-              Membro adicionado à equipe.
+              Convite enviado por e-mail.
             </p>
           )}
-          <Button onClick={invite}>Adicionar membro</Button>
+          {inviteError && (
+            <p role="alert" className="text-sm text-revision">
+              {inviteError}
+            </p>
+          )}
+          <Button onClick={() => void invite()} loading={submitting}>
+            Enviar convite
+          </Button>
         </div>
       </Modal>
     </div>

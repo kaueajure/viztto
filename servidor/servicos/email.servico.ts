@@ -2,8 +2,10 @@ import nodemailer from 'nodemailer'
 import { ambiente, emProducao } from '../configuracao/ambiente.js'
 import { ErroHttp } from '../middlewares/erros.js'
 import {
+  montarEmailConviteWorkspace,
   montarEmailProjetoAlterado,
   montarEmailProjetoCriado,
+  montarEmailRecuperacaoSenha,
   montarEmailVerificacao,
 } from './email.modelos.js'
 
@@ -68,6 +70,59 @@ export async function enviarEmailVerificacao(destino: string, nome: string, toke
     )
   }
   return { enviado: true as const, link }
+}
+
+async function enviarEmailCritico(
+  destino: string,
+  assunto: string,
+  texto: string,
+  html: string,
+  contexto: string,
+) {
+  if (!transporteConfigurado()) {
+    if (emProducao) throw new ErroHttp(503, 'Envio de e-mail indisponivel.', 'email_indisponivel')
+    console.info(`[viztto] ${contexto} para ${destino}: ${texto}`)
+    return false
+  }
+  try {
+    await enviarComTransporte(destino, assunto, texto, html)
+    return true
+  } catch (erro) {
+    console.error(`Falha ao enviar ${contexto}.`, erro instanceof Error ? erro.message : erro)
+    throw new ErroHttp(503, 'Nao foi possivel enviar o e-mail. Tente novamente.', 'email_falhou')
+  }
+}
+
+export async function enviarEmailRecuperacaoSenha(destino: string, nome: string, token: string) {
+  const link = `${ambiente.URL_APLICACAO.replace(/\/$/, '')}/redefinir-senha?token=${encodeURIComponent(token)}`
+  const conteudo = montarEmailRecuperacaoSenha({ nome, link })
+  const enviado = await enviarEmailCritico(
+    destino,
+    conteudo.assunto,
+    conteudo.texto,
+    conteudo.html,
+    'recuperacao de senha',
+  )
+  return { enviado, link }
+}
+
+export async function enviarEmailConviteWorkspace(entrada: {
+  destino: string
+  nomeConvidador: string
+  workspaceNome: string
+  funcao: string
+  token: string
+}) {
+  const link = `${ambiente.URL_APLICACAO.replace(/\/$/, '')}/aceitar-convite?token=${encodeURIComponent(entrada.token)}&email=${encodeURIComponent(entrada.destino)}`
+  const conteudo = montarEmailConviteWorkspace({ ...entrada, link })
+  const enviado = await enviarEmailCritico(
+    entrada.destino,
+    conteudo.assunto,
+    conteudo.texto,
+    conteudo.html,
+    'convite de equipe',
+  )
+  return { enviado, link }
 }
 
 /** Notificacoes de projeto: nunca interrompem a operacao principal. */

@@ -120,7 +120,7 @@ const tipoMaterial = {
 } as const
 
 export async function carregarDadosApi() {
-  const [w, c, p, m, t, a, n] = await Promise.all([
+  const [w, c, p, m, t, convites, a, n] = await Promise.all([
     requisicaoApi<{
       dado: { id: string; nome: string; slug: string; plano: Workspace['plan']; criadoEm: string }
     }>('/api/workspaces/atual'),
@@ -138,6 +138,9 @@ export async function carregarDadosApi() {
         entrouEm?: string | null
       }>
     >('/api/usuarios/equipe'),
+    requisicaoApi<
+      Lista<{ id: string; email: string; funcao: string; criadoEm: string; expiraEm: string }>
+    >('/api/equipe/convites'),
     requisicaoApi<
       Lista<{
         atividade: {
@@ -265,26 +268,47 @@ export async function carregarDadosApi() {
     materials,
     materialVersions,
     comments,
-    team: t.dados.map<TeamMember>((x) => ({
-      id: x.id,
-      workspaceId: w.dado.id,
-      name: x.nome,
-      email: x.email,
-      avatar: x.avatarUrl ?? undefined,
-      role:
-        (
-          {
-            administrador: 'Administrador',
-            gestor: 'Gestor',
-            criativo: 'Criativo',
-            atendimento: 'Atendimento',
-            visualizador: 'Visualizador',
-          } as const
-        )[x.funcao as 'administrador'] ?? 'Visualizador',
-      projectCount: 0,
-      status: x.status === 'ativo' ? 'active' : 'invited',
-      lastAccess: x.entrouEm ? String(x.entrouEm) : 'Convite enviado',
-    })),
+    team: [
+      ...t.dados.map<TeamMember>((x) => ({
+        id: x.id,
+        workspaceId: w.dado.id,
+        name: x.nome,
+        email: x.email,
+        avatar: x.avatarUrl ?? undefined,
+        role:
+          (
+            {
+              administrador: 'Administrador',
+              gestor: 'Gestor',
+              criativo: 'Criativo',
+              atendimento: 'Atendimento',
+              visualizador: 'Visualizador',
+            } as const
+          )[x.funcao as 'administrador'] ?? 'Visualizador',
+        projectCount: 0,
+        status: x.status === 'ativo' ? 'active' : 'invited',
+        lastAccess: x.entrouEm ? String(x.entrouEm) : 'Convite enviado',
+      })),
+      ...convites.dados.map<TeamMember>((x) => ({
+        id: x.id,
+        workspaceId: w.dado.id,
+        name: x.email.split('@')[0],
+        email: x.email,
+        role:
+          (
+            {
+              administrador: 'Administrador',
+              gestor: 'Gestor',
+              criativo: 'Criativo',
+              atendimento: 'Atendimento',
+              visualizador: 'Visualizador',
+            } as const
+          )[x.funcao as 'administrador'] ?? 'Visualizador',
+        projectCount: 0,
+        status: 'invited',
+        lastAccess: 'Convite enviado',
+      })),
+    ],
     activities: a.dados.map<Activity>((x) => ({
       id: x.atividade.id,
       workspaceId: x.atividade.workspaceId,
@@ -312,6 +336,27 @@ export async function carregarDadosApi() {
 }
 
 export const dadosApi = {
+  convidarMembro: (d: { email: string; role: TeamMember['role'] }) =>
+    requisicaoApi<{ mensagem: string }>('/api/equipe/convites', {
+      method: 'POST',
+      body: json({
+        email: d.email,
+        funcao: (
+          {
+            Administrador: 'administrador',
+            Gestor: 'gestor',
+            Criativo: 'criativo',
+            Atendimento: 'atendimento',
+            Visualizador: 'visualizador',
+            Cliente: 'visualizador',
+          } as const
+        )[d.role],
+      }),
+    }),
+  reenviarSenhaPortal: (projetoId: string) =>
+    requisicaoApi<{ mensagem: string }>(`/api/projetos/${projetoId}/senha-portal`, {
+      method: 'POST',
+    }),
   cliente: (d: {
     name: string
     company?: string

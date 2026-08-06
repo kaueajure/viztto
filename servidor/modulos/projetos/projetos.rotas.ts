@@ -11,6 +11,7 @@ import { novoId } from '../../utilitarios/seguranca.js'
 import {
   notificarClienteProjetoAlterado,
   notificarClienteProjetoCriado,
+  reenviarSenhaPortalProjeto,
 } from '../../servicos/notificar-cliente-projeto.servico.js'
 import {
   gerarHashSenhaAcesso,
@@ -19,6 +20,7 @@ import {
 
 function semHashSenha<T extends { senhaAcessoHash?: string | null }>(projeto: T) {
   const { senhaAcessoHash: _omitido, ...resto } = projeto
+  void _omitido
   return resto
 }
 
@@ -128,6 +130,47 @@ projetosRotas.get('/:projetoId', async (req, res) => {
     .limit(1)
   if (!dado) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
   res.json({ dado: semHashSenha(dado) })
+})
+projetosRotas.post('/:projetoId/senha-portal', exigirFuncao('atendimento'), async (req, res) => {
+  const projetoId = String(req.params.projetoId)
+  const [projeto] = await banco
+    .select({ id: projetos.id })
+    .from(projetos)
+    .where(
+      and(
+        eq(projetos.id, projetoId),
+        eq(projetos.workspaceId, req.sessao!.workspaceId),
+        isNull(projetos.excluidoEm),
+      ),
+    )
+    .limit(1)
+  if (!projeto) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
+  const senhaAcesso = gerarSenhaAcessoProjeto()
+  const envio = await reenviarSenhaPortalProjeto({
+    projetoId,
+    workspaceId: req.sessao!.workspaceId,
+    criadorNome: req.sessao!.usuarioNome,
+    senhaAcesso,
+  })
+  if (!envio.enviado) {
+    if (envio.motivo === 'cliente_sem_email')
+      throw new ErroHttp(
+        422,
+        'Cadastre o e-mail do cliente antes de reenviar a senha.',
+        'cliente_sem_email',
+      )
+    throw new ErroHttp(
+      503,
+      'Nao foi possivel enviar a nova senha. Tente novamente.',
+      'email_falhou',
+    )
+  }
+  const agora = new Date()
+  await banco
+    .update(projetos)
+    .set({ senhaAcessoHash: await gerarHashSenhaAcesso(senhaAcesso), atualizadoEm: agora })
+    .where(eq(projetos.id, projetoId))
+  res.json({ mensagem: 'Nova senha gerada e enviada ao cliente.' })
 })
 projetosRotas.patch(
   '/:projetoId',

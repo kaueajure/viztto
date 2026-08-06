@@ -22,7 +22,7 @@ type AuthValue = AuthState & {
   loading: boolean
   login: (email: string, senha: string) => Promise<void>
   register: (name: string, email: string, senha: string) => Promise<void>
-  verifyEmail: (token?: string) => Promise<void>
+  verifyEmail: (token?: string) => Promise<boolean>
   resendVerification: (emailInformado?: string) => Promise<void>
   completeOnboarding: (nome: string, slug: string, tipo?: string) => Promise<void>
   switchWorkspace: (workspaceId: string) => Promise<void>
@@ -152,12 +152,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: r.email,
             role: 'administrador',
             admin: false,
-            workspaceId: '',
+            workspaceId: r.workspaceId ?? '',
           },
           pendingEmail: r.email,
           emailVerified: true,
-          onboardingCompleted: false,
+          onboardingCompleted: Boolean(r.workspaceId),
         })
+        return Boolean(r.workspaceId)
       },
       async resendVerification(emailInformado) {
         const email =

@@ -17,6 +17,7 @@ import { comentariosRotas } from './modulos/comentarios/comentarios.rotas.js'
 import { aprovacoesRotas } from './modulos/aprovacoes/aprovacoes.rotas.js'
 import { consultasRotas } from './modulos/consultas/consultas.rotas.js'
 import { arquivosRotas } from './modulos/arquivos/arquivos.rotas.js'
+import { equipeRotas } from './modulos/equipe/equipe.rotas.js'
 import { pool } from './configuracao/banco.js'
 import { diretorioDist } from './configuracao/caminhos.js'
 import { uploadsDisponiveis } from './configuracao/upload.js'
@@ -80,6 +81,7 @@ export function criarAplicacao(preparacao: Promise<void> = Promise.resolve()) {
   app.use('/api/portal', portalRotas)
   app.use('/api/clientes', autenticar, clientesRotas)
   app.use('/api/projetos', autenticar, projetosRotas)
+  app.use('/api/equipe', autenticar, equipeRotas)
   app.use('/api/materiais', autenticar, materiaisRotas)
   app.use('/api', autenticar, comentariosRotas)
   app.use('/api', autenticar, aprovacoesRotas)
@@ -100,7 +102,8 @@ export function criarAplicacao(preparacao: Promise<void> = Promise.resolve()) {
         index: false,
         maxAge: 0,
         setHeaders(resposta, arquivo) {
-          if (path.basename(arquivo) === 'index.html') resposta.setHeader('Cache-Control', 'no-cache')
+          if (path.basename(arquivo) === 'index.html')
+            resposta.setHeader('Cache-Control', 'no-cache')
         },
       }),
     )

@@ -1,5 +1,57 @@
 type ConteudoVerificacao = { nome: string; link: string }
 
+export function montarEmailRecuperacaoSenha({ nome, link }: ConteudoVerificacao) {
+  const primeiroNome = nome.trim().split(/\s+/)[0] || 'ola'
+  const assunto = 'Redefina sua senha do Viztto'
+  const texto = [
+    `Ola, ${primeiroNome}.`,
+    '',
+    'Recebemos uma solicitacao para redefinir sua senha do Viztto.',
+    link,
+    '',
+    'Este link expira em 1 hora e so pode ser usado uma vez.',
+    'Se voce nao solicitou a alteracao, ignore este e-mail.',
+  ].join('\n')
+  const html = envelopeEmail({
+    assunto,
+    titulo: 'Redefina sua senha',
+    corpo: `Ola, ${escaparHtml(primeiroNome)}. Recebemos uma solicitacao para redefinir sua senha do Viztto.`,
+    extra:
+      '<p style="margin:16px 0 0 0;font-size:13px;line-height:1.6;color:#7f8998;">Este link expira em 1 hora e so pode ser usado uma vez. Se voce nao solicitou a alteracao, ignore esta mensagem.</p>',
+    cta: 'Criar nova senha',
+    link,
+  })
+  return { assunto, texto, html }
+}
+
+export function montarEmailConviteWorkspace(entrada: {
+  nomeConvidador: string
+  workspaceNome: string
+  funcao: string
+  link: string
+}) {
+  const assunto = `Convite para ${entrada.workspaceNome} no Viztto`
+  const texto = [
+    `${entrada.nomeConvidador} convidou voce para participar de ${entrada.workspaceNome} no Viztto.`,
+    `Funcao: ${entrada.funcao}`,
+    '',
+    'Aceite o convite pelo link abaixo:',
+    entrada.link,
+    '',
+    'Este convite expira em 7 dias.',
+  ].join('\n')
+  const html = envelopeEmail({
+    assunto,
+    titulo: 'Voce recebeu um convite',
+    corpo: `<strong>${escaparHtml(entrada.nomeConvidador)}</strong> convidou voce para participar de <strong>${escaparHtml(entrada.workspaceNome)}</strong> no Viztto como <strong>${escaparHtml(entrada.funcao)}</strong>.`,
+    extra:
+      '<p style="margin:16px 0 0 0;font-size:13px;line-height:1.6;color:#7f8998;">Este convite expira em 7 dias.</p>',
+    cta: 'Aceitar convite',
+    link: entrada.link,
+  })
+  return { assunto, texto, html }
+}
+
 export function montarEmailVerificacao({ nome, link }: ConteudoVerificacao) {
   const primeiroNome = nome.trim().split(/\s+/)[0] || 'ola'
   const assunto = 'Confirme seu e-mail no Viztto'

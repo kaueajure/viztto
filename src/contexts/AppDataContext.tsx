@@ -44,7 +44,7 @@ type Valor = Estado & {
   updateWorkspace: (p: Partial<Workspace>) => void
   addClient: (d: NewClient) => Promise<Client>
   addProject: (d: NewProject) => Promise<Project>
-  addTeamMember: (d: Pick<TeamMember, 'name' | 'email' | 'role'>) => Promise<void>
+  addTeamMember: (d: Pick<TeamMember, 'email' | 'role'>) => Promise<void>
   addMaterial: (d: NewMaterial) => Promise<Material>
   updateMaterial: (id: string, p: Partial<Material>) => Promise<void>
   addMaterialVersion: (d: NewVersion) => Promise<MaterialVersion>
@@ -139,8 +139,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           updatedAt: new Date().toISOString(),
         }
       },
-      async addTeamMember() {
-        throw new Error('Convites de equipe serao enviados pela API em uma proxima iteracao.')
+      async addTeamMember(d) {
+        await dadosApi.convidarMembro(d)
+        await refresh()
       },
       async addMaterial(d) {
         const r = await dadosApi.material(d)
