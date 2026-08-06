@@ -23,7 +23,7 @@ type AuthValue = AuthState & {
   login: (email: string, senha: string) => Promise<void>
   register: (name: string, email: string, senha: string) => Promise<void>
   verifyEmail: (token?: string) => Promise<void>
-  resendVerification: () => Promise<void>
+  resendVerification: (emailInformado?: string) => Promise<void>
   completeOnboarding: (nome: string, slug: string) => Promise<void>
   switchWorkspace: (workspaceId: string) => Promise<void>
   logout: () => Promise<void>
@@ -159,14 +159,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           onboardingCompleted: false,
         })
       },
-      async resendVerification() {
+      async resendVerification(emailInformado) {
         const email =
+          emailInformado?.trim().toLowerCase() ||
           auth.pendingEmail ||
           auth.user?.email ||
           (JSON.parse(sessionStorage.getItem('viztto_cadastro_pendente') || '{}') as { email?: string })
             .email
         if (!email) throw new Error('Informe o e-mail da conta para reenviar a verificacao.')
         const r = await autenticacaoApi.reenviarVerificacao(email)
+        sessionStorage.setItem(
+          'viztto_cadastro_pendente',
+          JSON.stringify({
+            name:
+              auth.user?.name ||
+              (JSON.parse(sessionStorage.getItem('viztto_cadastro_pendente') || '{}') as { name?: string })
+                .name ||
+              '',
+            email,
+          }),
+        )
+        setAuth((atual) => ({
+          ...atual,
+          pendingEmail: email,
+          user: atual.user
+            ? { ...atual.user, email }
+            : {
+                id: '',
+                name: '',
+                email,
+                role: 'administrador',
+                admin: false,
+                workspaceId: '',
+              },
+          emailVerified: false,
+          onboardingCompleted: false,
+        }))
         if (r.tokenVerificacao)
           sessionStorage.setItem('viztto_token_verificacao', r.tokenVerificacao)
       },

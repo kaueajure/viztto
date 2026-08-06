@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Checkbox, Input } from '@/components/ui/FormControls'
+import { ApiError } from '@/services/api/clienteHttp'
 
 function AuthCard({
   eyebrow,
@@ -49,7 +50,7 @@ const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, resendVerification } = useAuth()
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
   const [email, setEmail] = useState('')
@@ -57,12 +58,17 @@ export function LoginPage() {
   const [remember, setRemember] = useState(true)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [reenviando, setReenviando] = useState(false)
+  const [reenviado, setReenviado] = useState(false)
+  const [precisaVerificar, setPrecisaVerificar] = useState(false)
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     const next: Record<string, string> = {}
     if (!validEmail(email)) next.email = 'Informe um e-mail válido.'
     if (password.length < 6) next.password = 'Use pelo menos seis caracteres.'
     setErrors(next)
+    setPrecisaVerificar(false)
+    setReenviado(false)
     if (next.email) return emailRef.current?.focus()
     if (next.password) return passwordRef.current?.focus()
     setSubmitting(true)
@@ -70,7 +76,18 @@ export function LoginPage() {
       await login(email, password)
       navigate('/app/inicio')
     } catch (error) {
-      setErrors({ form: error instanceof Error ? error.message : 'Nao foi possivel entrar.' })
+      if (error instanceof ApiError && error.codigo === 'email_nao_verificado') {
+        sessionStorage.setItem(
+          'viztto_cadastro_pendente',
+          JSON.stringify({ name: '', email: email.trim().toLowerCase() }),
+        )
+        setPrecisaVerificar(true)
+        setErrors({
+          form: 'Seu e-mail ainda nao foi verificado. Reenvie o link ou abra a mensagem que enviamos.',
+        })
+      } else {
+        setErrors({ form: error instanceof Error ? error.message : 'Nao foi possivel entrar.' })
+      }
     } finally {
       setSubmitting(false)
     }
@@ -111,13 +128,60 @@ export function LoginPage() {
             {errors.form}
           </p>
         )}
+        {reenviado && (
+          <p role="status" className="text-sm text-approval">
+            Novo e-mail de verificacao enviado. Confira sua caixa de entrada.
+          </p>
+        )}
         <Button type="submit" className="w-full" loading={submitting}>
           Entrar
         </Button>
+        {precisaVerificar && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            loading={reenviando}
+            onClick={async () => {
+              setReenviando(true)
+              setReenviado(false)
+              try {
+                sessionStorage.setItem(
+                  'viztto_cadastro_pendente',
+                  JSON.stringify({ name: '', email: email.trim().toLowerCase() }),
+                )
+                await resendVerification(email.trim().toLowerCase())
+                setReenviado(true)
+                navigate(`/verificar-email?email=${encodeURIComponent(email.trim().toLowerCase())}`)
+              } catch (erro) {
+                setErrors({
+                  form: erro instanceof Error ? erro.message : 'Nao foi possivel reenviar.',
+                })
+              } finally {
+                setReenviando(false)
+              }
+            }}
+          >
+            Reenviar e-mail de verificação
+          </Button>
+        )}
         <p className="text-center text-sm text-secondary">
           Ainda não tem acesso?{' '}
           <Link className="font-semibold text-brand" to="/criar-conta">
             Criar conta
+          </Link>
+        </p>
+        <p className="text-center text-sm text-secondary">
+          Precisa confirmar o e-mail?{' '}
+          <Link
+            className="font-semibold text-brand"
+            to={
+              validEmail(email)
+                ? `/verificar-email?email=${encodeURIComponent(email.trim().toLowerCase())}`
+                : '/verificar-email'
+            }
+          >
+            Reenviar verificação
           </Link>
         </p>
       </form>
@@ -283,12 +347,28 @@ export function VerifyEmailPage() {
   const [error, setError] = useState('')
   const [status, setStatus] = useState<'idle' | 'verificando' | 'ok'>('idle')
   const [temTokenLocal, setTemTokenLocal] = useState(false)
+  const [reenviado, setReenviado] = useState(false)
+  const emailQuery = params.get('email')?.trim().toLowerCase() || ''
+  const [emailManual, setEmailManual] = useState(emailQuery || pendingEmail || '')
   const tokenUrl = params.get('token')?.trim() || ''
   const podeSimularDev = temTokenLocal && !tokenUrl
+  const emailAtual = pendingEmail || emailManual || emailQuery
 
   useEffect(() => {
     setTemTokenLocal(Boolean(sessionStorage.getItem('viztto_token_verificacao')))
-  }, [])
+    if (emailQuery) {
+      sessionStorage.setItem(
+        'viztto_cadastro_pendente',
+        JSON.stringify({
+          name:
+            (JSON.parse(sessionStorage.getItem('viztto_cadastro_pendente') || '{}') as { name?: string })
+              .name || '',
+          email: emailQuery,
+        }),
+      )
+      setEmailManual(emailQuery)
+    }
+  }, [emailQuery])
 
   useEffect(() => {
     if (!cooldown) return
@@ -329,7 +409,18 @@ export function VerifyEmailPage() {
         <p className="mt-5 text-sm text-secondary">
           {status === 'verificando' ? 'Confirmando seu e-mail...' : 'Enviamos um link para'}
         </p>
-        <p className="mt-1 font-semibold">{pendingEmail || 'seu e-mail informado'}</p>
+        {emailAtual ? (
+          <p className="mt-1 font-semibold">{emailAtual}</p>
+        ) : (
+          <div className="mt-4 text-left">
+            <Input
+              label="E-mail da conta"
+              type="email"
+              value={emailManual}
+              onChange={(e) => setEmailManual(e.target.value)}
+            />
+          </div>
+        )}
         {podeSimularDev && (
           <Button
             className="mt-7 w-full"
@@ -345,6 +436,11 @@ export function VerifyEmailPage() {
             Usar token de desenvolvimento
           </Button>
         )}
+        {reenviado && (
+          <p role="status" className="mt-3 text-sm text-approval">
+            Novo e-mail enviado. Confira sua caixa de entrada e o spam.
+          </p>
+        )}
         {error && (
           <p role="alert" className="mt-3 text-sm text-revision">
             {error}
@@ -357,7 +453,13 @@ export function VerifyEmailPage() {
           onClick={async () => {
             try {
               setError('')
-              await resendVerification()
+              setReenviado(false)
+              if (!validEmail(emailAtual)) {
+                setError('Informe um e-mail valido para reenviar a verificacao.')
+                return
+              }
+              await resendVerification(emailAtual)
+              setReenviado(true)
               setCooldown(30)
             } catch (erro) {
               setError(erro instanceof Error ? erro.message : 'Nao foi possivel reenviar.')
