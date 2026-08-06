@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { banco } from '../../configuracao/banco.js'
 import {
   atividades,
@@ -14,9 +14,12 @@ export const consultasRotas = Router()
 
 consultasRotas.get('/atividades', async (req, res) => {
   const dados = await banco
-    .select({ atividade: atividades, autorNome: usuarios.nome })
+    .select({
+      atividade: atividades,
+      autorNome: sql<string>`coalesce(${usuarios.nome}, 'Cliente')`.as('autorNome'),
+    })
     .from(atividades)
-    .innerJoin(usuarios, eq(usuarios.id, atividades.usuarioId))
+    .leftJoin(usuarios, eq(usuarios.id, atividades.usuarioId))
     .where(eq(atividades.workspaceId, req.sessao!.workspaceId))
     .orderBy(desc(atividades.criadoEm))
     .limit(100)

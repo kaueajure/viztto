@@ -1,5 +1,7 @@
 import { cn } from '@/lib/cn'
 
+const LOGO_MARK = '/brand/logo-mark.png'
+
 export function BrandSymbol({
   className = '',
   variant = 'framed',
@@ -11,27 +13,21 @@ export function BrandSymbol({
     <span
       aria-hidden="true"
       className={cn(
-        'relative inline-flex h-9 w-9 shrink-0 items-center justify-center text-brand',
-        variant === 'framed' && 'overflow-hidden rounded-md border border-line bg-surface-elevated',
-        variant === 'monochrome' && 'text-current',
+        'relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden',
+        variant === 'framed' && 'rounded-md border border-line bg-ink',
+        variant === 'bare' && 'rounded-md',
+        variant === 'monochrome' && 'rounded-md opacity-90 grayscale',
         className,
       )}
     >
-      <svg viewBox="0 0 36 36" className="h-full w-full" fill="none">
-        <path
-          d="M9.5 9.5 16.5 24 18 27l1.5-3L26.5 9.5"
-          stroke="currentColor"
-          strokeWidth="3.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle
-          cx="18"
-          cy="27"
-          r="2.1"
-          fill={variant === 'monochrome' ? 'currentColor' : 'var(--revision)'}
-        />
-      </svg>
+      <img
+        src={LOGO_MARK}
+        alt=""
+        width={36}
+        height={36}
+        decoding="async"
+        className="h-full w-full object-cover"
+      />
     </span>
   )
 }
@@ -47,9 +43,10 @@ export function Logo({
 }) {
   return (
     <span className={cn('inline-flex items-center gap-2.5', className)}>
-      {compact && (
-        <BrandSymbol className="h-8 w-8" variant={monochrome ? 'monochrome' : 'framed'} />
-      )}
+      <BrandSymbol
+        className={compact ? 'h-8 w-8' : 'h-9 w-9'}
+        variant={monochrome ? 'monochrome' : 'framed'}
+      />
       <span className="relative text-[27px] font-semibold tracking-[-0.075em]">
         viz
         <span className="relative">

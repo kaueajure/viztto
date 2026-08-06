@@ -29,6 +29,13 @@
       "when": 1785978945758,
       "tag": "0003_low_abomination",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1785979682904,
+      "tag": "0004_fantastic_marvel_zombies",
+      "breakpoints": true
     }
   ]
 }

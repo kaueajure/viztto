@@ -74,7 +74,7 @@ type ComentarioBanco = {
   id: string
   materialId: string
   versaoMaterialId: string
-  usuarioId: string
+  usuarioId: string | null
   texto: string
   posicaoX: string | number
   posicaoY: string | number
@@ -204,7 +204,7 @@ export async function carregarDadosApi() {
       id: comentario.id,
       materialId: comentario.materialId,
       versionId: comentario.versaoMaterialId,
-      authorId: comentario.usuarioId,
+      authorId: comentario.usuarioId ?? `portal:${comentario.id}`,
       authorName: autorNome,
       text: comentario.texto,
       x: Number(comentario.posicaoX),

@@ -1,6 +1,6 @@
 import { LockKeyhole } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/FormControls'
 import { ApiError, requisicaoApi, json } from '@/services/api/clienteHttp'
@@ -31,6 +31,7 @@ type ConteudoPortal = {
     tipo: string
     status: string
     versaoAtual: number | null
+    arquivoId: string | null
     imagemUrl: string | null
     atualizadoEm: string
   }>
@@ -136,7 +137,7 @@ export default function PortalProjetoPage() {
           <p className="mt-5 text-sm text-muted">{resumo.empresaNome}</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">{resumo.nome}</h1>
           <p className="mt-3 text-secondary">
-            Digite a senha enviada por e-mail para acessar este projeto.
+            Digite a senha enviada por e-mail para acessar e revisar este projeto.
           </p>
           {!resumo.temSenha && (
             <p className="mt-3 text-sm text-revision">
@@ -174,6 +175,9 @@ export default function PortalProjetoPage() {
               ? ` · prazo ${new Date(conteudo.projeto.prazoEm).toLocaleDateString('pt-BR')}`
               : ''}
           </p>
+          <p className="mt-3 text-sm text-secondary">
+            Abra um material para comentar, pedir alterações ou aprovar.
+          </p>
           {conteudo.projeto.descricao && (
             <p className="mt-3 text-secondary">{conteudo.projeto.descricao}</p>
           )}
@@ -182,19 +186,37 @@ export default function PortalProjetoPage() {
           Sair
         </Button>
       </div>
-      <h2 className="mt-8 text-lg font-semibold">Materiais</h2>
+      <h2 className="mt-8 text-lg font-semibold">Materiais para revisar</h2>
       <div className="mt-4 divide-y divide-line rounded-md border border-line">
         {conteudo.materiais.map((material) => (
-          <div className="flex items-center justify-between gap-4 p-4" key={material.id}>
-            <div>
-              <p className="font-semibold">{material.nome}</p>
-              <p className="mt-1 text-xs text-secondary">
-                {material.tipo}
-                {material.versaoAtual ? ` · v${material.versaoAtual}` : ''} ·{' '}
-                {rotuloStatus[material.status] ?? material.status}
-              </p>
+          <Link
+            className="flex items-center justify-between gap-4 p-4 hover:bg-surface-secondary"
+            to={`/p/${projectId}/materiais/${material.id}`}
+            key={material.id}
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              {material.imagemUrl ? (
+                <img
+                  src={material.imagemUrl}
+                  alt=""
+                  className="h-14 w-14 shrink-0 rounded-md object-cover"
+                />
+              ) : (
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-md bg-surface-secondary text-xs text-muted">
+                  —
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="font-semibold">{material.nome}</p>
+                <p className="mt-1 text-xs text-secondary">
+                  {material.tipo}
+                  {material.versaoAtual ? ` · v${material.versaoAtual}` : ''} ·{' '}
+                  {rotuloStatus[material.status] ?? material.status}
+                </p>
+              </div>
             </div>
-          </div>
+            <span className="shrink-0 text-sm font-semibold text-brand">Revisar</span>
+          </Link>
         ))}
         {!conteudo.materiais.length && (
           <p className="p-5 text-secondary">Nenhum material publicado ainda.</p>

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { and, asc, eq, isNull } from 'drizzle-orm'
+import { and, asc, eq, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
 import {
@@ -24,6 +24,10 @@ const novoComentario = z.object({
 })
 const texto = z.object({ texto: z.string().trim().min(1).max(5000) })
 export const comentariosRotas = Router()
+
+const autorNomeSql = sql<string>`coalesce(${comentarios.autorExternoNome}, ${usuarios.nome}, 'Cliente')`.as(
+  'autorNome',
+)
 
 async function comentarioDoWorkspace(comentarioId: string, workspaceId: string) {
   const [comentario] = await banco
@@ -57,9 +61,9 @@ comentariosRotas.get('/materiais/:materialId/comentarios', async (req, res) => {
   if (!material) throw new ErroHttp(404, 'Material nao encontrado.', 'material_nao_encontrado')
   const versaoId = typeof req.query.versaoId === 'string' ? req.query.versaoId : undefined
   const dados = await banco
-    .select({ comentario: comentarios, autorNome: usuarios.nome })
+    .select({ comentario: comentarios, autorNome: autorNomeSql })
     .from(comentarios)
-    .innerJoin(usuarios, eq(usuarios.id, comentarios.usuarioId))
+    .leftJoin(usuarios, eq(usuarios.id, comentarios.usuarioId))
     .where(
       and(
         eq(comentarios.materialId, material.id),
