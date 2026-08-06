@@ -5,6 +5,7 @@ import { MaterialStatus, PageHeader, SearchField } from '@/components/app/AppUi'
 import { LinkButton } from '@/components/ui/Button'
 import { Badge, EmptyState } from '@/components/ui/DataDisplay'
 import { useAppData } from '@/contexts/AppDataContext'
+import { MaterialPreview } from '@/components/review/MaterialPreview'
 
 export function MaterialsPage() {
   const { projects, clients, materials } = useAppData()
@@ -130,24 +131,15 @@ export function MaterialDetailPage() {
       <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_21rem]">
         <section className="rounded-lg border border-line bg-surface p-5">
           <div className="grid min-h-[24rem] place-items-center overflow-hidden rounded-md border border-line bg-surface-secondary surface-grid">
-            {material.type === 'image' ? (
-              <img
-                src={
-                  versions.find((item) => item.id === material.currentVersionId)?.imageUrl ??
-                  '/demo/review-campaign-v4.svg'
-                }
-                alt={`Pré-visualização de ${material.name}`}
-                className="h-full max-h-[34rem] w-full object-contain"
-              />
-            ) : (
-              <div className="text-center">
-                <FileImage className="mx-auto h-12 w-12 text-brand" />
-                <p className="mt-4 font-semibold">Pré-visualização do material</p>
-                <p className="mt-1 text-sm text-muted">
-                  Este formato terá editor completo em uma próxima etapa.
-                </p>
-              </div>
-            )}
+            <MaterialPreview
+              type={material.type}
+              url={
+                versions.find((item) => item.id === material.currentVersionId)?.imageUrl ??
+                '/demo/review-campaign-v4.svg'
+              }
+              title={`Pré-visualização de ${material.name}`}
+              className="max-h-[34rem]"
+            />
           </div>
           <LinkButton to={`/app/materiais/${material.id}/revisao`} className="mt-4 w-full">
             <Play className="h-4 w-4" /> Abrir revisão

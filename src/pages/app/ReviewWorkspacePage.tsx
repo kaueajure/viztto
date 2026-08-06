@@ -1,9 +1,10 @@
 import { Check, MessageSquare, PanelRight, RotateCcw, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { ActivityPanel } from '@/components/review/ActivityPanel'
 import { CommentsPanel } from '@/components/review/CommentsPanel'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
+import { MaterialPreview } from '@/components/review/MaterialPreview'
 import { NewVersionModal } from '@/components/review/NewVersionModal'
 import { ReviewDecisionModal } from '@/components/review/ReviewDecisionModal'
 import { ReviewToolbar } from '@/components/review/ReviewToolbar'
@@ -78,22 +79,6 @@ export default function ReviewWorkspacePage() {
         description="O material solicitado não está disponível."
       />
     )
-  if (material.type !== 'image')
-    return (
-      <div className="mx-auto max-w-2xl py-12">
-        <EmptyState
-          title="Editor ainda não disponível para este formato"
-          description="O editor completo deste formato será disponibilizado em uma próxima etapa."
-        />
-        <Link
-          to={`/app/materiais/${material.id}`}
-          className="mt-5 inline-flex text-sm font-semibold text-brand"
-        >
-          Voltar para o material
-        </Link>
-      </div>
-    )
-
   const activeVersion = versions.find((item) => item.id === activeVersionId) ?? versions[0]
   if (!activeVersion)
     return (
@@ -274,19 +259,40 @@ export default function ReviewWorkspacePage() {
       )}
       <div className="grid min-h-[calc(100svh-9rem)] xl:grid-cols-[minmax(0,1fr)_24rem]">
         <main className="relative flex min-h-0 flex-col">
-          <ImageReviewCanvas
-            imageUrl={activeVersion.imageUrl ?? '/demo/review-campaign-v4.svg'}
-            comments={activeComments}
-            selectedId={selectedId}
-            creationMode={creationMode}
-            zoom={zoom}
-            draftPosition={draft}
-            onPoint={(position) => {
-              setDraft(position)
-              setCreationMode(false)
-            }}
-            onSelect={selectComment}
-          />
+          {material.type === 'image' ? (
+            <ImageReviewCanvas
+              imageUrl={activeVersion.imageUrl ?? '/demo/review-campaign-v4.svg'}
+              comments={activeComments}
+              selectedId={selectedId}
+              creationMode={creationMode}
+              zoom={zoom}
+              draftPosition={draft}
+              onPoint={(position) => {
+                setDraft(position)
+                setCreationMode(false)
+              }}
+              onSelect={selectComment}
+            />
+          ) : (
+            <div className="relative grid min-h-[32rem] flex-1 place-items-center overflow-auto bg-[#090d12] p-4">
+              {creationMode && (
+                <Button
+                  className="absolute left-4 top-4 z-10"
+                  onClick={() => {
+                    setDraft({ x: 0.5, y: 0.5 })
+                    setCreationMode(false)
+                  }}
+                >
+                  Adicionar comentário geral
+                </Button>
+              )}
+              <MaterialPreview
+                type={material.type}
+                url={activeVersion.imageUrl ?? ''}
+                title={material.name}
+              />
+            </div>
+          )}
           {draft && (
             <form
               onSubmit={async (event) => {
@@ -417,6 +423,7 @@ export default function ReviewWorkspacePage() {
         open={newVersion}
         onClose={() => setNewVersion(false)}
         nextNumber={Math.max(...versions.map((item) => item.number)) + 1}
+        materialType={material.type}
         onPublish={async (input) => {
           const version = await data.addMaterialVersion({ materialId: material.id, ...input })
           setActiveVersionId(version.id)

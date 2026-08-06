@@ -397,7 +397,18 @@ export const dadosApi = {
     const corpo = new FormData()
     corpo.set('nome', d.name)
     corpo.set('projetoId', d.projectId)
-    corpo.set('tipo', d.type === 'image' ? 'imagem' : d.type)
+    corpo.set(
+      'tipo',
+      (
+        {
+          image: 'imagem',
+          video: 'video',
+          pdf: 'pdf',
+          presentation: 'apresentacao',
+          web: 'pagina_web',
+        } as Record<string, string>
+      )[d.type] ?? d.type,
+    )
     corpo.set('imagem', d.file)
     return requisicaoApi<{ dado: { id: string; versaoId: string } }>('/api/materiais', {
       method: 'POST',

@@ -288,6 +288,17 @@ export function RegisterPage() {
           checked={terms}
           onChange={setTerms}
         />
+        <p className="-mt-2 text-xs text-secondary">
+          Leia os{' '}
+          <Link className="font-semibold text-brand" to="/termos" target="_blank">
+            Termos de Uso
+          </Link>{' '}
+          e a{' '}
+          <Link className="font-semibold text-brand" to="/privacidade" target="_blank">
+            Política de Privacidade
+          </Link>
+          .
+        </p>
         {errors.terms && (
           <p role="alert" className="text-xs text-revision">
             {errors.terms}

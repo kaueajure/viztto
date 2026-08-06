@@ -74,9 +74,7 @@ export default function PortalProjetoPage() {
     } catch (error) {
       setResumo(null)
       setConteudo(null)
-      setErro(
-        error instanceof ApiError ? error.message : 'Não foi possível abrir este projeto.',
-      )
+      setErro(error instanceof ApiError ? error.message : 'Não foi possível abrir este projeto.')
     } finally {
       setCarregando(false)
     }
@@ -195,7 +193,7 @@ export default function PortalProjetoPage() {
             key={material.id}
           >
             <div className="flex min-w-0 items-center gap-3">
-              {material.imagemUrl ? (
+              {material.imagemUrl && material.tipo === 'imagem' ? (
                 <img
                   src={material.imagemUrl}
                   alt=""
@@ -203,7 +201,7 @@ export default function PortalProjetoPage() {
                 />
               ) : (
                 <span className="grid h-14 w-14 shrink-0 place-items-center rounded-md bg-surface-secondary text-xs text-muted">
-                  —
+                  {material.tipo === 'video' ? 'Vídeo' : material.tipo === 'pdf' ? 'PDF' : '—'}
                 </span>
               )}
               <div className="min-w-0">

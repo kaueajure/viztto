@@ -2,6 +2,7 @@ import { ArrowLeft, Check, MessageSquarePlus, Send, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
+import { MaterialPreview } from '@/components/review/MaterialPreview'
 import { Button, IconButton } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/FormControls'
 import { ApiError, json, requisicaoApi } from '@/services/api/clienteHttp'
@@ -235,20 +236,38 @@ export default function PortalRevisaoPage() {
               </button>
             ))}
           </div>
-          <ImageReviewCanvas
-            imageUrl={detalhe.versao.imagemUrl}
-            comments={comentarios}
-            selectedId={selectedId}
-            creationMode={creationMode && !aprovado}
-            zoom={zoom}
-            draftPosition={draft}
-            onPoint={(position) => {
-              setDraft(position)
-              setDraftText('')
-              setSelectedId(null)
-            }}
-            onSelect={setSelectedId}
-          />
+          {detalhe.material.tipo === 'imagem' ? (
+            <ImageReviewCanvas
+              imageUrl={detalhe.versao.imagemUrl}
+              comments={comentarios}
+              selectedId={selectedId}
+              creationMode={creationMode && !aprovado}
+              zoom={zoom}
+              draftPosition={draft}
+              onPoint={(position) => {
+                setDraft(position)
+                setDraftText('')
+                setSelectedId(null)
+              }}
+              onSelect={setSelectedId}
+            />
+          ) : (
+            <div className="relative grid min-h-[32rem] place-items-center overflow-auto bg-[#090d12] p-4">
+              {creationMode && !aprovado && (
+                <Button
+                  className="absolute left-4 top-4 z-10"
+                  onClick={() => setDraft({ x: 0.5, y: 0.5 })}
+                >
+                  Adicionar comentário geral
+                </Button>
+              )}
+              <MaterialPreview
+                type={detalhe.material.tipo === 'video' ? 'video' : 'pdf'}
+                url={detalhe.versao.imagemUrl}
+                title={detalhe.material.nome}
+              />
+            </div>
+          )}
           {draft && (
             <form
               onSubmit={(event) => void publicarComentario(event)}

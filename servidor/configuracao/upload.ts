@@ -39,7 +39,9 @@ export async function uploadsDisponiveis() {
     return false
   }
 }
-export const receberImagem = multer({
+export const receberArquivo = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: ambiente.TAMANHO_MAXIMO_IMAGEM_MB * 1024 * 1024, files: 1 },
+  limits: { fileSize: ambiente.TAMANHO_MAXIMO_ARQUIVO_MB * 1024 * 1024, files: 1 },
 }).single('imagem')
+
+export const receberImagem = receberArquivo

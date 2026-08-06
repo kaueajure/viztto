@@ -51,6 +51,13 @@ async function obterMaterial(materialId: string, workspaceId: string) {
   return material
 }
 
+function validarArquivoDoTipo(tipo: string, arquivo: Express.Multer.File | undefined) {
+  if (!arquivo) throw new ErroHttp(422, 'Selecione o arquivo do envio.', 'arquivo_ausente')
+  if (!['imagem', 'video', 'pdf'].includes(tipo))
+    throw new ErroHttp(415, 'Este formato ainda nao aceita upload direto.', 'formato_nao_suportado')
+  return arquivo
+}
+
 materiaisRotas.get('/', async (req, res) => {
   const q = consultaPaginada.parse(req.query)
   const workspaceId = req.sessao!.workspaceId
@@ -96,20 +103,15 @@ materiaisRotas.post('/', exigirFuncao('criativo'), receberImagem, async (req, re
     )
     .limit(1)
   if (!projeto) throw new ErroHttp(422, 'Projeto invalido para este workspace.', 'projeto_invalido')
-  if (corpo.tipo !== 'imagem')
-    throw new ErroHttp(
-      422,
-      'A criacao completa desta etapa aceita somente materiais de imagem.',
-      'formato_nao_suportado',
-    )
-  if (!req.file) throw new ErroHttp(422, 'Selecione a imagem do primeiro envio.', 'imagem_ausente')
+  const arquivoRecebido = validarArquivoDoTipo(corpo.tipo, req.file)
   const id = novoId()
   const versaoId = novoId()
   const arquivoId = novoId()
   const agora = new Date()
-  const salvo = await armazenarImagem(req.file.buffer, req.file.originalname, {
+  const salvo = await armazenarImagem(arquivoRecebido.buffer, arquivoRecebido.originalname, {
     workspaceId: req.sessao!.workspaceId,
     materialId: id,
+    tipo: corpo.tipo,
   })
   try {
     await banco.transaction(async (tx) => {
@@ -141,10 +143,7 @@ materiaisRotas.post('/', exigirFuncao('criativo'), receberImagem, async (req, re
         criadaPorUsuarioId: req.sessao!.usuarioId,
         criadoEm: agora,
       })
-      await tx
-        .update(materiais)
-        .set({ versaoAtualId: versaoId })
-        .where(eq(materiais.id, id))
+      await tx.update(materiais).set({ versaoAtualId: versaoId }).where(eq(materiais.id, id))
       await tx.insert(atividades).values({
         id: novoId(),
         workspaceId: req.sessao!.workspaceId,
@@ -210,95 +209,90 @@ materiaisRotas.post(
   async (req, res) => {
     const corpo = novaVersao.parse(req.body)
     const material = await obterMaterial(String(req.params.materialId), req.sessao!.workspaceId)
-    if (material.tipo !== 'imagem')
-      throw new ErroHttp(
-        422,
-        'O upload desta etapa aceita somente imagens.',
-        'formato_nao_suportado',
-      )
-    if (!req.file) throw new ErroHttp(422, 'Selecione uma imagem.', 'imagem_ausente')
-    const salvo = await armazenarImagem(req.file.buffer, req.file.originalname, {
+    const arquivoRecebido = validarArquivoDoTipo(material.tipo, req.file)
+    const salvo = await armazenarImagem(arquivoRecebido.buffer, arquivoRecebido.originalname, {
       workspaceId: material.workspaceId,
       materialId: material.id,
+      tipo: material.tipo,
     })
     const arquivoId = novoId()
     const versaoId = novoId()
     const agora = new Date()
     try {
       await banco.transaction(async (tx) => {
-      const [ultima] = await tx
-        .select({ numero: versoesMaterial.numero })
-        .from(versoesMaterial)
-        .where(eq(versoesMaterial.materialId, material.id))
-        .orderBy(desc(versoesMaterial.numero))
-        .limit(1)
-      const numero = (ultima?.numero ?? 0) + 1
-      await tx.insert(arquivos).values({
-        id: arquivoId,
-        workspaceId: material.workspaceId,
-        criadoPorUsuarioId: req.sessao!.usuarioId,
-        criadoEm: agora,
-        ...salvo.registro,
-      })
-      await tx
-        .update(versoesMaterial)
-        .set({ atual: false })
-        .where(eq(versoesMaterial.materialId, material.id))
-      await tx.insert(versoesMaterial).values({
-        id: versaoId,
-        materialId: material.id,
-        arquivoId,
-        numero,
-        nome: corpo.nome,
-        descricao: corpo.descricao,
-        atual: true,
-        criadaPorUsuarioId: req.sessao!.usuarioId,
-        criadoEm: agora,
-      })
-      if (corpo.copiarPendencias && material.versaoAtualId) {
-        const pendentes = await tx
-          .select()
-          .from(comentarios)
-          .where(
-            and(
-              eq(comentarios.versaoMaterialId, material.versaoAtualId),
-              eq(comentarios.status, 'aberto'),
-              isNull(comentarios.excluidoEm),
-            ),
-          )
-        if (pendentes.length)
-          await tx.insert(comentarios).values(
-            pendentes.map((c) => ({
-              id: novoId(),
-              workspaceId: c.workspaceId,
-              materialId: c.materialId,
-              versaoMaterialId: versaoId,
-              usuarioId: c.usuarioId,
-              comentarioOrigemId: c.id,
-              texto: c.texto,
-              posicaoX: c.posicaoX,
-              posicaoY: c.posicaoY,
-              status: 'aberto' as const,
-              criadoEm: agora,
-              atualizadoEm: agora,
-            })),
-          )
-      }
-      await tx
-        .update(materiais)
-        .set({ versaoAtualId: versaoId, status: 'em_revisao', atualizadoEm: agora })
-        .where(eq(materiais.id, material.id))
-      await tx.insert(atividades).values({
-        id: novoId(),
-        workspaceId: material.workspaceId,
-        usuarioId: req.sessao!.usuarioId,
-        projetoId: material.projetoId,
-        materialId: material.id,
-        versaoMaterialId: versaoId,
-        tipo: 'versao_publicada',
-        descricao: `Nova versao publicada: ${corpo.nome}`,
-        criadoEm: agora,
-      })
+        const [ultima] = await tx
+          .select({ numero: versoesMaterial.numero })
+          .from(versoesMaterial)
+          .where(eq(versoesMaterial.materialId, material.id))
+          .orderBy(desc(versoesMaterial.numero))
+          .limit(1)
+        const numero = (ultima?.numero ?? 0) + 1
+        await tx.insert(arquivos).values({
+          id: arquivoId,
+          workspaceId: material.workspaceId,
+          criadoPorUsuarioId: req.sessao!.usuarioId,
+          criadoEm: agora,
+          ...salvo.registro,
+        })
+        await tx
+          .update(versoesMaterial)
+          .set({ atual: false })
+          .where(eq(versoesMaterial.materialId, material.id))
+        await tx.insert(versoesMaterial).values({
+          id: versaoId,
+          materialId: material.id,
+          arquivoId,
+          numero,
+          nome: corpo.nome,
+          descricao: corpo.descricao,
+          atual: true,
+          criadaPorUsuarioId: req.sessao!.usuarioId,
+          criadoEm: agora,
+        })
+        if (corpo.copiarPendencias && material.versaoAtualId) {
+          const pendentes = await tx
+            .select()
+            .from(comentarios)
+            .where(
+              and(
+                eq(comentarios.versaoMaterialId, material.versaoAtualId),
+                eq(comentarios.status, 'aberto'),
+                isNull(comentarios.excluidoEm),
+              ),
+            )
+          if (pendentes.length)
+            await tx.insert(comentarios).values(
+              pendentes.map((c) => ({
+                id: novoId(),
+                workspaceId: c.workspaceId,
+                materialId: c.materialId,
+                versaoMaterialId: versaoId,
+                usuarioId: c.usuarioId,
+                comentarioOrigemId: c.id,
+                texto: c.texto,
+                posicaoX: c.posicaoX,
+                posicaoY: c.posicaoY,
+                status: 'aberto' as const,
+                criadoEm: agora,
+                atualizadoEm: agora,
+              })),
+            )
+        }
+        await tx
+          .update(materiais)
+          .set({ versaoAtualId: versaoId, status: 'em_revisao', atualizadoEm: agora })
+          .where(eq(materiais.id, material.id))
+        await tx.insert(atividades).values({
+          id: novoId(),
+          workspaceId: material.workspaceId,
+          usuarioId: req.sessao!.usuarioId,
+          projetoId: material.projetoId,
+          materialId: material.id,
+          versaoMaterialId: versaoId,
+          tipo: 'versao_publicada',
+          descricao: `Nova versao publicada: ${corpo.nome}`,
+          criadoEm: agora,
+        })
       })
     } catch (erro) {
       await removerArquivoSalvo(salvo.caminhoAbsoluto)

@@ -25,6 +25,7 @@ const esquema = z.object({
   URL_APLICACAO: z.string().url().optional(),
   DIRETORIO_UPLOADS: z.string().default('./uploads'),
   TAMANHO_MAXIMO_IMAGEM_MB: z.coerce.number().positive().max(50).default(15),
+  TAMANHO_MAXIMO_ARQUIVO_MB: z.coerce.number().positive().max(500).default(100),
   COOKIE_SEGURO: booleano(false),
   CONFIAR_PROXY: booleano(false),
   EXECUTAR_MIGRATIONS: booleano(false),

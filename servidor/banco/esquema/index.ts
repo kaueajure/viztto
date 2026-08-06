@@ -26,6 +26,8 @@ export const usuarios = mysqlTable(
     email: varchar('email', { length: 254 }).notNull(),
     senhaHash: varchar('senha_hash', { length: 255 }).notNull(),
     avatarUrl: varchar('avatar_url', { length: 500 }),
+    termosAceitosEm: data('termos_aceitos_em'),
+    versaoTermos: varchar('versao_termos', { length: 20 }),
     emailVerificadoEm: data('email_verificado_em'),
     ultimoAcessoEm: data('ultimo_acesso_em'),
     admin: boolean('admin').notNull().default(false),
@@ -35,6 +37,27 @@ export const usuarios = mysqlTable(
     excluidoEm: data('excluido_em'),
   },
   (t) => [uniqueIndex('unq_usuarios_email').on(t.email), index('idx_usuarios_ativo').on(t.ativo)],
+)
+
+export const preferenciasUsuario = mysqlTable(
+  'preferencias_usuario',
+  {
+    usuarioId: id('usuario_id').primaryKey(),
+    comentarios: boolean('comentarios').notNull().default(true),
+    alteracoes: boolean('alteracoes').notNull().default(true),
+    aprovacoes: boolean('aprovacoes').notNull().default(true),
+    prazos: boolean('prazos').notNull().default(true),
+    email: boolean('email').notNull().default(true),
+    sistema: boolean('sistema').notNull().default(true),
+    atualizadoEm: data('atualizado_em').notNull(),
+  },
+  (t) => [
+    foreignKey({
+      columns: [t.usuarioId],
+      foreignColumns: [usuarios.id],
+      name: 'fk_preferencias_usuarios',
+    }).onDelete('cascade'),
+  ],
 )
 
 export const workspaces = mysqlTable(

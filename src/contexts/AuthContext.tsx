@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { autenticacaoApi } from '@/services/api/autenticacaoApi'
 import { ApiError } from '@/services/api/clienteHttp'
+import { configuracoesApi } from '@/services/api/configuracoesApi'
 
 export type AuthUser = {
   id: string
@@ -26,6 +27,7 @@ type AuthValue = AuthState & {
   resendVerification: (emailInformado?: string) => Promise<void>
   completeOnboarding: (nome: string, slug: string, tipo?: string) => Promise<void>
   switchWorkspace: (workspaceId: string) => Promise<void>
+  updateProfile: (nome: string) => Promise<void>
   logout: () => Promise<void>
   resetAuth: () => Promise<void>
 }
@@ -165,8 +167,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           emailInformado?.trim().toLowerCase() ||
           auth.pendingEmail ||
           auth.user?.email ||
-          (JSON.parse(sessionStorage.getItem('viztto_cadastro_pendente') || '{}') as { email?: string })
-            .email
+          (
+            JSON.parse(sessionStorage.getItem('viztto_cadastro_pendente') || '{}') as {
+              email?: string
+            }
+          ).email
         if (!email) throw new Error('Informe o e-mail da conta para reenviar a verificacao.')
         const r = await autenticacaoApi.reenviarVerificacao(email)
         sessionStorage.setItem(
@@ -174,8 +179,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           JSON.stringify({
             name:
               auth.user?.name ||
-              (JSON.parse(sessionStorage.getItem('viztto_cadastro_pendente') || '{}') as { name?: string })
-                .name ||
+              (
+                JSON.parse(sessionStorage.getItem('viztto_cadastro_pendente') || '{}') as {
+                  name?: string
+                }
+              ).name ||
               '',
             email,
           }),
@@ -220,6 +228,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuth((atual) => ({
           ...atual,
           user: usuarioDaSessao(sessao),
+        }))
+      },
+      async updateProfile(nome) {
+        await configuracoesApi.salvarPerfil(nome)
+        setAuth((atual) => ({
+          ...atual,
+          user: atual.user ? { ...atual.user, name: nome } : null,
         }))
       },
       async logout() {

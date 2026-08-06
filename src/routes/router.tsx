@@ -9,6 +9,12 @@ const HomePage = lazy(() => import('@/pages/HomePage'))
 const PlaceholderPage = lazy(() => import('@/pages/PlaceholderPage'))
 const DesignSystemPage = lazy(() => import('@/pages/DesignSystemPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
+const TermsPage = lazy(() =>
+  import('@/pages/LegalPages').then((module) => ({ default: module.TermsPage })),
+)
+const PrivacyPage = lazy(() =>
+  import('@/pages/LegalPages').then((module) => ({ default: module.PrivacyPage })),
+)
 const AuthAreaLayout = lazy(() =>
   import('@/components/layout/ProductAreaLayouts').then((module) => ({
     default: module.AuthAreaLayout,
@@ -186,8 +192,8 @@ export const router = createBrowserRouter([
     children: [
       { path: '/p/:projectId', element: page(<PortalProjetoPage />) },
       { path: '/p/:projectId/materiais/:materialId', element: page(<PortalRevisaoPage />) },
-      { path: '/termos', element: page(<PlaceholderPage />) },
-      { path: '/privacidade', element: page(<PlaceholderPage />) },
+      { path: '/termos', element: page(<TermsPage />) },
+      { path: '/privacidade', element: page(<PrivacyPage />) },
       { path: '*', element: page(<NotFoundPage />) },
     ],
   },

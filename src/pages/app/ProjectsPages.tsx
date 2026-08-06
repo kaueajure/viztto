@@ -351,12 +351,14 @@ export function ProjectDetailPage() {
             onChange={(event) => setMaterialForm({ ...materialForm, type: event.target.value })}
           >
             <option value="image">Imagem</option>
+            <option value="video">Vídeo</option>
+            <option value="pdf">PDF</option>
           </Select>
           <label className="grid gap-2 text-sm font-medium text-ink">
             Primeiro envio
             <input
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,video/quicktime"
               className="min-h-11 rounded-md border border-line bg-surface px-3 py-2 text-sm file:mr-3 file:rounded-sm file:border-0 file:bg-brand-soft file:px-3 file:py-1.5 file:font-semibold file:text-brand"
               onChange={(event) => {
                 setMaterialFile(event.target.files?.[0] ?? null)
@@ -364,7 +366,7 @@ export function ProjectDetailPage() {
               }}
             />
             <span className="text-xs font-normal text-secondary">
-              JPEG, PNG ou WebP. Outros formatos terão editores próprios em uma próxima etapa.
+              JPEG, PNG, WebP, PDF, MP4, WebM ou MOV. Limite de 100 MB.
             </span>
           </label>
           {materialError && <p className="text-sm text-revision">{materialError}</p>}
@@ -379,7 +381,7 @@ export function ProjectDetailPage() {
                 await addMaterial({
                   projectId: project.id,
                   name: materialForm.name.trim(),
-                  type: 'image',
+                  type: materialForm.type as 'image' | 'video' | 'pdf',
                   file: materialFile,
                 })
                 setMaterialForm({ name: '', type: 'image' })
