@@ -39,6 +39,17 @@ export function Tooltip({
   )
 }
 
+const FOCUSABLE =
+  'button:not([disabled]),[href],input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+
+function primeiroCampoDoModal(panel: HTMLElement) {
+  const preferido = panel.querySelector<HTMLElement>(
+    'input:not([type="hidden"]):not([type="file"]):not([disabled]),textarea:not([disabled]),select:not([disabled])',
+  )
+  if (preferido) return preferido
+  return panel.querySelectorAll<HTMLElement>(FOCUSABLE)[0] ?? panel
+}
+
 export function Modal({
   open,
   onClose,
@@ -53,8 +64,13 @@ export function Modal({
   dismissible?: boolean
 }) {
   const panel = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  const dismissibleRef = useRef(dismissible)
   const titleId = useId()
   const reduceMotion = useReducedMotion()
+
+  onCloseRef.current = onClose
+  dismissibleRef.current = dismissible
 
   useEffect(() => {
     if (!open) return
@@ -63,14 +79,10 @@ export function Modal({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        if (dismissible) onClose()
+        if (dismissibleRef.current) onCloseRef.current()
       }
       if (event.key === 'Tab' && panel.current) {
-        const elements = Array.from(
-          panel.current.querySelectorAll<HTMLElement>(
-            'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])',
-          ),
-        ).filter((element) => !element.hasAttribute('disabled'))
+        const elements = Array.from(panel.current.querySelectorAll<HTMLElement>(FOCUSABLE))
         if (!elements.length) {
           event.preventDefault()
           panel.current.focus()
@@ -90,13 +102,17 @@ export function Modal({
 
     document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', onKey)
-    requestAnimationFrame(() => panel.current?.querySelector<HTMLElement>('button,input,select')?.focus())
+    // Só no abrir: prioriza campo de formulário (não o botão X).
+    const frame = requestAnimationFrame(() => {
+      if (panel.current) primeiroCampoDoModal(panel.current).focus()
+    })
     return () => {
+      cancelAnimationFrame(frame)
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', onKey)
       previous?.focus()
     }
-  }, [open, onClose, dismissible])
+  }, [open])
 
   return (
     <AnimatePresence>
@@ -107,7 +123,9 @@ export function Modal({
           animate={{ opacity: 1 }}
           exit={reduceMotion ? undefined : { opacity: 0 }}
           onPointerDown={(event) => {
-            if (dismissible && event.target === event.currentTarget) onClose()
+            if (dismissibleRef.current && event.target === event.currentTarget) {
+              onCloseRef.current()
+            }
           }}
         >
           <motion.div
@@ -127,7 +145,7 @@ export function Modal({
                 {title}
               </h2>
               {dismissible && (
-                <IconButton label="Fechar modal" onClick={onClose}>
+                <IconButton label="Fechar modal" onClick={() => onCloseRef.current()}>
                   <X className="h-4 w-4" />
                 </IconButton>
               )}

@@ -69,6 +69,158 @@ export function montarEmailVerificacao({ nome, link }: ConteudoVerificacao) {
   return { assunto, texto, html }
 }
 
+type ConteudoProjetoCriado = {
+  clienteNome: string
+  projetoNome: string
+  criadorNome: string
+  empresaNome: string
+  link: string
+  senhaAcesso: string
+}
+
+type ConteudoProjetoAlterado = {
+  clienteNome: string
+  projetoNome: string
+  empresaNome: string
+  resumo: string
+  link: string
+}
+
+export function montarEmailProjetoCriado({
+  clienteNome,
+  projetoNome,
+  criadorNome,
+  empresaNome,
+  link,
+  senhaAcesso,
+}: ConteudoProjetoCriado) {
+  const primeiroNome = clienteNome.trim().split(/\s+/)[0] || 'ola'
+  const assunto = `Novo projeto: ${projetoNome}`
+  const texto = [
+    `Ola, ${primeiroNome}.`,
+    '',
+    `${criadorNome} (${empresaNome}) criou o projeto "${projetoNome}" para voce no Viztto.`,
+    '',
+    `Senha de acesso: ${senhaAcesso}`,
+    '',
+    'Use o link abaixo e informe a senha para abrir o projeto:',
+    link,
+    '',
+    'Nao compartilhe esta senha. Somente quem a possui consegue entrar neste projeto.',
+    '',
+    'Equipe Viztto',
+  ].join('\n')
+
+  const html = envelopeEmail({
+    assunto,
+    titulo: 'Novo projeto para voce',
+    corpo: `Ola, ${escaparHtml(primeiroNome)}. <strong>${escaparHtml(criadorNome)}</strong> da empresa <strong>${escaparHtml(empresaNome)}</strong> criou o projeto <strong>${escaparHtml(projetoNome)}</strong> no Viztto.`,
+    extra: `<p style="margin:18px 0 0 0;font-size:14px;line-height:1.6;color:#a7b0be;">Senha de acesso:</p>
+              <p style="margin:8px 0 0 0;font-size:22px;font-weight:700;letter-spacing:0.12em;color:#b8ff4f;">${escaparHtml(senhaAcesso)}</p>
+              <p style="margin:12px 0 0 0;font-size:12px;line-height:1.6;color:#7f8998;">Nao compartilhe esta senha. Somente quem a possui consegue entrar neste projeto.</p>`,
+    cta: 'Abrir projeto',
+    link,
+  })
+
+  return { assunto, texto, html }
+}
+
+export function montarEmailProjetoAlterado({
+  clienteNome,
+  projetoNome,
+  empresaNome,
+  resumo,
+  link,
+}: ConteudoProjetoAlterado) {
+  const primeiroNome = clienteNome.trim().split(/\s+/)[0] || 'ola'
+  const assunto = `Atualizacao no projeto ${projetoNome}`
+  const texto = [
+    `Ola, ${primeiroNome}.`,
+    '',
+    `Ha uma nova alteracao no projeto "${projetoNome}" (${empresaNome}).`,
+    '',
+    resumo,
+    '',
+    'Acesse com a senha enviada no e-mail de criacao do projeto:',
+    link,
+    '',
+    'Equipe Viztto',
+  ].join('\n')
+
+  const html = envelopeEmail({
+    assunto,
+    titulo: 'Alteracao no projeto',
+    corpo: `Ola, ${escaparHtml(primeiroNome)}. O projeto <strong>${escaparHtml(projetoNome)}</strong> de <strong>${escaparHtml(empresaNome)}</strong> foi atualizado: ${escaparHtml(resumo)}`,
+    extra: `<p style="margin:16px 0 0 0;font-size:13px;line-height:1.6;color:#7f8998;">Use a senha de acesso enviada quando o projeto foi criado.</p>`,
+    cta: 'Ver projeto',
+    link,
+  })
+
+  return { assunto, texto, html }
+}
+
+function envelopeEmail({
+  assunto,
+  titulo,
+  corpo,
+  extra,
+  cta,
+  link,
+}: {
+  assunto: string
+  titulo: string
+  corpo: string
+  extra?: string
+  cta: string
+  link: string
+}) {
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escaparHtml(assunto)}</title>
+</head>
+<body style="margin:0;padding:0;background:#0d1117;color:#f5f7fa;font-family:'Instrument Sans',Segoe UI,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0d1117;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#151b23;border:1px solid #2a3442;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td style="padding:28px 28px 12px 28px;">
+              <div style="display:inline-block;padding:6px 12px;border-radius:999px;background:#1e2a12;color:#b8ff4f;font-size:12px;font-weight:600;letter-spacing:0.04em;">
+                Viztto
+              </div>
+              <h1 style="margin:20px 0 0 0;font-size:28px;line-height:1.2;font-weight:700;color:#f5f7fa;">
+                ${escaparHtml(titulo)}
+              </h1>
+              <p style="margin:12px 0 0 0;font-size:15px;line-height:1.6;color:#a7b0be;">
+                ${corpo}
+              </p>
+              ${extra ?? ''}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 28px 28px 28px;">
+              <a href="${escaparAtributo(link)}" style="display:inline-block;background:#b8ff4f;color:#10150b;text-decoration:none;font-weight:700;font-size:15px;padding:14px 22px;border-radius:10px;">
+                ${escaparHtml(cta)}
+              </a>
+              <p style="margin:22px 0 0 0;font-size:13px;line-height:1.6;color:#7f8998;">
+                Ou copie e cole este link no navegador:
+              </p>
+              <p style="margin:8px 0 0 0;font-size:12px;line-height:1.5;word-break:break-all;color:#a7b0be;">
+                ${escaparHtml(link)}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
 function escaparHtml(valor: string) {
   return valor
     .replaceAll('&', '&amp;')

@@ -1,0 +1,1 @@
+ALTER TABLE `projetos` ADD `senha_acesso_hash` varchar(255);

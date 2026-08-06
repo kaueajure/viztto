@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/DataDisplay'
 import { Checkbox } from '@/components/ui/FormControls'
@@ -26,13 +26,17 @@ export function ReviewDecisionModal({
 }) {
   const [acknowledged, setAcknowledged] = useState(false)
   const approvalWarning = mode === 'approve' && openComments > 0
+  useEffect(() => {
+    if (open) setAcknowledged(false)
+  }, [open, mode])
+  const fechar = () => {
+    setAcknowledged(false)
+    onClose()
+  }
   return (
     <Modal
       open={open}
-      onClose={() => {
-        setAcknowledged(false)
-        onClose()
-      }}
+      onClose={fechar}
       title={mode === 'changes' ? 'Solicitar alterações desta versão?' : 'Aprovar esta versão?'}
     >
       <div className="flex gap-3 rounded-md border border-line bg-surface-secondary p-4">
@@ -71,7 +75,7 @@ export function ReviewDecisionModal({
         </div>
       )}
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={fechar}>
           Cancelar
         </Button>
         <Button

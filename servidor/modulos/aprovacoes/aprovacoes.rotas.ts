@@ -15,6 +15,7 @@ import { exigirFuncao } from '../../middlewares/autorizacao.js'
 import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
+import { notificarClienteProjetoAlterado } from '../../servicos/notificar-cliente-projeto.servico.js'
 
 const decisao = z.object({
   versaoMaterialId: z.string().uuid(),
@@ -136,6 +137,11 @@ aprovacoesRotas.post(
         criadoEm: agora,
       })
     })
+    await notificarClienteProjetoAlterado({
+      projetoId: m.projetoId,
+      workspaceId: req.sessao!.workspaceId,
+      resumo: `${req.sessao!.usuarioNome} aprovou uma versao do material "${m.nome}".`,
+    })
     res.status(201).json({ dado: { id } })
   },
 )
@@ -192,6 +198,11 @@ aprovacoesRotas.post(
         criadoEm: agora,
       })
     })
+    await notificarClienteProjetoAlterado({
+      projetoId: m.projetoId,
+      workspaceId: req.sessao!.workspaceId,
+      resumo: `${req.sessao!.usuarioNome} solicitou alteracoes no material "${m.nome}".`,
+    })
     res.json({ mensagem: 'Alteracoes solicitadas.' })
   },
 )
@@ -233,6 +244,11 @@ aprovacoesRotas.post(
         tipo: 'revisao_reaberta',
         criadoEm: agora,
       })
+    })
+    await notificarClienteProjetoAlterado({
+      projetoId: m.projetoId,
+      workspaceId: req.sessao!.workspaceId,
+      resumo: `${req.sessao!.usuarioNome} reabriu a revisao do material "${m.nome}".`,
     })
     res.json({ mensagem: 'Revisao reaberta.' })
   },

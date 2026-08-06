@@ -224,6 +224,7 @@ export const projetos = mysqlTable(
       .notNull()
       .default('rascunho'),
     prazoEm: data('prazo_em'),
+    senhaAcessoHash: varchar('senha_acesso_hash', { length: 255 }),
     criadoPorUsuarioId: id('criado_por_usuario_id'),
     criadoEm: data('criado_em').notNull(),
     atualizadoEm: data('atualizado_em').notNull(),

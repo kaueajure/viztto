@@ -17,6 +17,7 @@ import { validarCorpo } from '../../middlewares/validacao.js'
 import { consultaPaginada, paginar } from '../../utilitarios/paginacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 import { armazenarImagem, removerArquivoSalvo } from '../../servicos/arquivo.servico.js'
+import { notificarClienteProjetoAlterado } from '../../servicos/notificar-cliente-projeto.servico.js'
 
 const novoMaterial = z.object({
   projetoId: z.string().uuid(),
@@ -160,6 +161,11 @@ materiaisRotas.post('/', exigirFuncao('criativo'), receberImagem, async (req, re
     await removerArquivoSalvo(salvo.caminhoAbsoluto)
     throw erro
   }
+  await notificarClienteProjetoAlterado({
+    projetoId: corpo.projetoId,
+    workspaceId: req.sessao!.workspaceId,
+    resumo: `${req.sessao!.usuarioNome} adicionou o material "${corpo.nome}".`,
+  })
   res.status(201).json({ dado: { id, versaoId } })
 })
 
@@ -298,6 +304,11 @@ materiaisRotas.post(
       await removerArquivoSalvo(salvo.caminhoAbsoluto)
       throw erro
     }
+    await notificarClienteProjetoAlterado({
+      projetoId: material.projetoId,
+      workspaceId: req.sessao!.workspaceId,
+      resumo: `${req.sessao!.usuarioNome} publicou uma nova versao do material "${material.nome}".`,
+    })
     res.status(201).json({ dado: { id: versaoId } })
   },
 )

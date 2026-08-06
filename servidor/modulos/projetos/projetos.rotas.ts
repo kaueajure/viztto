@@ -8,6 +8,19 @@ import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { consultaPaginada, paginar } from '../../utilitarios/paginacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
+import {
+  notificarClienteProjetoAlterado,
+  notificarClienteProjetoCriado,
+} from '../../servicos/notificar-cliente-projeto.servico.js'
+import {
+  gerarHashSenhaAcesso,
+  gerarSenhaAcessoProjeto,
+} from '../../servicos/projeto-acesso.servico.js'
+
+function semHashSenha<T extends { senhaAcessoHash?: string | null }>(projeto: T) {
+  const { senhaAcessoHash: _omitido, ...resto } = projeto
+  return resto
+}
 
 const dadosProjeto = z.object({
   clienteId: z.string().uuid(),
@@ -46,7 +59,7 @@ projetosRotas.get('/', async (req, res) => {
       .limit(q.porPagina)
       .offset((q.pagina - 1) * q.porPagina),
   ])
-  res.json(paginar(q.pagina, q.porPagina, c?.total ?? 0, dados))
+  res.json(paginar(q.pagina, q.porPagina, c?.total ?? 0, dados.map(semHashSenha)))
 })
 
 projetosRotas.post(
@@ -69,6 +82,8 @@ projetosRotas.post(
       throw new ErroHttp(422, 'Cliente invalido para este workspace.', 'cliente_invalido')
     const agora = new Date()
     const id = novoId()
+    const senhaAcesso = gerarSenhaAcessoProjeto()
+    const senhaAcessoHash = await gerarHashSenhaAcesso(senhaAcesso)
     await banco.transaction(async (tx) => {
       await tx.insert(projetos).values({
         id,
@@ -77,6 +92,7 @@ projetosRotas.post(
         criadoEm: agora,
         atualizadoEm: agora,
         ...req.body,
+        senhaAcessoHash,
       })
       await tx.insert(atividades).values({
         id: novoId(),
@@ -87,6 +103,12 @@ projetosRotas.post(
         descricao: `Projeto ${req.body.nome} criado`,
         criadoEm: agora,
       })
+    })
+    await notificarClienteProjetoCriado({
+      projetoId: id,
+      workspaceId: req.sessao!.workspaceId,
+      criadorNome: req.sessao!.usuarioNome,
+      senhaAcesso,
     })
     res.status(201).json({ dado: { id } })
   },
@@ -105,7 +127,7 @@ projetosRotas.get('/:projetoId', async (req, res) => {
     )
     .limit(1)
   if (!dado) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
-  res.json({ dado })
+  res.json({ dado: semHashSenha(dado) })
 })
 projetosRotas.patch(
   '/:projetoId',
@@ -124,6 +146,11 @@ projetosRotas.patch(
       )
     if (!r[0].affectedRows)
       throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
+    await notificarClienteProjetoAlterado({
+      projetoId: String(req.params.projetoId),
+      workspaceId: req.sessao!.workspaceId,
+      resumo: `${req.sessao!.usuarioNome} atualizou os dados do projeto.`,
+    })
     res.json({ mensagem: 'Projeto atualizado.' })
   },
 )

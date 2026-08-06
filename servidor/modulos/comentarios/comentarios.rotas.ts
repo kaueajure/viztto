@@ -14,6 +14,7 @@ import { exigirFuncao } from '../../middlewares/autorizacao.js'
 import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
+import { notificarClienteProjetoAlterado } from '../../servicos/notificar-cliente-projeto.servico.js'
 
 const novoComentario = z.object({
   versaoMaterialId: z.string().uuid(),
@@ -148,6 +149,11 @@ comentariosRotas.post(
         descricao: 'Comentario contextualizado criado',
         criadoEm: agora,
       })
+    })
+    await notificarClienteProjetoAlterado({
+      projetoId: material.projetoId,
+      workspaceId: req.sessao!.workspaceId,
+      resumo: `${req.sessao!.usuarioNome} adicionou um comentario no material "${material.nome}".`,
     })
     res.status(201).json({ dado: { id } })
   },

@@ -1,7 +1,11 @@
 import nodemailer from 'nodemailer'
 import { ambiente, emProducao } from '../configuracao/ambiente.js'
 import { ErroHttp } from '../middlewares/erros.js'
-import { montarEmailVerificacao } from './email.modelos.js'
+import {
+  montarEmailProjetoAlterado,
+  montarEmailProjetoCriado,
+  montarEmailVerificacao,
+} from './email.modelos.js'
 
 function transporteConfigurado() {
   return Boolean(ambiente.EMAIL_HOST && ambiente.EMAIL_USUARIO && ambiente.EMAIL_SENHA)
@@ -20,12 +24,25 @@ function criarTransporte() {
   })
 }
 
+async function enviarComTransporte(destino: string, assunto: string, texto: string, html: string) {
+  const transporte = criarTransporte()
+  if (!transporte) return { enviado: false as const, transporte: false as const }
+  await transporte.sendMail({
+    from: `"${ambiente.EMAIL_NOME}" <${ambiente.EMAIL_REMETENTE}>`,
+    to: destino,
+    subject: assunto,
+    text: texto,
+    html,
+  })
+  return { enviado: true as const, transporte: true as const }
+}
+
+/** Envio critico (ex.: verificacao). Em producao exige SMTP. */
 export async function enviarEmailVerificacao(destino: string, nome: string, token: string) {
   const link = `${ambiente.URL_APLICACAO.replace(/\/$/, '')}/verificar-email?token=${encodeURIComponent(token)}`
   const { assunto, texto, html } = montarEmailVerificacao({ nome, link })
-  const transporte = criarTransporte()
 
-  if (!transporte) {
+  if (!transporteConfigurado()) {
     if (emProducao) {
       throw new ErroHttp(
         503,
@@ -38,13 +55,7 @@ export async function enviarEmailVerificacao(destino: string, nome: string, toke
   }
 
   try {
-    await transporte.sendMail({
-      from: `"${ambiente.EMAIL_NOME}" <${ambiente.EMAIL_REMETENTE}>`,
-      to: destino,
-      subject: assunto,
-      text: texto,
-      html,
-    })
+    await enviarComTransporte(destino, assunto, texto, html)
   } catch (erro) {
     console.error(
       'Falha ao enviar e-mail de verificacao.',
@@ -57,4 +68,59 @@ export async function enviarEmailVerificacao(destino: string, nome: string, toke
     )
   }
   return { enviado: true as const, link }
+}
+
+/** Notificacoes de projeto: nunca interrompem a operacao principal. */
+async function tentarEnviarNotificacao(
+  destino: string,
+  assunto: string,
+  texto: string,
+  html: string,
+  contexto: string,
+) {
+  try {
+    const resultado = await enviarComTransporte(destino, assunto, texto, html)
+    if (!resultado.enviado) {
+      console.info(`[viztto] ${contexto} (SMTP ausente) para ${destino}: ${assunto}`)
+      return false
+    }
+    return true
+  } catch (erro) {
+    console.error(
+      `Falha ao enviar ${contexto} para ${destino}.`,
+      erro instanceof Error ? erro.message : erro,
+    )
+    return false
+  }
+}
+
+export async function enviarEmailProjetoCriado(entrada: {
+  destino: string
+  clienteNome: string
+  projetoNome: string
+  criadorNome: string
+  empresaNome: string
+  link: string
+  senhaAcesso: string
+}) {
+  const { assunto, texto, html } = montarEmailProjetoCriado(entrada)
+  return tentarEnviarNotificacao(entrada.destino, assunto, texto, html, 'e-mail de projeto criado')
+}
+
+export async function enviarEmailProjetoAlterado(entrada: {
+  destino: string
+  clienteNome: string
+  projetoNome: string
+  empresaNome: string
+  resumo: string
+  link: string
+}) {
+  const { assunto, texto, html } = montarEmailProjetoAlterado(entrada)
+  return tentarEnviarNotificacao(
+    entrada.destino,
+    assunto,
+    texto,
+    html,
+    'e-mail de alteracao de projeto',
+  )
 }
