@@ -17,6 +17,7 @@ import { validarCorpo } from '../../middlewares/validacao.js'
 import { consultaPaginada, paginar } from '../../utilitarios/paginacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 import { armazenarImagem, removerArquivoSalvo } from '../../servicos/arquivo.servico.js'
+import { garantirPodeUsarArmazenamento } from '../../servicos/limites-plano.servico.js'
 import { notificarClienteProjetoAlterado } from '../../servicos/notificar-cliente-projeto.servico.js'
 
 const novoMaterial = z.object({
@@ -104,6 +105,7 @@ materiaisRotas.post('/', exigirFuncao('criativo'), receberImagem, async (req, re
     .limit(1)
   if (!projeto) throw new ErroHttp(422, 'Projeto invalido para este workspace.', 'projeto_invalido')
   const arquivoRecebido = validarArquivoDoTipo(corpo.tipo, req.file)
+  await garantirPodeUsarArmazenamento(req.sessao!.workspaceId, arquivoRecebido.size)
   const id = novoId()
   const versaoId = novoId()
   const arquivoId = novoId()
@@ -210,6 +212,7 @@ materiaisRotas.post(
     const corpo = novaVersao.parse(req.body)
     const material = await obterMaterial(String(req.params.materialId), req.sessao!.workspaceId)
     const arquivoRecebido = validarArquivoDoTipo(material.tipo, req.file)
+    await garantirPodeUsarArmazenamento(req.sessao!.workspaceId, arquivoRecebido.size)
     const salvo = await armazenarImagem(arquivoRecebido.buffer, arquivoRecebido.originalname, {
       workspaceId: material.workspaceId,
       materialId: material.id,

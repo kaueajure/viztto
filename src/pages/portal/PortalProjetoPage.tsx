@@ -1,5 +1,5 @@
 import { LockKeyhole } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/FormControls'
@@ -12,6 +12,11 @@ type ResumoPortal = {
   clienteNome: string
   liberado: boolean
   temSenha: boolean
+  marca?: {
+    corPrincipal: string
+    logoUrl: string | null
+    whiteLabel: boolean
+  }
 }
 
 type ConteudoPortal = {
@@ -127,11 +132,29 @@ export default function PortalProjetoPage() {
 
   if (!conteudo) {
     return (
-      <div className="mx-auto grid max-w-lg gap-6 px-5 py-16">
+      <div
+        className="mx-auto grid max-w-lg gap-6 px-5 py-16"
+        style={
+          resumo.marca
+            ? ({ ['--portal-brand' as string]: resumo.marca.corPrincipal } as CSSProperties)
+            : undefined
+        }
+      >
         <div className="rounded-xl border border-line bg-surface p-6 shadow-raised sm:p-8">
-          <span className="grid h-11 w-11 place-items-center rounded-lg border border-brand/30 bg-brand-soft text-brand">
-            <LockKeyhole className="h-5 w-5" />
-          </span>
+          {resumo.marca?.logoUrl ? (
+            <img src={resumo.marca.logoUrl} alt="" className="h-10 w-auto object-contain" />
+          ) : (
+            <span
+              className="grid h-11 w-11 place-items-center rounded-lg border text-brand"
+              style={{
+                borderColor: 'color-mix(in srgb, var(--portal-brand, #b8ff4f) 30%, transparent)',
+                background: 'color-mix(in srgb, var(--portal-brand, #b8ff4f) 18%, transparent)',
+                color: 'var(--portal-brand, #b8ff4f)',
+              }}
+            >
+              <LockKeyhole className="h-5 w-5" />
+            </span>
+          )}
           <p className="mt-5 text-sm text-muted">{resumo.empresaNome}</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">{resumo.nome}</h1>
           <p className="mt-3 text-secondary">
@@ -157,14 +180,33 @@ export default function PortalProjetoPage() {
             </Button>
           </form>
         </div>
+        {!resumo.marca?.whiteLabel && (
+          <p className="text-center text-xs text-muted">
+            Portal de revisão · <span className="font-medium text-secondary">Viztto</span>
+          </p>
+        )}
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-5 py-10">
+    <div
+      className="mx-auto max-w-3xl px-5 py-10"
+      style={
+        resumo.marca
+          ? ({ ['--portal-brand' as string]: resumo.marca.corPrincipal } as CSSProperties)
+          : undefined
+      }
+    >
       <div className="flex flex-col gap-4 border-b border-line pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
+          {resumo.marca?.logoUrl && (
+            <img
+              src={resumo.marca.logoUrl}
+              alt=""
+              className="mb-3 h-8 w-auto object-contain"
+            />
+          )}
           <p className="text-sm text-muted">{conteudo.projeto.empresaNome}</p>
           <h1 className="mt-1 text-3xl font-semibold">{conteudo.projeto.nome}</h1>
           <p className="mt-2 text-sm text-secondary">
@@ -213,13 +255,23 @@ export default function PortalProjetoPage() {
                 </p>
               </div>
             </div>
-            <span className="shrink-0 text-sm font-semibold text-brand">Revisar</span>
+            <span
+              className="shrink-0 text-sm font-semibold"
+              style={{ color: 'var(--portal-brand, var(--color-brand, #b8ff4f))' }}
+            >
+              Revisar
+            </span>
           </Link>
         ))}
         {!conteudo.materiais.length && (
           <p className="p-5 text-secondary">Nenhum material publicado ainda.</p>
         )}
       </div>
+      {!resumo.marca?.whiteLabel && (
+        <p className="mt-8 text-center text-xs text-muted">
+          Portal de revisão · <span className="font-medium text-secondary">Viztto</span>
+        </p>
+      )}
     </div>
   )
 }

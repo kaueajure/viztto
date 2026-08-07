@@ -12,6 +12,7 @@ import { exigirFuncao } from '../../middlewares/autorizacao.js'
 import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { enviarEmailConviteWorkspace } from '../../servicos/email.servico.js'
+import { garantirPodeConvidarMembro } from '../../servicos/limites-plano.servico.js'
 import { gerarHash, normalizarEmail, novoId, novoToken } from '../../utilitarios/seguranca.js'
 
 const novoConvite = z.object({
@@ -48,6 +49,8 @@ equipeRotas.post(
       .limit(1)
     if (membroExistente)
       throw new ErroHttp(409, 'Este usuario ja faz parte da equipe.', 'membro_existente')
+
+    await garantirPodeConvidarMembro(workspaceId)
 
     const token = novoToken()
     const envio = await enviarEmailConviteWorkspace({

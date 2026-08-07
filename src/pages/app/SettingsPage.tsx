@@ -6,6 +6,7 @@ import { Tabs } from '@/components/ui/Interactive'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppData } from '@/contexts/AppDataContext'
 import { configuracoesApi, type Preferencias } from '@/services/api/configuracoesApi'
+import { assinaturasApi, type UsoLimitesPlano } from '@/services/api/assinaturasApi'
 import { SubscriptionPlansAdmin } from '@/components/admin/SubscriptionPlansAdmin'
 import { PlanUpgradePanel } from '@/components/billing/PlanUpgradePanel'
 
@@ -29,6 +30,7 @@ export default function SettingsPage() {
   const [slug, setSlug] = useState(workspace.slug)
   const [color, setColor] = useState('#b8ff4f')
   const [notifications, setNotifications] = useState(preferenciasPadrao)
+  const [recursosPlano, setRecursosPlano] = useState<UsoLimitesPlano['recursos'] | null>(null)
 
   useEffect(() => {
     let active = true
@@ -47,6 +49,14 @@ export default function SettingsPage() {
           setError(
             erro instanceof Error ? erro.message : 'Não foi possível carregar as configurações.',
           )
+      })
+    void assinaturasApi
+      .limites()
+      .then(({ dado }) => {
+        if (active) setRecursosPlano(dado.recursos)
+      })
+      .catch(() => {
+        if (active) setRecursosPlano(null)
       })
     return () => {
       active = false
@@ -108,6 +118,12 @@ export default function SettingsPage() {
         value={color}
         onChange={(e) => setColor(e.target.value)}
         className="h-11 p-1"
+        disabled={recursosPlano ? !recursosPlano.permiteIdentidadePersonalizada : false}
+        hint={
+          recursosPlano && !recursosPlano.permiteIdentidadePersonalizada
+            ? 'Identidade personalizada disponível a partir do plano Studio.'
+            : undefined
+        }
       />
       <Button
         loading={saving === 'workspace'}

@@ -8,6 +8,7 @@ import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { consultaPaginada, paginar } from '../../utilitarios/paginacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
+import { garantirPodeCriarCliente } from '../../servicos/limites-plano.servico.js'
 
 const dadosCliente = z.object({
   nome: z.string().trim().min(2).max(180),
@@ -54,6 +55,7 @@ clientesRotas.post(
   exigirFuncao('atendimento'),
   validarCorpo(dadosCliente),
   async (req, res) => {
+    await garantirPodeCriarCliente(req.sessao!.workspaceId)
     const agora = new Date()
     const id = novoId()
     await banco.transaction(async (tx) => {

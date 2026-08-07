@@ -21,6 +21,9 @@ import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 import {
+  carregarMarcaPortal,
+} from '../../servicos/limites-plano.servico.js'
+import {
   COOKIE_PORTAL,
   assinarAcessoPortal,
   opcoesCookiePortal,
@@ -116,14 +119,20 @@ async function notificarEquipe(entrada: {
 portalRotas.get('/projetos/:projetoId', async (req, res) => {
   const projeto = await projetoPortal(String(req.params.projetoId))
   const liberado = validarAcessoPortal(req.cookies?.[COOKIE_PORTAL], projeto.id)
+  const marca = await carregarMarcaPortal(projeto.workspaceId)
   res.json({
     dado: {
       id: projeto.id,
       nome: projeto.nome,
-      empresaNome: projeto.empresaNome,
+      empresaNome: marca.empresaNome,
       clienteNome: projeto.clienteNome,
       liberado,
       temSenha: Boolean(projeto.senhaAcessoHash),
+      marca: {
+        corPrincipal: marca.corPrincipal,
+        logoUrl: marca.logoUrl,
+        whiteLabel: marca.whiteLabel,
+      },
     },
   })
 })

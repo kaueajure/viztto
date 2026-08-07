@@ -21,6 +21,7 @@ import {
   enviarEmailRecuperacaoSenha,
   enviarEmailVerificacao,
 } from '../../servicos/email.servico.js'
+import { garantirPodeCriarWorkspace } from '../../servicos/limites-plano.servico.js'
 import { gerarHash, normalizarEmail, novoId, novoToken } from '../../utilitarios/seguranca.js'
 
 const acesso = rateLimit({
@@ -401,6 +402,7 @@ autenticacaoRotas.post('/onboarding', acesso, validarCorpo(onboarding), async (r
     .where(and(eq(workspaces.slug, req.body.slug), isNull(workspaces.excluidoEm)))
     .limit(1)
   if (slugEmUso) throw new ErroHttp(409, 'Essa URL ja esta em uso.', 'slug_em_uso')
+  await garantirPodeCriarWorkspace(usuarioId)
   const workspaceId = novoId()
   const agora = new Date()
   const tipo = String(req.body.tipo ?? 'outro').slice(0, 80)

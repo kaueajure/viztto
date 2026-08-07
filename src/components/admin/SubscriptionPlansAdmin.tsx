@@ -1,12 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/DataDisplay'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/FormControls'
+import { Checkbox, Input } from '@/components/ui/FormControls'
 import {
   assinaturasApi,
   type IntegracaoMercadoPago,
   type PlanoAssinatura,
 } from '@/services/api/assinaturasApi'
+
+function limiarParaInput(valor: number | null) {
+  return valor == null ? '' : String(valor)
+}
+
+function limiarDeInput(valor: string): number | null {
+  const texto = valor.trim()
+  if (!texto) return null
+  const n = Number(texto)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null
+}
 
 export function SubscriptionPlansAdmin() {
   const [plans, setPlans] = useState<PlanoAssinatura[]>([])
@@ -50,17 +61,12 @@ export function SubscriptionPlansAdmin() {
   return (
     <section aria-labelledby="admin-plans-title" className="grid gap-5">
       <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 id="admin-plans-title" className="text-xl font-semibold text-ink">
-            Planos de assinatura
-          </h3>
-          <Badge tone={integration?.ambiente === 'teste' ? 'warning' : 'approval'}>
-            {integration?.ambiente ?? 'teste'}
-          </Badge>
-        </div>
+        <h3 id="admin-plans-title" className="text-xl font-semibold text-ink">
+          Planos de assinatura
+        </h3>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Área exclusiva do administrador do sistema. Salvar altera o preço no Viztto; sincronizar
-          publica o valor no plano associado do Mercado Pago.
+          Edite nome, preço, benefícios, limites e recursos. Campos de limite vazios significam
+          ilimitado. Ao salvar, o preço é sincronizado com o Mercado Pago quando necessário.
         </p>
       </div>
       {integration && !integration.configurada && (
@@ -77,7 +83,7 @@ export function SubscriptionPlansAdmin() {
           {feedback.text}
         </p>
       )}
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-4">
         {plans.map((plan) => {
           const amount = Number(plan.valorMensal)
           return (
@@ -85,49 +91,139 @@ export function SubscriptionPlansAdmin() {
               key={plan.id}
               className="rounded-lg border border-line bg-surface-secondary p-4"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-ink">{plan.nome}</p>
-                  <p className="mt-1 text-xs text-muted">{plan.descricao}</p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <Input
+                    label="Nome"
+                    value={plan.nome}
+                    onChange={(event) => change(plan.id, { nome: event.target.value })}
+                  />
+                  <Input
+                    className="mt-3"
+                    label="Descrição"
+                    value={plan.descricao}
+                    onChange={(event) => change(plan.id, { descricao: event.target.value })}
+                  />
                 </div>
                 <Badge tone={plan.ativo ? 'approval' : 'neutral'}>
                   {plan.ativo ? 'Ativo' : 'Inativo'}
                 </Badge>
               </div>
-              <Input
-                className="mt-4"
-                label="Preço mensal (R$)"
-                type="number"
-                min="1"
-                max="100000"
-                step="0.01"
-                value={Number.isFinite(amount) ? amount : ''}
-                onChange={(event) => change(plan.id, { valorMensal: event.target.value })}
-              />
-              <label className="mt-4 flex min-h-11 items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={plan.ativo}
-                  onChange={(event) => change(plan.id, { ativo: event.target.checked })}
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="Preço mensal (R$)"
+                  type="number"
+                  min="1"
+                  max="100000"
+                  step="0.01"
+                  value={Number.isFinite(amount) ? amount : ''}
+                  onChange={(event) => change(plan.id, { valorMensal: event.target.value })}
                 />
-                Disponível para assinatura
+                <label className="flex min-h-11 items-end gap-2 pb-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={plan.ativo}
+                    onChange={(event) => change(plan.id, { ativo: event.target.checked })}
+                  />
+                  Disponível para assinatura
+                </label>
+              </div>
+
+              <label className="mt-4 block text-sm font-medium text-ink">
+                Benefícios (um por linha)
+                <textarea
+                  className="mt-1.5 min-h-28 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink"
+                  value={(plan.beneficios ?? []).join('\n')}
+                  onChange={(event) =>
+                    change(plan.id, {
+                      beneficios: event.target.value
+                        .split('\n')
+                        .map((line) => line.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                />
               </label>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {(
+                  [
+                    ['maxProjetosAtivos', 'Máx. projetos ativos'],
+                    ['maxMembros', 'Máx. membros'],
+                    ['maxClientes', 'Máx. clientes'],
+                    ['maxArmazenamentoGb', 'Máx. armazenamento (GB)'],
+                    ['maxWorkspaces', 'Máx. workspaces'],
+                  ] as const
+                ).map(([campo, label]) => (
+                  <Input
+                    key={campo}
+                    label={label}
+                    type="number"
+                    min="1"
+                    placeholder="Ilimitado"
+                    value={limiarParaInput(plan[campo])}
+                    onChange={(event) =>
+                      change(plan.id, { [campo]: limiarDeInput(event.target.value) })
+                    }
+                  />
+                ))}
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <Checkbox
+                  label="Identidade personalizada (logo/cor)"
+                  checked={plan.permiteIdentidadePersonalizada}
+                  onChange={(value) => change(plan.id, { permiteIdentidadePersonalizada: value })}
+                />
+                <Checkbox
+                  label="Portal white-label"
+                  checked={plan.permitePortalWhiteLabel}
+                  onChange={(value) => change(plan.id, { permitePortalWhiteLabel: value })}
+                />
+                <Checkbox
+                  label="Calendário editorial"
+                  checked={plan.permiteCalendarioEditorial}
+                  onChange={(value) => change(plan.id, { permiteCalendarioEditorial: value })}
+                />
+                <Checkbox
+                  label="Relatórios"
+                  checked={plan.permiteRelatorios}
+                  onChange={(value) => change(plan.id, { permiteRelatorios: value })}
+                />
+              </div>
+
               <p className="mt-3 truncate text-xs text-muted">
                 {plan.mercadoPagoPlanoId
                   ? `Mercado Pago: ${plan.mercadoPagoPlanoId}`
                   : 'Ainda não sincronizado'}
               </p>
-              <div className="mt-4 grid gap-2">
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <Button
                   variant="secondary"
                   loading={busy === `save-${plan.codigo}`}
                   onClick={() =>
                     void run(`save-${plan.codigo}`, () =>
-                      assinaturasApi.atualizarPlano(plan.codigo, amount, plan.ativo),
+                      assinaturasApi.atualizarPlano(plan.codigo, {
+                        nome: plan.nome.trim(),
+                        descricao: plan.descricao.trim(),
+                        valorMensal: amount,
+                        ativo: plan.ativo,
+                        beneficios: plan.beneficios ?? [],
+                        maxProjetosAtivos: plan.maxProjetosAtivos,
+                        maxMembros: plan.maxMembros,
+                        maxClientes: plan.maxClientes,
+                        maxArmazenamentoGb: plan.maxArmazenamentoGb,
+                        maxWorkspaces: plan.maxWorkspaces,
+                        permiteIdentidadePersonalizada: plan.permiteIdentidadePersonalizada,
+                        permitePortalWhiteLabel: plan.permitePortalWhiteLabel,
+                        permiteCalendarioEditorial: plan.permiteCalendarioEditorial,
+                        permiteRelatorios: plan.permiteRelatorios,
+                      }),
                     )
                   }
                 >
-                  Salvar preço
+                  Salvar plano
                 </Button>
                 <Button
                   disabled={!integration?.configurada}
@@ -138,7 +234,7 @@ export function SubscriptionPlansAdmin() {
                     )
                   }
                 >
-                  Sincronizar teste
+                  Sincronizar Mercado Pago
                 </Button>
               </div>
             </article>

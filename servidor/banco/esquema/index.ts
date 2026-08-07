@@ -96,6 +96,18 @@ export const planosAssinatura = mysqlTable(
     descricao: varchar('descricao', { length: 300 }).notNull(),
     valorMensal: decimal('valor_mensal', { precision: 10, scale: 2 }).notNull(),
     moeda: char('moeda', { length: 3 }).notNull().default('BRL'),
+    beneficios: json('beneficios').$type<string[]>().notNull(),
+    maxProjetosAtivos: int('max_projetos_ativos'),
+    maxMembros: int('max_membros'),
+    maxClientes: int('max_clientes'),
+    maxArmazenamentoGb: int('max_armazenamento_gb'),
+    maxWorkspaces: int('max_workspaces'),
+    permiteIdentidadePersonalizada: boolean('permite_identidade_personalizada')
+      .notNull()
+      .default(false),
+    permitePortalWhiteLabel: boolean('permite_portal_white_label').notNull().default(false),
+    permiteCalendarioEditorial: boolean('permite_calendario_editorial').notNull().default(false),
+    permiteRelatorios: boolean('permite_relatorios').notNull().default(false),
     mercadoPagoPlanoId: varchar('mercado_pago_plano_id', { length: 100 }),
     mercadoPagoStatus: varchar('mercado_pago_status', { length: 40 }),
     ativo: boolean('ativo').notNull().default(true),

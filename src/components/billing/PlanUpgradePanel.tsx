@@ -120,7 +120,7 @@ export function PlanUpgradePanel({
     try {
       const response = await assinaturasApi.criarPix({
         codigoPlano: selected.codigo,
-        emailPagador: config?.emailPagadorTeste ?? payerEmail,
+        emailPagador: payerEmail,
       })
       if (response.dado.status === 'approved') {
         setSuccess('Pix confirmado. Plano liberado com sucesso.')
@@ -154,12 +154,9 @@ export function PlanUpgradePanel({
   return (
     <section aria-labelledby="plans-title" className="grid gap-5">
       <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 id="plans-title" className="text-xl font-semibold text-ink">
-            Escolha seu plano
-          </h3>
-          {config && <Badge tone="warning">Mercado Pago · {config.ambiente}</Badge>}
-        </div>
+        <h3 id="plans-title" className="text-xl font-semibold text-ink">
+          Escolha seu plano
+        </h3>
         <p className="mt-2 text-sm text-muted">
           Faça upgrade com cobrança mensal. Cartão renova automaticamente; Pix libera o plano após a
           confirmação do pagamento.
@@ -199,6 +196,16 @@ export function PlanUpgradePanel({
                 <span className="text-sm font-normal text-muted">/mês</span>
               </p>
               <p className="mt-3 min-h-10 text-sm text-muted">{plan.descricao}</p>
+              {Boolean(plan.beneficios?.length) && (
+                <ul className="mt-4 grid gap-1.5 text-sm text-secondary">
+                  {plan.beneficios.slice(0, 6).map((item) => (
+                    <li key={item} className="flex gap-2">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-approval" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <Button
                 className="mt-5 w-full"
                 variant={isCurrent ? 'secondary' : 'primary'}
@@ -375,16 +382,14 @@ export function PlanUpgradePanel({
             selected && (
               <MercadoPagoCardForm
                 publicKey={config.chavePublica}
-                payerEmail={config.emailPagadorTeste ?? payerEmail}
+                payerEmail={payerEmail}
                 submitLabel={`Assinar ${selected.nome}`}
                 onSubmit={submitSubscription}
               />
             )
           )}
           <p className="text-center text-xs text-muted">
-            {config?.ambiente === 'teste'
-              ? `Ambiente de teste · pagador ${config.emailPagadorTeste ?? 'não configurado'} · Pix exige produção.`
-              : 'A cobrança será processada com segurança pelo Mercado Pago.'}
+            A cobrança será processada com segurança pelo Mercado Pago.
           </p>
         </div>
       </Modal>

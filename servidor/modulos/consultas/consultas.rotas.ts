@@ -13,6 +13,7 @@ import { exigirAdmin, exigirFuncao } from '../../middlewares/autorizacao.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { ErroHttp } from '../../middlewares/erros.js'
 import { z } from 'zod'
+import { garantirIdentidadePersonalizada } from '../../servicos/limites-plano.servico.js'
 
 const perfilEntrada = z.object({ nome: z.string().trim().min(2).max(160) })
 const workspaceEntrada = z.object({
@@ -93,6 +94,7 @@ consultasRotas.patch(
       .limit(1)
     if (slugEmUso && slugEmUso.id !== req.sessao!.workspaceId)
       throw new ErroHttp(409, 'Essa URL ja esta em uso.', 'slug_em_uso')
+    await garantirIdentidadePersonalizada(req.sessao!.workspaceId, req.body.corPrincipal)
     await banco
       .update(workspaces)
       .set({ ...req.body, atualizadoEm: new Date() })

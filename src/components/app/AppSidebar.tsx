@@ -16,6 +16,7 @@ import { Button, IconButton } from '@/components/ui/Button'
 import { useAppData } from '@/contexts/AppDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { autenticacaoApi } from '@/services/api/autenticacaoApi'
+import { assinaturasApi, type UsoLimitesPlano } from '@/services/api/assinaturasApi'
 import { cn } from '@/lib/cn'
 
 const links = [
@@ -128,9 +129,31 @@ function WorkspaceSwitcher({ close }: { close?: () => void }) {
   )
 }
 
+function formatarLimite(uso: number, max: number | null) {
+  if (max == null) return `${uso} · ilimitado`
+  return `${uso} / ${max}`
+}
+
 function SidebarContent({ close }: { close?: () => void }) {
   const navigate = useNavigate()
   const { workspace } = useAppData()
+  const [limites, setLimites] = useState<UsoLimitesPlano | null>(null)
+
+  useEffect(() => {
+    let ativo = true
+    void assinaturasApi
+      .limites()
+      .then(({ dado }) => {
+        if (ativo) setLimites(dado)
+      })
+      .catch(() => {
+        if (ativo) setLimites(null)
+      })
+    return () => {
+      ativo = false
+    }
+  }, [workspace.id, workspace.plan])
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center justify-between border-b border-line px-4">
@@ -174,8 +197,26 @@ function SidebarContent({ close }: { close?: () => void }) {
         ))}
       </nav>
       <div className="m-3 rounded-md border border-line bg-surface-secondary p-3">
-        <p className="text-xs font-semibold">Plano {workspace.plan || 'freelancer'}</p>
-        <p className="mt-1 text-[11px] text-muted">Limites do plano em configuração</p>
+        <p className="text-xs font-semibold">
+          Plano {limites?.nome ?? workspace.plan ?? 'freelancer'}
+        </p>
+        {limites ? (
+          <ul className="mt-2 space-y-1 text-[11px] text-muted">
+            <li>
+              Projetos {formatarLimite(limites.uso.projetosAtivos, limites.limites.maxProjetosAtivos)}
+            </li>
+            <li>Membros {formatarLimite(limites.uso.membros, limites.limites.maxMembros)}</li>
+            <li>Clientes {formatarLimite(limites.uso.clientes, limites.limites.maxClientes)}</li>
+            <li>
+              Armazenamento{' '}
+              {limites.limites.maxArmazenamentoGb == null
+                ? `${limites.uso.armazenamentoGb} GB`
+                : `${limites.uso.armazenamentoGb} / ${limites.limites.maxArmazenamentoGb} GB`}
+            </li>
+          </ul>
+        ) : (
+          <p className="mt-1 text-[11px] text-muted">Carregando limites…</p>
+        )}
       </div>
     </div>
   )

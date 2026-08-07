@@ -13,6 +13,7 @@ import {
   notificarClienteProjetoCriado,
   reenviarSenhaPortalProjeto,
 } from '../../servicos/notificar-cliente-projeto.servico.js'
+import { garantirPodeCriarProjeto } from '../../servicos/limites-plano.servico.js'
 import {
   gerarHashSenhaAcesso,
   gerarSenhaAcessoProjeto,
@@ -82,6 +83,7 @@ projetosRotas.post(
       .limit(1)
     if (!cliente)
       throw new ErroHttp(422, 'Cliente invalido para este workspace.', 'cliente_invalido')
+    await garantirPodeCriarProjeto(req.sessao!.workspaceId)
     const agora = new Date()
     const id = novoId()
     const senhaAcesso = gerarSenhaAcessoProjeto()

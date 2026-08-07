@@ -21,6 +21,7 @@ import {
   urlCheckoutAssinatura,
 } from '../../integracoes/mercado-pago.js'
 import { novoId } from '../../utilitarios/seguranca.js'
+import { obterUsoELimitesDoWorkspace } from '../../servicos/limites-plano.servico.js'
 
 async function garantirPlanoRemoto(plano: typeof planosAssinatura.$inferSelect) {
   const entrada = {
@@ -48,9 +49,22 @@ async function garantirPlanoRemoto(plano: typeof planosAssinatura.$inferSelect) 
 }
 
 const codigoPlano = z.enum(['freelancer', 'studio', 'agency'])
+const limiteOpcional = z.number().int().positive().max(1_000_000).nullable()
 const atualizarEntrada = z.object({
+  nome: z.string().trim().min(2).max(80),
+  descricao: z.string().trim().min(2).max(300),
   valorMensal: z.number().positive().max(100_000),
   ativo: z.boolean(),
+  beneficios: z.array(z.string().trim().min(1).max(200)).max(40),
+  maxProjetosAtivos: limiteOpcional,
+  maxMembros: limiteOpcional,
+  maxClientes: limiteOpcional,
+  maxArmazenamentoGb: limiteOpcional,
+  maxWorkspaces: limiteOpcional,
+  permiteIdentidadePersonalizada: z.boolean(),
+  permitePortalWhiteLabel: z.boolean(),
+  permiteCalendarioEditorial: z.boolean(),
+  permiteRelatorios: z.boolean(),
 })
 const criarAssinaturaEntrada = z.object({
   codigoPlano,
@@ -90,7 +104,47 @@ async function carregarPlanoAtivo(codigo: z.infer<typeof codigoPlano>) {
   return plano
 }
 
+async function sincronizarPlanoComMercadoPago(
+  plano: typeof planosAssinatura.$inferSelect,
+  usuarioId: string,
+) {
+  const entrada = {
+    nome: plano.nome,
+    valor: Number(plano.valorMensal),
+    backUrl: `${ambiente.URL_APLICACAO}/app/configuracoes`,
+  }
+  const planoRemotoId = plano.mercadoPagoPlanoId
+  const planoCompativel = planoRemotoId
+    ? await planoPertenceAoVendedorMercadoPago(planoRemotoId)
+    : false
+  let remoto
+  if (planoCompativel && planoRemotoId) {
+    try {
+      remoto = await atualizarPlanoMercadoPago(planoRemotoId, entrada)
+    } catch (erro) {
+      if (!erroIndicaPlanoInexistente(erro)) throw erro
+      remoto = await criarPlanoMercadoPago(entrada)
+    }
+  } else {
+    remoto = await criarPlanoMercadoPago(entrada)
+  }
+  await banco
+    .update(planosAssinatura)
+    .set({
+      mercadoPagoPlanoId: remoto.id ?? plano.mercadoPagoPlanoId,
+      mercadoPagoStatus: remoto.status ?? 'active',
+      atualizadoPorUsuarioId: usuarioId,
+      atualizadoEm: new Date(),
+    })
+    .where(eq(planosAssinatura.id, plano.id))
+}
+
 export const assinaturasRotas = Router()
+
+assinaturasRotas.get('/limites', async (req, res) => {
+  const dado = await obterUsoELimitesDoWorkspace(req.sessao!.workspaceId)
+  res.json({ dado })
+})
 
 assinaturasRotas.get('/planos', async (req, res) => {
   const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
@@ -383,16 +437,49 @@ assinaturasRotas.patch(
       .where(eq(planosAssinatura.codigo, codigo))
       .limit(1)
     if (!plano) throw new ErroHttp(404, 'Plano nao encontrado.', 'plano_nao_encontrado')
+    const precoAnterior = Number(plano.valorMensal)
     await banco
       .update(planosAssinatura)
       .set({
+        nome: req.body.nome,
+        descricao: req.body.descricao,
         valorMensal: String(req.body.valorMensal),
         ativo: req.body.ativo,
+        beneficios: req.body.beneficios,
+        maxProjetosAtivos: req.body.maxProjetosAtivos,
+        maxMembros: req.body.maxMembros,
+        maxClientes: req.body.maxClientes,
+        maxArmazenamentoGb: req.body.maxArmazenamentoGb,
+        maxWorkspaces: req.body.maxWorkspaces,
+        permiteIdentidadePersonalizada: req.body.permiteIdentidadePersonalizada,
+        permitePortalWhiteLabel: req.body.permitePortalWhiteLabel,
+        permiteCalendarioEditorial: req.body.permiteCalendarioEditorial,
+        permiteRelatorios: req.body.permiteRelatorios,
         atualizadoPorUsuarioId: req.sessao!.usuarioId,
         atualizadoEm: new Date(),
       })
       .where(eq(planosAssinatura.id, plano.id))
-    res.json({ mensagem: 'Preco do plano atualizado. Sincronize para aplicar no Mercado Pago.' })
+
+    const precoMudou = precoAnterior !== req.body.valorMensal
+    const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
+    if (!precoMudou || problemaIntegracao) {
+      res.json({
+        mensagem: problemaIntegracao
+          ? 'Plano atualizado. Configure o Mercado Pago para sincronizar o preço na cobrança.'
+          : 'Plano atualizado.',
+      })
+      return
+    }
+
+    const [planoAtualizado] = await banco
+      .select()
+      .from(planosAssinatura)
+      .where(eq(planosAssinatura.id, plano.id))
+      .limit(1)
+    if (!planoAtualizado)
+      throw new ErroHttp(404, 'Plano nao encontrado.', 'plano_nao_encontrado')
+    await sincronizarPlanoComMercadoPago(planoAtualizado, req.sessao!.usuarioId)
+    res.json({ mensagem: 'Plano atualizado e preço sincronizado com o Mercado Pago.' })
   },
 )
 
@@ -407,34 +494,6 @@ assinaturasRotas.post('/admin/planos/:codigo/sincronizar', exigirAdmin, async (r
     .where(eq(planosAssinatura.codigo, codigo))
     .limit(1)
   if (!plano) throw new ErroHttp(404, 'Plano nao encontrado.', 'plano_nao_encontrado')
-  const entrada = {
-    nome: plano.nome,
-    valor: Number(plano.valorMensal),
-    backUrl: `${ambiente.URL_APLICACAO}/app/configuracoes`,
-  }
-  const planoRemotoId = plano.mercadoPagoPlanoId
-  const planoCompativel = planoRemotoId
-    ? await planoPertenceAoVendedorMercadoPago(planoRemotoId)
-    : false
-  let remoto
-  if (planoCompativel && planoRemotoId) {
-    try {
-      remoto = await atualizarPlanoMercadoPago(planoRemotoId, entrada)
-    } catch (erro) {
-      if (!erroIndicaPlanoInexistente(erro)) throw erro
-      remoto = await criarPlanoMercadoPago(entrada)
-    }
-  } else {
-    remoto = await criarPlanoMercadoPago(entrada)
-  }
-  await banco
-    .update(planosAssinatura)
-    .set({
-      mercadoPagoPlanoId: remoto.id ?? plano.mercadoPagoPlanoId,
-      mercadoPagoStatus: remoto.status ?? 'active',
-      atualizadoPorUsuarioId: req.sessao!.usuarioId,
-      atualizadoEm: new Date(),
-    })
-    .where(eq(planosAssinatura.id, plano.id))
-  res.json({ mensagem: `Plano sincronizado no ambiente de ${ambiente.MERCADO_PAGO_AMBIENTE}.` })
+  await sincronizarPlanoComMercadoPago(plano, req.sessao!.usuarioId)
+  res.json({ mensagem: 'Plano sincronizado com o Mercado Pago.' })
 })
