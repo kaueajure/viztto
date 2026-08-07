@@ -65,8 +65,8 @@ export function SubscriptionPlansAdmin() {
       </div>
       {integration && !integration.configurada && (
         <p className="rounded-md border border-warning/30 bg-warning-soft p-3 text-sm text-warning">
-          Credenciais de teste ainda não configuradas. A edição local funciona, mas a sincronização
-          está bloqueada.
+          {integration.problemaConfiguracao ??
+            'A integração ainda não está configurada. A edição local continua disponível.'}
         </p>
       )}
       {feedback && (

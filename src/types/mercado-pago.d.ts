@@ -1,29 +1,37 @@
-type MercadoPagoCardFormData = {
-  token?: string
-  payer?: { email?: string }
+type MercadoPagoFieldEvent = {
+  bin?: string | null
+  errorMessages?: Array<{ message: string; cause: string }>
 }
 
-type MercadoPagoBrickController = { unmount: () => void }
+type MercadoPagoFieldInstance = {
+  mount: (containerId: string) => MercadoPagoFieldInstance
+  unmount: () => void
+  on: (event: string, callback: (event: MercadoPagoFieldEvent) => void) => void
+  update: (properties: Record<string, unknown>) => void
+}
 
-type MercadoPagoBrickBuilder = {
-  create: (
-    type: 'cardPayment',
-    containerId: string,
-    settings: {
-      initialization: { amount: number; payer?: { email?: string } }
-      customization?: Record<string, unknown>
-      callbacks: {
-        onReady: () => void
-        onSubmit: (data: MercadoPagoCardFormData) => Promise<void>
-        onError: (error: unknown) => void
-      }
-    },
-  ) => Promise<MercadoPagoBrickController>
+type MercadoPagoInstance = {
+  fields: {
+    create: (
+      type: 'cardNumber' | 'expirationDate' | 'securityCode',
+      options: Record<string, unknown>,
+    ) => MercadoPagoFieldInstance
+    createCardToken: (data: {
+      cardholderName: string
+      identificationType: string
+      identificationNumber: string
+    }) => Promise<{ id?: string } | undefined>
+  }
+  getPaymentMethods: (data: { bin: string }) => Promise<{
+    results: Array<{
+      settings?: Array<{
+        card_number?: Record<string, unknown>
+        security_code?: Record<string, unknown>
+      }>
+    }>
+  }>
 }
 
 interface Window {
-  MercadoPago?: new (
-    publicKey: string,
-    options?: { locale?: string },
-  ) => { bricks: () => MercadoPagoBrickBuilder }
+  MercadoPago?: new (publicKey: string, options?: { locale?: string }) => MercadoPagoInstance
 }

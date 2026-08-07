@@ -18,12 +18,15 @@ export type IntegracaoMercadoPago = {
   configurada: boolean
   chavePublicaConfigurada: boolean
   webhookConfigurado: boolean
+  problemaConfiguracao: string | null
 }
 
 export type CheckoutConfig = {
   ambiente: 'teste' | 'producao'
   chavePublica: string | null
   configurada: boolean
+  emailPagadorTeste: string | null
+  problemaConfiguracao: string | null
 }
 
 export const assinaturasApi = {

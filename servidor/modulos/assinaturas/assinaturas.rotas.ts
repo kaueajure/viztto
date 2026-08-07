@@ -11,7 +11,7 @@ import {
   atualizarPlanoMercadoPago,
   criarAssinaturaMercadoPago,
   criarPlanoMercadoPago,
-  mercadoPagoConfigurado,
+  diagnosticarConfiguracaoMercadoPago,
 } from '../../integracoes/mercado-pago.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 
@@ -29,6 +29,7 @@ const criarAssinaturaEntrada = z.object({
 export const assinaturasRotas = Router()
 
 assinaturasRotas.get('/planos', async (req, res) => {
+  const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
   const [dados, [assinaturaAtual]] = await Promise.all([
     banco
       .select()
@@ -54,12 +55,18 @@ assinaturasRotas.get('/planos', async (req, res) => {
     integracao: {
       ambiente: ambiente.MERCADO_PAGO_AMBIENTE,
       chavePublica: ambiente.MERCADO_PAGO_PUBLIC_KEY ?? null,
-      configurada: mercadoPagoConfigurado() && Boolean(ambiente.MERCADO_PAGO_PUBLIC_KEY),
+      configurada: !problemaIntegracao,
+      emailPagadorTeste:
+        ambiente.MERCADO_PAGO_AMBIENTE === 'teste'
+          ? (ambiente.MERCADO_PAGO_EMAIL_PAGADOR_TESTE ?? null)
+          : null,
+      problemaConfiguracao: problemaIntegracao,
     },
   })
 })
 
 assinaturasRotas.get('/admin/planos', exigirAdmin, async (_req, res) => {
+  const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
   const dados = await banco
     .select()
     .from(planosAssinatura)
@@ -68,9 +75,10 @@ assinaturasRotas.get('/admin/planos', exigirAdmin, async (_req, res) => {
     dados,
     integracao: {
       ambiente: ambiente.MERCADO_PAGO_AMBIENTE,
-      configurada: mercadoPagoConfigurado(),
+      configurada: !problemaIntegracao,
       chavePublicaConfigurada: Boolean(ambiente.MERCADO_PAGO_PUBLIC_KEY),
       webhookConfigurado: Boolean(ambiente.MERCADO_PAGO_WEBHOOK_SECRET),
+      problemaConfiguracao: problemaIntegracao,
     },
   })
 })
@@ -80,6 +88,9 @@ assinaturasRotas.post(
   exigirFuncao('administrador'),
   validarCorpo(criarAssinaturaEntrada),
   async (req, res) => {
+    const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
+    if (problemaIntegracao)
+      throw new ErroHttp(503, problemaIntegracao, 'mercado_pago_assinaturas_nao_configurado')
     const [plano] = await banco
       .select()
       .from(planosAssinatura)
@@ -92,7 +103,15 @@ assinaturasRotas.post(
     const id = novoId()
     const referenciaExterna = `viztto:${ambiente.MERCADO_PAGO_AMBIENTE}:${id}`
     const emailPagador =
-      ambiente.MERCADO_PAGO_AMBIENTE === 'teste' ? 'test@testuser.com' : req.body.emailPagador
+      ambiente.MERCADO_PAGO_AMBIENTE === 'teste'
+        ? ambiente.MERCADO_PAGO_EMAIL_PAGADOR_TESTE
+        : req.body.emailPagador
+    if (!emailPagador)
+      throw new ErroHttp(
+        503,
+        diagnosticarConfiguracaoMercadoPago() ?? 'Pagador de teste nao configurado.',
+        'mercado_pago_teste_nao_configurado',
+      )
     const remoto = await criarAssinaturaMercadoPago({
       planoId: plano.mercadoPagoPlanoId,
       referenciaExterna,
@@ -149,6 +168,9 @@ assinaturasRotas.patch(
 )
 
 assinaturasRotas.post('/admin/planos/:codigo/sincronizar', exigirAdmin, async (req, res) => {
+  const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
+  if (problemaIntegracao)
+    throw new ErroHttp(503, problemaIntegracao, 'mercado_pago_assinaturas_nao_configurado')
   const codigo = codigoPlano.parse(req.params.codigo)
   const [plano] = await banco
     .select()
@@ -161,9 +183,21 @@ assinaturasRotas.post('/admin/planos/:codigo/sincronizar', exigirAdmin, async (r
     valor: Number(plano.valorMensal),
     backUrl: `${ambiente.URL_APLICACAO}/app/configuracoes`,
   }
-  const remoto = plano.mercadoPagoPlanoId
-    ? await atualizarPlanoMercadoPago(plano.mercadoPagoPlanoId, entrada)
-    : await criarPlanoMercadoPago(entrada)
+  let remoto
+  if (plano.mercadoPagoPlanoId) {
+    try {
+      remoto = await atualizarPlanoMercadoPago(plano.mercadoPagoPlanoId, entrada)
+    } catch (erro) {
+      const planoPertenceAOutraConta =
+        erro instanceof ErroHttp &&
+        erro.codigo === 'mercado_pago_erro' &&
+        (erro.detalhes as { status?: number } | undefined)?.status === 404
+      if (!planoPertenceAOutraConta) throw erro
+      remoto = await criarPlanoMercadoPago(entrada)
+    }
+  } else {
+    remoto = await criarPlanoMercadoPago(entrada)
+  }
   await banco
     .update(planosAssinatura)
     .set({

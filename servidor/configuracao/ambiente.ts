@@ -45,6 +45,7 @@ const esquema = z.object({
   MERCADO_PAGO_ACCESS_TOKEN: segredoOpcional(20),
   MERCADO_PAGO_PUBLIC_KEY: segredoOpcional(10),
   MERCADO_PAGO_WEBHOOK_SECRET: segredoOpcional(16),
+  MERCADO_PAGO_EMAIL_PAGADOR_TESTE: z.string().email().optional(),
 })
 
 const resultado = esquema.safeParse(process.env)

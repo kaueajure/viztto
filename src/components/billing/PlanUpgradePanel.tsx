@@ -1,5 +1,6 @@
 import { Check, CreditCard, ShieldCheck } from 'lucide-react'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { MercadoPagoCardForm } from '@/components/billing/MercadoPagoCardForm'
 import { Badge } from '@/components/ui/DataDisplay'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Interactive'
@@ -26,13 +27,10 @@ export function PlanUpgradePanel({
   const [activeSubscription, setActiveSubscription] = useState<PlanCode | null>(null)
   const [selected, setSelected] = useState<PlanoAssinatura | null>(null)
   const [loading, setLoading] = useState(true)
-  const [brickReady, setBrickReady] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const onPurchasedRef = useRef(onPurchased)
   onPurchasedRef.current = onPurchased
-  const generatedId = useId()
-  const brickId = `mercado-pago-${generatedId.replace(/:/g, '')}`
 
   useEffect(() => {
     let active = true
@@ -56,103 +54,22 @@ export function PlanUpgradePanel({
     }
   }, [])
 
-  useEffect(() => {
-    if (!selected || !config?.chavePublica || !window.MercadoPago) return
-    let active = true
-    let controller: MercadoPagoBrickController | undefined
-    setBrickReady(false)
+  async function submitSubscription(tokenCartao: string, emailPagador: string) {
+    if (!selected) return
     setError('')
-    setSuccess('')
-    const mercadoPago = new window.MercadoPago(config.chavePublica, { locale: 'pt-BR' })
-    const checkoutEmail = config.ambiente === 'teste' ? 'test@testuser.com' : payerEmail
-    void mercadoPago
-      .bricks()
-      .create('cardPayment', brickId, {
-        initialization: { amount: Number(selected.valorMensal), payer: { email: checkoutEmail } },
-        customization: {
-          visual: {
-            style: {
-              theme: 'dark',
-              customVariables: {
-                textPrimaryColor: '#f5f7fa',
-                textSecondaryColor: '#a7b0be',
-                inputBackgroundColor: '#151b23',
-                formBackgroundColor: '#202a38',
-                baseColor: '#b8ff4f',
-                baseColorFirstVariant: '#a2ea36',
-                baseColorSecondVariant: '#8fd025',
-                errorColor: '#ff6b57',
-                successColor: '#7cffb2',
-                successSecondaryColor: '#13281e',
-                outlinePrimaryColor: '#3a4658',
-                outlineSecondaryColor: '#2a3442',
-                buttonTextColor: '#10150b',
-                fontSizeSmall: '13px',
-                fontSizeMedium: '15px',
-                fontSizeLarge: '18px',
-                fontWeightNormal: '400',
-                fontWeightSemiBold: '600',
-                inputVerticalPadding: '12px',
-                inputHorizontalPadding: '14px',
-                inputFocusedBoxShadow: '0 0 0 3px rgba(184, 255, 79, 0.24)',
-                inputErrorFocusedBoxShadow: '0 0 0 3px rgba(255, 107, 87, 0.2)',
-                inputBorderWidth: '1px',
-                inputFocusedBorderWidth: '1px',
-                borderRadiusSmall: '8px',
-                borderRadiusMedium: '10px',
-                borderRadiusLarge: '14px',
-                formPadding: '0px',
-              },
-            },
-            texts: {
-              formTitle: 'Dados do cartão',
-              cardNumber: { label: 'Número do cartão', placeholder: '0000 0000 0000 0000' },
-              expirationDate: { label: 'Validade', placeholder: 'MM/AA' },
-              securityCode: { label: 'Código de segurança', placeholder: 'CVV' },
-              cardholderName: { label: 'Nome impresso no cartão', placeholder: 'Nome completo' },
-              cardholderIdentification: { label: 'Documento do titular' },
-              formSubmit: `Assinar ${selected.nome}`,
-            },
-          },
-          paymentMethods: { maxInstallments: 1 },
-        },
-        callbacks: {
-          onReady: () => active && setBrickReady(true),
-          onSubmit: async (formData) => {
-            if (!formData.token)
-              throw new Error('O Mercado Pago não gerou o token do cartão. Revise os dados.')
-            const response = await assinaturasApi.criarAssinatura({
-              codigoPlano: selected.codigo,
-              tokenCartao: formData.token,
-              emailPagador: formData.payer?.email || checkoutEmail,
-            })
-            if (!active) return
-            setSuccess(
-              response.dado.status === 'authorized'
-                ? 'Plano contratado com sucesso.'
-                : 'Assinatura enviada e aguardando confirmação.',
-            )
-            onPurchasedRef.current(selected.codigo)
-            setActiveSubscription(selected.codigo)
-          },
-          onError: (cause) => {
-            console.error('Falha no formulário seguro do Mercado Pago.', cause)
-            if (active) setError('Não foi possível carregar o pagamento. Tente novamente.')
-          },
-        },
-      })
-      .then((created) => {
-        controller = created
-      })
-      .catch((cause) => {
-        if (active)
-          setError(cause instanceof Error ? cause.message : 'Não foi possível abrir o checkout.')
-      })
-    return () => {
-      active = false
-      void controller?.unmount()
-    }
-  }, [brickId, config?.ambiente, config?.chavePublica, payerEmail, selected])
+    const response = await assinaturasApi.criarAssinatura({
+      codigoPlano: selected.codigo,
+      tokenCartao,
+      emailPagador,
+    })
+    setSuccess(
+      response.dado.status === 'authorized'
+        ? 'Plano contratado com sucesso.'
+        : 'Assinatura enviada e aguardando confirmação.',
+    )
+    onPurchasedRef.current(selected.codigo)
+    setActiveSubscription(selected.codigo)
+  }
 
   return (
     <section aria-labelledby="plans-title" className="grid gap-5">
@@ -218,8 +135,8 @@ export function PlanUpgradePanel({
       </div>
       {config && !config.configurada && (
         <p className="rounded-md border border-warning/30 bg-warning-soft p-3 text-sm text-warning">
-          O checkout ainda não está disponível porque as credenciais de pagamento não foram
-          configuradas no servidor.
+          {config.problemaConfiguracao ??
+            'O checkout ainda não está disponível porque o pagamento não foi configurado.'}
         </p>
       )}
 
@@ -247,11 +164,6 @@ export function PlanUpgradePanel({
             <ShieldCheck className="h-4 w-4 text-approval" />
             Os dados do cartão são protegidos e tokenizados pelo Mercado Pago.
           </p>
-          {!brickReady && !error && (
-            <p role="status" className="text-sm text-muted">
-              Carregando pagamento seguro…
-            </p>
-          )}
           {error && (
             <p
               role="alert"
@@ -271,11 +183,19 @@ export function PlanUpgradePanel({
               </Button>
             </div>
           ) : (
-            <div id={brickId} className="min-h-[420px] overflow-hidden rounded-lg" />
+            config?.chavePublica &&
+            selected && (
+              <MercadoPagoCardForm
+                publicKey={config.chavePublica}
+                payerEmail={config.emailPagadorTeste ?? payerEmail}
+                submitLabel={`Assinar ${selected.nome}`}
+                onSubmit={submitSubscription}
+              />
+            )
           )}
           <p className="text-center text-xs text-muted">
             {config?.ambiente === 'teste'
-              ? 'Ambiente de teste · pagador sandbox test@testuser.com · nenhuma cobrança real.'
+              ? `Ambiente de teste · pagador ${config.emailPagadorTeste ?? 'não configurado'} · nenhuma cobrança real.`
               : 'A cobrança será processada com segurança pelo Mercado Pago.'}
           </p>
         </div>
