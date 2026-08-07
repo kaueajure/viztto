@@ -20,7 +20,28 @@ export type IntegracaoMercadoPago = {
   webhookConfigurado: boolean
 }
 
+export type CheckoutConfig = {
+  ambiente: 'teste' | 'producao'
+  chavePublica: string | null
+  configurada: boolean
+}
+
 export const assinaturasApi = {
+  listarPlanos: () =>
+    requisicaoApi<{
+      dados: PlanoAssinatura[]
+      assinaturaAtual: PlanoAssinatura['codigo'] | null
+      integracao: CheckoutConfig
+    }>('/api/assinaturas/planos'),
+  criarAssinatura: (entrada: {
+    codigoPlano: PlanoAssinatura['codigo']
+    tokenCartao: string
+    emailPagador: string
+  }) =>
+    requisicaoApi<{ dado: { id: string; status: string } }>('/api/assinaturas/criar', {
+      method: 'POST',
+      body: json(entrada),
+    }),
   listarPlanosAdmin: () =>
     requisicaoApi<{ dados: PlanoAssinatura[]; integracao: IntegracaoMercadoPago }>(
       '/api/assinaturas/admin/planos',

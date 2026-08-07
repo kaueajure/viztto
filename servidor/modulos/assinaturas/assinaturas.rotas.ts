@@ -1,9 +1,9 @@
 import { Router } from 'express'
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
 import { ambiente } from '../../configuracao/ambiente.js'
-import { assinaturas, planosAssinatura } from '../../banco/esquema/index.js'
+import { assinaturas, planosAssinatura, workspaces } from '../../banco/esquema/index.js'
 import { exigirAdmin, exigirFuncao } from '../../middlewares/autorizacao.js'
 import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
@@ -28,12 +28,35 @@ const criarAssinaturaEntrada = z.object({
 
 export const assinaturasRotas = Router()
 
-assinaturasRotas.get('/planos', async (_req, res) => {
-  const dados = await banco
-    .select()
-    .from(planosAssinatura)
-    .orderBy(asc(planosAssinatura.valorMensal))
-  res.json({ dados, integracao: { ambiente: ambiente.MERCADO_PAGO_AMBIENTE } })
+assinaturasRotas.get('/planos', async (req, res) => {
+  const [dados, [assinaturaAtual]] = await Promise.all([
+    banco
+      .select()
+      .from(planosAssinatura)
+      .where(eq(planosAssinatura.ativo, true))
+      .orderBy(asc(planosAssinatura.valorMensal)),
+    banco
+      .select({ codigoPlano: planosAssinatura.codigo })
+      .from(assinaturas)
+      .innerJoin(planosAssinatura, eq(planosAssinatura.id, assinaturas.planoAssinaturaId))
+      .where(
+        and(
+          eq(assinaturas.workspaceId, req.sessao!.workspaceId),
+          eq(assinaturas.status, 'autorizada'),
+        ),
+      )
+      .orderBy(desc(assinaturas.atualizadoEm))
+      .limit(1),
+  ])
+  res.json({
+    dados,
+    assinaturaAtual: assinaturaAtual?.codigoPlano ?? null,
+    integracao: {
+      ambiente: ambiente.MERCADO_PAGO_AMBIENTE,
+      chavePublica: ambiente.MERCADO_PAGO_PUBLIC_KEY ?? null,
+      configurada: mercadoPagoConfigurado() && Boolean(ambiente.MERCADO_PAGO_PUBLIC_KEY),
+    },
+  })
 })
 
 assinaturasRotas.get('/admin/planos', exigirAdmin, async (_req, res) => {
@@ -89,6 +112,11 @@ assinaturasRotas.post(
       criadoEm: new Date(),
       atualizadoEm: new Date(),
     })
+    if (remoto.status === 'authorized')
+      await banco
+        .update(workspaces)
+        .set({ plano: plano.codigo, atualizadoEm: new Date() })
+        .where(eq(workspaces.id, req.sessao!.workspaceId))
     res.status(201).json({ dado: { id, status: remoto.status } })
   },
 )

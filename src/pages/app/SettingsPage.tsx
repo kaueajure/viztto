@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { PageHeader } from '@/components/app/AppUi'
 import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/DataDisplay'
 import { Checkbox, Input } from '@/components/ui/FormControls'
 import { Tabs } from '@/components/ui/Interactive'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppData } from '@/contexts/AppDataContext'
 import { configuracoesApi, type Preferencias } from '@/services/api/configuracoesApi'
 import { SubscriptionPlansAdmin } from '@/components/admin/SubscriptionPlansAdmin'
+import { PlanUpgradePanel } from '@/components/billing/PlanUpgradePanel'
 
 const preferenciasPadrao: Preferencias = {
   comentarios: true,
@@ -203,10 +203,11 @@ export default function SettingsPage() {
             {
               label: 'Plano',
               content: (
-                <div>
-                  <Badge tone="brand">{workspace.plan || 'freelancer'}</Badge>
-                  <h3 className="mt-4 text-xl font-semibold text-ink">Plano atual</h3>
-                </div>
+                <PlanUpgradePanel
+                  payerEmail={user?.email ?? ''}
+                  canManage={Boolean(user?.admin || user?.role === 'administrador')}
+                  onPurchased={(plan) => updateWorkspace({ plan })}
+                />
               ),
             },
             ...(user?.admin

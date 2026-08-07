@@ -37,12 +37,26 @@ export function criarAplicacao(preparacao: Promise<void> = Promise.resolve()) {
         'res.headers.set-cookie',
         'req.body.senha',
         'req.body.token',
+        'req.body.tokenCartao',
       ],
     }),
   )
   app.use(
     helmet({
-      contentSecurityPolicy: emProducao ? undefined : false,
+      contentSecurityPolicy: emProducao
+        ? {
+            directives: {
+              scriptSrc: ["'self'", 'https://sdk.mercadopago.com'],
+              connectSrc: [
+                "'self'",
+                'https://api.mercadopago.com',
+                'https://*.mercadopago.com',
+                'https://*.mercadopago.com.br',
+              ],
+              frameSrc: ['https://*.mercadopago.com', 'https://*.mercadopago.com.br'],
+            },
+          }
+        : false,
       crossOriginResourcePolicy: { policy: 'same-origin' },
     }),
   )
