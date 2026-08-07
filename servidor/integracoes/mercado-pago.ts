@@ -173,13 +173,14 @@ export function criarAssinaturaMercadoPago(entrada: {
   })
 }
 
-/** Assinatura pendente: o cliente conclui Pix/cartao no checkout do Mercado Pago. */
+/** Assinatura pendente sem plano associado: checkout do MP (Pix e outros meios). */
 export function criarAssinaturaCheckoutMercadoPago(entrada: {
-  planoId: string
   referenciaExterna: string
   emailPagador: string
   motivo: string
   backUrl: string
+  valorMensal: number
+  moeda?: string
 }) {
   return requisitar<AssinaturaRemota>('/preapproval', {
     method: 'POST',
@@ -187,10 +188,15 @@ export function criarAssinaturaCheckoutMercadoPago(entrada: {
       'X-Idempotency-Key': `${entrada.referenciaExterna}:checkout`,
     },
     body: JSON.stringify({
-      preapproval_plan_id: entrada.planoId,
       reason: entrada.motivo,
       external_reference: entrada.referenciaExterna,
       payer_email: entrada.emailPagador,
+      auto_recurring: {
+        frequency: 1,
+        frequency_type: 'months',
+        transaction_amount: entrada.valorMensal,
+        currency_id: entrada.moeda ?? 'BRL',
+      },
       back_url: entrada.backUrl,
       status: 'pending',
     }),

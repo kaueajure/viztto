@@ -206,33 +206,19 @@ assinaturasRotas.post(
       .where(eq(planosAssinatura.codigo, req.body.codigoPlano))
       .limit(1)
     if (!plano?.ativo) throw new ErroHttp(404, 'Plano indisponivel.', 'plano_indisponivel')
-    let planoRemotoId = await garantirPlanoRemoto(plano)
 
     const id = novoId()
     const referenciaExterna = `viztto:${ambiente.MERCADO_PAGO_AMBIENTE}:${id}`
     const emailPagador = await resolverEmailPagador(req.body.emailPagador)
-    const payloadCheckout = {
-      planoId: planoRemotoId,
+    // Checkout Pix exige assinatura SEM plano associado (MP exige card_token com plano).
+    const remoto = await criarAssinaturaCheckoutMercadoPago({
       referenciaExterna,
       emailPagador,
       motivo: `Viztto ${plano.nome}`,
       backUrl: `${ambiente.URL_APLICACAO}/app/configuracoes?assinatura=pendente`,
-    }
-    let remoto
-    try {
-      remoto = await criarAssinaturaCheckoutMercadoPago(payloadCheckout)
-    } catch (erro) {
-      if (!erroIndicaPlanoInexistente(erro)) throw erro
-      await banco
-        .update(planosAssinatura)
-        .set({ mercadoPagoPlanoId: null, mercadoPagoStatus: null, atualizadoEm: new Date() })
-        .where(eq(planosAssinatura.id, plano.id))
-      planoRemotoId = await garantirPlanoRemoto({ ...plano, mercadoPagoPlanoId: null })
-      remoto = await criarAssinaturaCheckoutMercadoPago({
-        ...payloadCheckout,
-        planoId: planoRemotoId,
-      })
-    }
+      valorMensal: Number(plano.valorMensal),
+      moeda: plano.moeda || 'BRL',
+    })
     const checkoutUrl = urlCheckoutAssinatura(remoto)
     if (!checkoutUrl)
       throw new ErroHttp(
