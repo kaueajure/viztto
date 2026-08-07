@@ -406,8 +406,7 @@ autenticacaoRotas.post('/onboarding', acesso, validarCorpo(onboarding), async (r
   const workspaceId = novoId()
   const agora = new Date()
   const tipo = String(req.body.tipo ?? 'outro').slice(0, 80)
-  const plano =
-    tipo === 'agencia' ? 'agency' : tipo === 'estudio' ? 'studio' : ('freelancer' as const)
+  const plano = 'gratuito' as const
   await banco.transaction(async (tx) => {
     await tx.insert(workspaces).values({
       id: workspaceId,

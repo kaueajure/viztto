@@ -2,7 +2,7 @@ export type Workspace = {
   id: string
   name: string
   slug: string
-  plan: 'freelancer' | 'studio' | 'agency'
+  plan: 'gratuito' | 'freelancer' | 'studio' | 'agency'
   createdAt: string
 }
 

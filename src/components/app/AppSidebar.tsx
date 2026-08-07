@@ -198,7 +198,7 @@ function SidebarContent({ close }: { close?: () => void }) {
       </nav>
       <div className="m-3 rounded-md border border-line bg-surface-secondary p-3">
         <p className="text-xs font-semibold">
-          Plano {limites?.nome ?? workspace.plan ?? 'freelancer'}
+          Plano {limites?.nome ?? workspace.plan ?? 'gratuito'}
         </p>
         {limites ? (
           <ul className="mt-2 space-y-1 text-[11px] text-muted">

@@ -136,8 +136,8 @@ export async function maxWorkspacesPermitidosParaUsuario(usuarioId: string) {
       ),
     )
   if (!planos.length) {
-    const freelancer = await carregarPlanoPorCodigo('freelancer')
-    return freelancer?.maxWorkspaces ?? 1
+    const gratuito = await carregarPlanoPorCodigo('gratuito')
+    return gratuito?.maxWorkspaces ?? 1
   }
   if (planos.some((p) => p.maxWorkspaces == null)) return null
   return Math.max(...planos.map((p) => p.maxWorkspaces ?? 0))

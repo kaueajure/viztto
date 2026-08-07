@@ -61,7 +61,7 @@ type Valor = Estado & {
   addActivity: () => never
 }
 const vazio: Estado = {
-  workspace: { id: '', name: 'Workspace', slug: '', plan: 'freelancer', createdAt: '' },
+  workspace: { id: '', name: 'Workspace', slug: '', plan: 'gratuito', createdAt: '' },
   clients: [],
   projects: [],
   team: [],

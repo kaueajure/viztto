@@ -10,6 +10,20 @@ export type PricingPlan = {
 
 export const pricingPlans: PricingPlan[] = [
   {
+    id: 'gratuito',
+    name: 'Gratuito',
+    price: 'R$ 0',
+    audience: 'Para começar e validar o fluxo com limites básicos.',
+    features: [
+      '2 projetos ativos',
+      '2 GB de armazenamento',
+      '1 pessoa na equipe',
+      'Links para clientes',
+      'Comentários em imagens e PDFs',
+    ],
+    cta: 'Começar gratuitamente',
+  },
+  {
     id: 'freelancer',
     name: 'Freelancer',
     price: 'R$ 39/mês',
@@ -22,7 +36,7 @@ export const pricingPlans: PricingPlan[] = [
       'Links para clientes',
       'Histórico de versões',
     ],
-    cta: 'Começar gratuitamente',
+    cta: 'Escolher Freelancer',
   },
   {
     id: 'studio',

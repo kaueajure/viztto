@@ -67,7 +67,9 @@ export const workspaces = mysqlTable(
     nome: varchar('nome', { length: 160 }).notNull(),
     slug: varchar('slug', { length: 120 }).notNull(),
     tipo: varchar('tipo', { length: 80 }).notNull().default('outro'),
-    plano: mysqlEnum('plano', ['freelancer', 'studio', 'agency']).notNull().default('freelancer'),
+    plano: mysqlEnum('plano', ['gratuito', 'freelancer', 'studio', 'agency'])
+      .notNull()
+      .default('gratuito'),
     logoUrl: varchar('logo_url', { length: 500 }),
     corPrincipal: char('cor_principal', { length: 7 }).notNull().default('#b8ff4f'),
     ativo: boolean('ativo').notNull().default(true),
@@ -91,7 +93,7 @@ export const planosAssinatura = mysqlTable(
   'planos_assinatura',
   {
     id: id().primaryKey(),
-    codigo: mysqlEnum('codigo', ['freelancer', 'studio', 'agency']).notNull(),
+    codigo: mysqlEnum('codigo', ['gratuito', 'freelancer', 'studio', 'agency']).notNull(),
     nome: varchar('nome', { length: 80 }).notNull(),
     descricao: varchar('descricao', { length: 300 }).notNull(),
     valorMensal: decimal('valor_mensal', { precision: 10, scale: 2 }).notNull(),

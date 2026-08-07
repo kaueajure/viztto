@@ -18,7 +18,7 @@ type PixPendente = {
   qrCodeBase64: string | null
 }
 
-const order: Record<PlanCode, number> = { freelancer: 0, studio: 1, agency: 2 }
+const order: Record<PlanCode, number> = { gratuito: 0, freelancer: 1, studio: 2, agency: 3 }
 
 export function PlanUpgradePanel({
   payerEmail,
@@ -175,7 +175,7 @@ export function PlanUpgradePanel({
           {success}
         </p>
       )}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {
           const isCurrent = plan.codigo === activeSubscription
           const isUpgrade = !activeSubscription || order[plan.codigo] > order[activeSubscription]
@@ -209,7 +209,14 @@ export function PlanUpgradePanel({
               <Button
                 className="mt-5 w-full"
                 variant={isCurrent ? 'secondary' : 'primary'}
-                disabled={!canManage || isCurrent || !isUpgrade || !config?.configurada || loading}
+                disabled={
+                  !canManage ||
+                  isCurrent ||
+                  !isUpgrade ||
+                  Number(plan.valorMensal) <= 0 ||
+                  !config?.configurada ||
+                  loading
+                }
                 icon={
                   isCurrent ? <Check className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />
                 }
@@ -225,11 +232,13 @@ export function PlanUpgradePanel({
                   ? 'Somente administrador'
                   : isCurrent
                     ? 'Plano atual'
-                    : isUpgrade
-                      ? activeSubscription
-                        ? 'Fazer upgrade'
-                        : 'Comprar plano'
-                      : 'Plano inferior'}
+                    : Number(plan.valorMensal) <= 0
+                      ? 'Incluso'
+                      : isUpgrade
+                        ? activeSubscription
+                          ? 'Fazer upgrade'
+                          : 'Comprar plano'
+                        : 'Plano inferior'}
               </Button>
             </article>
           )

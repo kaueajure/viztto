@@ -2,7 +2,7 @@ import { requisicaoApi, json } from './clienteHttp'
 
 export type PlanoAssinatura = {
   id: string
-  codigo: 'freelancer' | 'studio' | 'agency'
+  codigo: 'gratuito' | 'freelancer' | 'studio' | 'agency'
   nome: string
   descricao: string
   valorMensal: string | number

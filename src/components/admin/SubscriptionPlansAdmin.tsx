@@ -114,7 +114,7 @@ export function SubscriptionPlansAdmin() {
                 <Input
                   label="Preço mensal (R$)"
                   type="number"
-                  min="1"
+                  min="0"
                   max="100000"
                   step="0.01"
                   value={Number.isFinite(amount) ? amount : ''}
@@ -226,7 +226,7 @@ export function SubscriptionPlansAdmin() {
                   Salvar plano
                 </Button>
                 <Button
-                  disabled={!integration?.configurada}
+                  disabled={!integration?.configurada || Number(plan.valorMensal) <= 0}
                   loading={busy === `sync-${plan.codigo}`}
                   onClick={() =>
                     void run(`sync-${plan.codigo}`, () =>

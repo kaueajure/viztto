@@ -48,12 +48,12 @@ async function garantirPlanoRemoto(plano: typeof planosAssinatura.$inferSelect) 
   return planoRemotoId
 }
 
-const codigoPlano = z.enum(['freelancer', 'studio', 'agency'])
+const codigoPlano = z.enum(['gratuito', 'freelancer', 'studio', 'agency'])
 const limiteOpcional = z.number().int().positive().max(1_000_000).nullable()
 const atualizarEntrada = z.object({
   nome: z.string().trim().min(2).max(80),
   descricao: z.string().trim().min(2).max(300),
-  valorMensal: z.number().positive().max(100_000),
+  valorMensal: z.number().min(0).max(100_000),
   ativo: z.boolean(),
   beneficios: z.array(z.string().trim().min(1).max(200)).max(40),
   maxProjetosAtivos: limiteOpcional,
@@ -66,17 +66,18 @@ const atualizarEntrada = z.object({
   permiteCalendarioEditorial: z.boolean(),
   permiteRelatorios: z.boolean(),
 })
+const codigoPlanoPago = z.enum(['freelancer', 'studio', 'agency'])
 const criarAssinaturaEntrada = z.object({
-  codigoPlano,
+  codigoPlano: codigoPlanoPago,
   tokenCartao: z.string().trim().min(20).max(300),
   emailPagador: z.string().email(),
 })
 const criarCheckoutEntrada = z.object({
-  codigoPlano,
+  codigoPlano: codigoPlanoPago,
   emailPagador: z.string().email(),
 })
 const criarPixEntrada = z.object({
-  codigoPlano,
+  codigoPlano: codigoPlanoPago,
   emailPagador: z.string().email(),
 })
 
@@ -148,7 +149,7 @@ assinaturasRotas.get('/limites', async (req, res) => {
 
 assinaturasRotas.get('/planos', async (req, res) => {
   const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
-  const [dados, [assinaturaAtual]] = await Promise.all([
+  const [dados, [assinaturaAtual], [workspace]] = await Promise.all([
     banco
       .select()
       .from(planosAssinatura)
@@ -166,10 +167,15 @@ assinaturasRotas.get('/planos', async (req, res) => {
       )
       .orderBy(desc(assinaturas.atualizadoEm))
       .limit(1),
+    banco
+      .select({ plano: workspaces.plano })
+      .from(workspaces)
+      .where(eq(workspaces.id, req.sessao!.workspaceId))
+      .limit(1),
   ])
   res.json({
     dados,
-    assinaturaAtual: assinaturaAtual?.codigoPlano ?? null,
+    assinaturaAtual: assinaturaAtual?.codigoPlano ?? workspace?.plano ?? 'gratuito',
     integracao: {
       ambiente: ambiente.MERCADO_PAGO_AMBIENTE,
       chavePublica: ambiente.MERCADO_PAGO_PUBLIC_KEY ?? null,
@@ -462,11 +468,12 @@ assinaturasRotas.patch(
 
     const precoMudou = precoAnterior !== req.body.valorMensal
     const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
-    if (!precoMudou || problemaIntegracao) {
+    if (!precoMudou || problemaIntegracao || req.body.valorMensal <= 0) {
       res.json({
-        mensagem: problemaIntegracao
-          ? 'Plano atualizado. Configure o Mercado Pago para sincronizar o preço na cobrança.'
-          : 'Plano atualizado.',
+        mensagem:
+          problemaIntegracao && precoMudou && req.body.valorMensal > 0
+            ? 'Plano atualizado. Configure o Mercado Pago para sincronizar o preço na cobrança.'
+            : 'Plano atualizado.',
       })
       return
     }
@@ -494,6 +501,12 @@ assinaturasRotas.post('/admin/planos/:codigo/sincronizar', exigirAdmin, async (r
     .where(eq(planosAssinatura.codigo, codigo))
     .limit(1)
   if (!plano) throw new ErroHttp(404, 'Plano nao encontrado.', 'plano_nao_encontrado')
+  if (Number(plano.valorMensal) <= 0)
+    throw new ErroHttp(
+      400,
+      'Planos gratuitos nao sao publicados no Mercado Pago.',
+      'plano_gratuito_sem_sincronizacao',
+    )
   await sincronizarPlanoComMercadoPago(plano, req.sessao!.usuarioId)
   res.json({ mensagem: 'Plano sincronizado com o Mercado Pago.' })
 })
