@@ -56,12 +56,14 @@ export function Modal({
   title,
   children,
   dismissible = true,
+  size = 'default',
 }: {
   open: boolean
   onClose: () => void
   title: string
   children: ReactNode
   dismissible?: boolean
+  size?: 'default' | 'wide'
 }) {
   const panel = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
@@ -134,7 +136,10 @@ export function Modal({
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
-            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-xl border border-line bg-surface-elevated p-5 shadow-raised sm:rounded-xl sm:p-7"
+            className={cn(
+              'max-h-[calc(100dvh-0.75rem)] w-full overflow-y-auto overscroll-contain rounded-t-xl border border-line bg-surface-elevated p-5 shadow-raised sm:max-h-[calc(100dvh-2rem)] sm:rounded-xl sm:p-7',
+              size === 'wide' ? 'max-w-2xl' : 'max-w-lg',
+            )}
             initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduceMotion ? undefined : { opacity: 0, y: 18 }}

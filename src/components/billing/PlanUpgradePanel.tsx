@@ -64,12 +64,56 @@ export function PlanUpgradePanel({
     setError('')
     setSuccess('')
     const mercadoPago = new window.MercadoPago(config.chavePublica, { locale: 'pt-BR' })
+    const checkoutEmail = config.ambiente === 'teste' ? 'test@testuser.com' : payerEmail
     void mercadoPago
       .bricks()
       .create('cardPayment', brickId, {
-        initialization: { amount: Number(selected.valorMensal), payer: { email: payerEmail } },
+        initialization: { amount: Number(selected.valorMensal), payer: { email: checkoutEmail } },
         customization: {
-          visual: { style: { theme: 'dark' } },
+          visual: {
+            style: {
+              theme: 'dark',
+              customVariables: {
+                textPrimaryColor: '#f5f7fa',
+                textSecondaryColor: '#a7b0be',
+                inputBackgroundColor: '#151b23',
+                formBackgroundColor: '#202a38',
+                baseColor: '#b8ff4f',
+                baseColorFirstVariant: '#a2ea36',
+                baseColorSecondVariant: '#8fd025',
+                errorColor: '#ff6b57',
+                successColor: '#7cffb2',
+                successSecondaryColor: '#13281e',
+                outlinePrimaryColor: '#3a4658',
+                outlineSecondaryColor: '#2a3442',
+                buttonTextColor: '#10150b',
+                fontSizeSmall: '13px',
+                fontSizeMedium: '15px',
+                fontSizeLarge: '18px',
+                fontWeightNormal: '400',
+                fontWeightSemiBold: '600',
+                inputVerticalPadding: '12px',
+                inputHorizontalPadding: '14px',
+                inputFocusedBoxShadow: '0 0 0 3px rgba(184, 255, 79, 0.24)',
+                inputErrorFocusedBoxShadow: '0 0 0 3px rgba(255, 107, 87, 0.2)',
+                inputBorderWidth: '1px',
+                inputFocusedBorderWidth: '1px',
+                borderRadiusSmall: '8px',
+                borderRadiusMedium: '10px',
+                borderRadiusLarge: '14px',
+                formPadding: '0px',
+              },
+            },
+            texts: {
+              formTitle: 'Dados do cartão',
+              cardNumber: { label: 'Número do cartão', placeholder: '0000 0000 0000 0000' },
+              expirationDate: { label: 'Validade', placeholder: 'MM/AA' },
+              securityCode: { label: 'Código de segurança', placeholder: 'CVV' },
+              cardholderName: { label: 'Nome impresso no cartão', placeholder: 'Nome completo' },
+              cardholderIdentification: { label: 'Documento do titular' },
+              formSubmit: `Assinar ${selected.nome}`,
+            },
+          },
           paymentMethods: { maxInstallments: 1 },
         },
         callbacks: {
@@ -80,7 +124,7 @@ export function PlanUpgradePanel({
             const response = await assinaturasApi.criarAssinatura({
               codigoPlano: selected.codigo,
               tokenCartao: formData.token,
-              emailPagador: formData.payer?.email || payerEmail,
+              emailPagador: formData.payer?.email || checkoutEmail,
             })
             if (!active) return
             setSuccess(
@@ -108,7 +152,7 @@ export function PlanUpgradePanel({
       active = false
       void controller?.unmount()
     }
-  }, [brickId, config?.chavePublica, payerEmail, selected])
+  }, [brickId, config?.ambiente, config?.chavePublica, payerEmail, selected])
 
   return (
     <section aria-labelledby="plans-title" className="grid gap-5">
@@ -183,9 +227,10 @@ export function PlanUpgradePanel({
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
         title={selected ? `Assinar ${selected.nome}` : 'Assinar plano'}
+        size="wide"
       >
         <div className="grid gap-4">
-          <div className="flex items-center justify-between rounded-md border border-line bg-surface-secondary p-3">
+          <div className="flex items-center justify-between rounded-md border border-line bg-surface-secondary p-3 sm:px-4">
             <div>
               <p className="font-semibold text-ink">{selected?.nome}</p>
               <p className="text-sm text-muted">Cobrança mensal</p>
@@ -198,7 +243,7 @@ export function PlanUpgradePanel({
                 })}
             </p>
           </div>
-          <p className="flex items-center gap-2 text-xs text-muted">
+          <p className="flex items-start gap-2 text-xs leading-relaxed text-muted">
             <ShieldCheck className="h-4 w-4 text-approval" />
             Os dados do cartão são protegidos e tokenizados pelo Mercado Pago.
           </p>
@@ -226,10 +271,12 @@ export function PlanUpgradePanel({
               </Button>
             </div>
           ) : (
-            <div id={brickId} />
+            <div id={brickId} className="min-h-[420px] overflow-hidden rounded-lg" />
           )}
           <p className="text-center text-xs text-muted">
-            Ambiente de teste. Nenhuma cobrança real será realizada.
+            {config?.ambiente === 'teste'
+              ? 'Ambiente de teste · pagador sandbox test@testuser.com · nenhuma cobrança real.'
+              : 'A cobrança será processada com segurança pelo Mercado Pago.'}
           </p>
         </div>
       </Modal>

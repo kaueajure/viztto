@@ -91,10 +91,12 @@ assinaturasRotas.post(
 
     const id = novoId()
     const referenciaExterna = `viztto:${ambiente.MERCADO_PAGO_AMBIENTE}:${id}`
+    const emailPagador =
+      ambiente.MERCADO_PAGO_AMBIENTE === 'teste' ? 'test@testuser.com' : req.body.emailPagador
     const remoto = await criarAssinaturaMercadoPago({
       planoId: plano.mercadoPagoPlanoId,
       referenciaExterna,
-      emailPagador: req.body.emailPagador,
+      emailPagador,
       tokenCartao: req.body.tokenCartao,
       motivo: `Viztto ${plano.nome}`,
       backUrl: `${ambiente.URL_APLICACAO}/app/configuracoes`,
@@ -105,7 +107,7 @@ assinaturasRotas.post(
       planoAssinaturaId: plano.id,
       mercadoPagoAssinaturaId: remoto.id,
       referenciaExterna,
-      emailPagador: req.body.emailPagador,
+      emailPagador,
       status: remoto.status === 'authorized' ? 'autorizada' : 'pendente',
       ambiente: ambiente.MERCADO_PAGO_AMBIENTE,
       criadaPorUsuarioId: req.sessao!.usuarioId,

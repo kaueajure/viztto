@@ -25,14 +25,20 @@ async function requisitar<T>(caminho: string, init: RequestInit): Promise<T> {
   const conteudo = (await resposta.json().catch(() => ({}))) as T & {
     message?: string
     error?: string
+    cause?: Array<{ code?: string | number; description?: string }>
   }
-  if (!resposta.ok)
+  if (!resposta.ok) {
+    const causa = conteudo.cause?.find((item) => item.description)
+    const motivo = causa?.description ?? conteudo.message ?? conteudo.error
     throw new ErroHttp(
       502,
-      'O Mercado Pago recusou a operacao. Revise as credenciais e os dados do plano.',
+      motivo
+        ? `O Mercado Pago recusou a operacao: ${motivo}`
+        : 'O Mercado Pago recusou a operacao. Revise os dados informados.',
       'mercado_pago_erro',
-      { status: resposta.status, motivo: conteudo.message ?? conteudo.error },
+      { status: resposta.status, codigo: causa?.code },
     )
+  }
   return conteudo
 }
 
