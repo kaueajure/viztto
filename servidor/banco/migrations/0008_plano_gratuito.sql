@@ -12,7 +12,13 @@ INSERT INTO `planos_assinatura` (
   'Para comecar e validar o fluxo com limites basicos.',
   0.00,
   'BRL',
-  CAST('["2 projetos ativos","2 GB de armazenamento","1 pessoa na equipe","Links para clientes","Coment\\u00e1rios em imagens e PDFs"]' AS JSON),
+  JSON_ARRAY(
+    '2 projetos ativos',
+    '2 GB de armazenamento',
+    '1 pessoa na equipe',
+    'Links para clientes',
+    CONCAT('Coment', CONVERT(UNHEX('C3A1') USING utf8mb4), 'rios em imagens e PDFs')
+  ),
   2, 1, 3, 2, 1,
   false, false, false, false,
   true, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3)
@@ -32,15 +38,44 @@ INSERT INTO `planos_assinatura` (
   `permite_relatorios` = VALUES(`permite_relatorios`),
   `atualizado_em` = CURRENT_TIMESTAMP(3);--> statement-breakpoint
 UPDATE `planos_assinatura`
-SET `beneficios` = CAST('["5 projetos ativos","10 GB de armazenamento","Coment\\u00e1rios em imagens e PDFs","Coment\\u00e1rios em v\\u00eddeo","Links para clientes","Hist\\u00f3rico de vers\\u00f5es"]' AS JSON)
+SET `beneficios` = JSON_ARRAY(
+  '5 projetos ativos',
+  '10 GB de armazenamento',
+  CONCAT('Coment', CONVERT(UNHEX('C3A1') USING utf8mb4), 'rios em imagens e PDFs'),
+  CONCAT('Coment', CONVERT(UNHEX('C3A1') USING utf8mb4), 'rios em v', CONVERT(UNHEX('C3AD') USING utf8mb4), 'deo'),
+  'Links para clientes',
+  CONCAT('Hist', CONVERT(UNHEX('C3B3') USING utf8mb4), 'rico de vers', CONVERT(UNHEX('C3B5') USING utf8mb4), 'es')
+)
 WHERE `codigo` = 'freelancer';--> statement-breakpoint
 UPDATE `planos_assinatura`
-SET `beneficios` = CAST('["25 projetos ativos","100 GB de armazenamento","At\\u00e9 5 pessoas na equipe","V\\u00e1rios aprovadores","Identidade personalizada","Calend\\u00e1rio editorial","Relat\\u00f3rios b\\u00e1sicos"]' AS JSON)
+SET `beneficios` = JSON_ARRAY(
+  '25 projetos ativos',
+  '100 GB de armazenamento',
+  CONCAT('At', CONVERT(UNHEX('C3A9') USING utf8mb4), ' 5 pessoas na equipe'),
+  CONCAT('V', CONVERT(UNHEX('C3A1') USING utf8mb4), 'rios aprovadores'),
+  'Identidade personalizada',
+  CONCAT('Calend', CONVERT(UNHEX('C3A1') USING utf8mb4), 'rio editorial'),
+  CONCAT('Relat', CONVERT(UNHEX('C3B3') USING utf8mb4), 'rios b', CONVERT(UNHEX('C3A1') USING utf8mb4), 'sicos')
+)
 WHERE `codigo` = 'studio';--> statement-breakpoint
 UPDATE `planos_assinatura`
-SET `beneficios` = CAST('["Projetos ativos ampliados","500 GB de armazenamento","At\\u00e9 15 pessoas na equipe","Espa\\u00e7os separados por cliente","Portal personalizado","Permiss\\u00f5es","Prioridade no suporte","Hist\\u00f3rico avan\\u00e7ado"]' AS JSON)
+SET `beneficios` = JSON_ARRAY(
+  'Projetos ativos ampliados',
+  '500 GB de armazenamento',
+  CONCAT('At', CONVERT(UNHEX('C3A9') USING utf8mb4), ' 15 pessoas na equipe'),
+  CONCAT('Espa', CONVERT(UNHEX('C3A7') USING utf8mb4), 'os separados por cliente'),
+  'Portal personalizado',
+  CONCAT('Permiss', CONVERT(UNHEX('C3B5') USING utf8mb4), 'es'),
+  'Prioridade no suporte',
+  CONCAT('Hist', CONVERT(UNHEX('C3B3') USING utf8mb4), 'rico avan', CONVERT(UNHEX('C3A7') USING utf8mb4), 'ado')
+)
 WHERE `codigo` = 'agency';--> statement-breakpoint
 UPDATE `planos_assinatura`
-SET `beneficios` = CAST('["2 projetos ativos","2 GB de armazenamento","1 pessoa na equipe","Links para clientes","Coment\\u00e1rios em imagens e PDFs"]' AS JSON),
-    `descricao` = 'Para comecar e validar o fluxo com limites basicos.'
+SET `beneficios` = JSON_ARRAY(
+  '2 projetos ativos',
+  '2 GB de armazenamento',
+  '1 pessoa na equipe',
+  'Links para clientes',
+  CONCAT('Coment', CONVERT(UNHEX('C3A1') USING utf8mb4), 'rios em imagens e PDFs')
+)
 WHERE `codigo` = 'gratuito';
