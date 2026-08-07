@@ -7,6 +7,7 @@ import { Tabs } from '@/components/ui/Interactive'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppData } from '@/contexts/AppDataContext'
 import { configuracoesApi, type Preferencias } from '@/services/api/configuracoesApi'
+import { SubscriptionPlansAdmin } from '@/components/admin/SubscriptionPlansAdmin'
 
 const preferenciasPadrao: Preferencias = {
   comentarios: true,
@@ -208,6 +209,9 @@ export default function SettingsPage() {
                 </div>
               ),
             },
+            ...(user?.admin
+              ? [{ label: 'Admin · Assinaturas', content: <SubscriptionPlansAdmin /> }]
+              : []),
           ]}
         />
       </div>

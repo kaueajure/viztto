@@ -21,6 +21,8 @@ import { equipeRotas } from './modulos/equipe/equipe.rotas.js'
 import { pool } from './configuracao/banco.js'
 import { diretorioDist } from './configuracao/caminhos.js'
 import { uploadsDisponiveis } from './configuracao/upload.js'
+import { assinaturasRotas } from './modulos/assinaturas/assinaturas.rotas.js'
+import { webhookMercadoPagoRotas } from './modulos/assinaturas/webhook.rotas.js'
 
 export function criarAplicacao(preparacao: Promise<void> = Promise.resolve()) {
   const app = express()
@@ -76,6 +78,7 @@ export function criarAplicacao(preparacao: Promise<void> = Promise.resolve()) {
     }
   })
   app.get('/api/autenticacao/csrf', emitirCsrf)
+  app.use('/api/webhooks/mercado-pago', webhookMercadoPagoRotas)
   app.use('/api', protegerCsrf)
   app.use('/api/autenticacao', autenticacaoRotas)
   app.use('/api/portal', portalRotas)
@@ -86,6 +89,7 @@ export function criarAplicacao(preparacao: Promise<void> = Promise.resolve()) {
   app.use('/api', autenticar, comentariosRotas)
   app.use('/api', autenticar, aprovacoesRotas)
   app.use('/api', autenticar, consultasRotas)
+  app.use('/api/assinaturas', autenticar, assinaturasRotas)
   app.use('/arquivos', autenticar, arquivosRotas)
 
   if (emProducao) {

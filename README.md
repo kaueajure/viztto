@@ -49,6 +49,12 @@ npm start
 
 `server.js` é o entrypoint permanente. Um único processo serve `/api`, arquivos protegidos em `/arquivos`, assets de `dist` e o fallback do React Router. Em ambientes gerenciados, `PORT` prevalece sobre `PORTA`. Consulte [deploy na Hostinger](docs/deploy-hostinger.md), [backup](docs/backup.md) e [API](docs/api.md).
 
+## Mercado Pago (homologacao)
+
+Os precos efetivos ficam em `planos_assinatura` e podem ser alterados em **Configuracoes > Admin - Assinaturas** somente por usuarios com `admin=true`. Comece com `MERCADO_PAGO_AMBIENTE=teste` e credenciais TEST configuradas apenas no ambiente. Depois de salvar um preco, a sincronizacao com `/preapproval_plan` e uma acao separada e explicita.
+
+Configure o webhook de teste para `https://seu-dominio/api/webhooks/mercado-pago` e informe sua assinatura secreta em `MERCADO_PAGO_WEBHOOK_SECRET`. Nunca versione Access Token, Public Key ou assinatura secreta. Criar o plano nao cria cobrancas nem assinantes; a captura segura do cartao e a criacao da assinatura pertencem ao fluxo de checkout.
+
 ## Banco
 
 O schema fica em `servidor/banco/esquema`, e migrations versionadas em `servidor/banco/migrations`. Tabelas, colunas, indices, constraints e enums textuais usam portugues-BR sem acentos em `snake_case`. IDs principais sao UUID v4 em `CHAR(36)`; esta escolha prioriza portabilidade e simplicidade, com custo de indice maior que UUID binario.

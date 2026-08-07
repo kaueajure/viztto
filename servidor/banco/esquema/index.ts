@@ -87,6 +87,88 @@ export const workspaces = mysqlTable(
   ],
 )
 
+export const planosAssinatura = mysqlTable(
+  'planos_assinatura',
+  {
+    id: id().primaryKey(),
+    codigo: mysqlEnum('codigo', ['freelancer', 'studio', 'agency']).notNull(),
+    nome: varchar('nome', { length: 80 }).notNull(),
+    descricao: varchar('descricao', { length: 300 }).notNull(),
+    valorMensal: decimal('valor_mensal', { precision: 10, scale: 2 }).notNull(),
+    moeda: char('moeda', { length: 3 }).notNull().default('BRL'),
+    mercadoPagoPlanoId: varchar('mercado_pago_plano_id', { length: 100 }),
+    mercadoPagoStatus: varchar('mercado_pago_status', { length: 40 }),
+    ativo: boolean('ativo').notNull().default(true),
+    atualizadoPorUsuarioId: char('atualizado_por_usuario_id', { length: 36 }),
+    criadoEm: data('criado_em').notNull(),
+    atualizadoEm: data('atualizado_em').notNull(),
+  },
+  (t) => [
+    uniqueIndex('unq_planos_assinatura_codigo').on(t.codigo),
+    uniqueIndex('unq_planos_assinatura_mercado_pago').on(t.mercadoPagoPlanoId),
+    foreignKey({
+      columns: [t.atualizadoPorUsuarioId],
+      foreignColumns: [usuarios.id],
+      name: 'fk_planos_assinatura_usuarios',
+    }).onDelete('set null'),
+  ],
+)
+
+export const assinaturas = mysqlTable(
+  'assinaturas',
+  {
+    id: id().primaryKey(),
+    workspaceId: id('workspace_id'),
+    planoAssinaturaId: id('plano_assinatura_id'),
+    mercadoPagoAssinaturaId: varchar('mercado_pago_assinatura_id', { length: 100 }),
+    referenciaExterna: varchar('referencia_externa', { length: 120 }).notNull(),
+    emailPagador: varchar('email_pagador', { length: 254 }).notNull(),
+    status: mysqlEnum('status', ['pendente', 'autorizada', 'pausada', 'cancelada', 'erro'])
+      .notNull()
+      .default('pendente'),
+    ambiente: mysqlEnum('ambiente', ['teste', 'producao']).notNull().default('teste'),
+    criadaPorUsuarioId: id('criada_por_usuario_id'),
+    criadoEm: data('criado_em').notNull(),
+    atualizadoEm: data('atualizado_em').notNull(),
+  },
+  (t) => [
+    uniqueIndex('unq_assinaturas_referencia').on(t.referenciaExterna),
+    uniqueIndex('unq_assinaturas_mercado_pago').on(t.mercadoPagoAssinaturaId),
+    index('idx_assinaturas_workspace').on(t.workspaceId, t.status),
+    foreignKey({
+      columns: [t.workspaceId],
+      foreignColumns: [workspaces.id],
+      name: 'fk_assinaturas_workspaces',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.planoAssinaturaId],
+      foreignColumns: [planosAssinatura.id],
+      name: 'fk_assinaturas_planos',
+    }),
+    foreignKey({
+      columns: [t.criadaPorUsuarioId],
+      foreignColumns: [usuarios.id],
+      name: 'fk_assinaturas_usuarios',
+    }),
+  ],
+)
+
+export const eventosWebhookMercadoPago = mysqlTable(
+  'eventos_webhook_mercado_pago',
+  {
+    id: id().primaryKey(),
+    eventoExternoId: varchar('evento_externo_id', { length: 120 }).notNull(),
+    tipo: varchar('tipo', { length: 80 }).notNull(),
+    acao: varchar('acao', { length: 120 }),
+    recursoExternoId: varchar('recurso_externo_id', { length: 120 }),
+    assinaturaValida: boolean('assinatura_valida').notNull(),
+    processadoEm: data('processado_em'),
+    erro: varchar('erro', { length: 500 }),
+    criadoEm: data('criado_em').notNull(),
+  },
+  (t) => [uniqueIndex('unq_eventos_webhook_mp_evento').on(t.eventoExternoId)],
+)
+
 export const sessoes = mysqlTable(
   'sessoes',
   {

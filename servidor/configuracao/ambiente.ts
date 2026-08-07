@@ -12,6 +12,12 @@ const portaOpcional = z.preprocess(
   z.coerce.number().int().min(1).max(65535).optional(),
 )
 
+const segredoOpcional = (minimo: number) =>
+  z.preprocess(
+    (valor) => (typeof valor === 'string' && valor.trim() === '' ? undefined : valor),
+    z.string().min(minimo).optional(),
+  )
+
 const esquema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: portaOpcional,
@@ -35,6 +41,10 @@ const esquema = z.object({
   EMAIL_SENHA: z.string().optional(),
   EMAIL_REMETENTE: z.string().email().default('contato@viztto.site'),
   EMAIL_NOME: z.string().min(1).default('Viztto'),
+  MERCADO_PAGO_AMBIENTE: z.enum(['teste', 'producao']).default('teste'),
+  MERCADO_PAGO_ACCESS_TOKEN: segredoOpcional(20),
+  MERCADO_PAGO_PUBLIC_KEY: segredoOpcional(10),
+  MERCADO_PAGO_WEBHOOK_SECRET: segredoOpcional(16),
 })
 
 const resultado = esquema.safeParse(process.env)
