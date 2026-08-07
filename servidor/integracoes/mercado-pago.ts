@@ -8,11 +8,6 @@ export function diagnosticarConfiguracaoMercadoPago() {
   if (!(ambiente.MERCADO_PAGO_ACCESS_TOKEN && ambiente.MERCADO_PAGO_PUBLIC_KEY))
     return 'Configure a Public Key e o Access Token do Mercado Pago.'
   if (ambiente.MERCADO_PAGO_AMBIENTE !== 'teste') return null
-  if (
-    ambiente.MERCADO_PAGO_ACCESS_TOKEN.startsWith('TEST-') ||
-    ambiente.MERCADO_PAGO_PUBLIC_KEY.startsWith('TEST-')
-  )
-    return 'Assinaturas de teste exigem as credenciais de producao de uma conta vendedora de teste do Mercado Pago.'
   if (!ambiente.MERCADO_PAGO_EMAIL_PAGADOR_TESTE)
     return 'Configure o e-mail da conta compradora de teste do Mercado Pago.'
   if (!ambiente.MERCADO_PAGO_EMAIL_PAGADOR_TESTE.endsWith('@testuser.com'))
@@ -44,14 +39,11 @@ async function requisitar<T>(caminho: string, init: RequestInit): Promise<T> {
   if (!resposta.ok) {
     const causa = conteudo.cause?.find((item) => item.description)
     const motivo = causa?.description ?? conteudo.message ?? conteudo.error
-    const tokenIncompativel = resposta.status === 404 && motivo === 'Card token service not found'
     throw new ErroHttp(
       502,
-      tokenIncompativel
-        ? 'As credenciais atuais nao aceitam assinaturas recorrentes de teste. Use as credenciais de producao de uma conta vendedora de teste do Mercado Pago.'
-        : motivo
-          ? `O Mercado Pago recusou a operacao: ${motivo}`
-          : 'O Mercado Pago recusou a operacao. Revise os dados informados.',
+      motivo
+        ? `O Mercado Pago recusou a operacao: ${motivo}`
+        : 'O Mercado Pago recusou a operacao. Revise os dados informados.',
       'mercado_pago_erro',
       {
         status: resposta.status,
