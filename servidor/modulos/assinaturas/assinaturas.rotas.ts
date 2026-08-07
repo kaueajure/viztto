@@ -12,9 +12,35 @@ import {
   criarAssinaturaMercadoPago,
   criarPlanoMercadoPago,
   diagnosticarConfiguracaoMercadoPago,
+  erroIndicaPlanoInexistente,
   planoPertenceAoVendedorMercadoPago,
 } from '../../integracoes/mercado-pago.js'
 import { novoId } from '../../utilitarios/seguranca.js'
+
+async function garantirPlanoRemoto(plano: typeof planosAssinatura.$inferSelect) {
+  const entrada = {
+    nome: plano.nome,
+    valor: Number(plano.valorMensal),
+    backUrl: `${ambiente.URL_APLICACAO}/app/configuracoes`,
+  }
+  let planoRemotoId = plano.mercadoPagoPlanoId
+  const planoCompativel = planoRemotoId
+    ? await planoPertenceAoVendedorMercadoPago(planoRemotoId)
+    : false
+  if (planoCompativel && planoRemotoId) return planoRemotoId
+
+  const remotoCriado = await criarPlanoMercadoPago(entrada)
+  planoRemotoId = remotoCriado.id
+  await banco
+    .update(planosAssinatura)
+    .set({
+      mercadoPagoPlanoId: remotoCriado.id,
+      mercadoPagoStatus: remotoCriado.status ?? 'active',
+      atualizadoEm: new Date(),
+    })
+    .where(eq(planosAssinatura.id, plano.id))
+  return planoRemotoId
+}
 
 const codigoPlano = z.enum(['freelancer', 'studio', 'agency'])
 const atualizarEntrada = z.object({
@@ -98,23 +124,7 @@ assinaturasRotas.post(
       .where(eq(planosAssinatura.codigo, req.body.codigoPlano))
       .limit(1)
     if (!plano?.ativo) throw new ErroHttp(404, 'Plano indisponivel.', 'plano_indisponivel')
-    let planoRemotoId = plano.mercadoPagoPlanoId
-    if (!planoRemotoId || !(await planoPertenceAoVendedorMercadoPago(planoRemotoId))) {
-      const remotoCriado = await criarPlanoMercadoPago({
-        nome: plano.nome,
-        valor: Number(plano.valorMensal),
-        backUrl: `${ambiente.URL_APLICACAO}/app/configuracoes`,
-      })
-      planoRemotoId = remotoCriado.id
-      await banco
-        .update(planosAssinatura)
-        .set({
-          mercadoPagoPlanoId: remotoCriado.id,
-          mercadoPagoStatus: remotoCriado.status ?? 'active',
-          atualizadoEm: new Date(),
-        })
-        .where(eq(planosAssinatura.id, plano.id))
-    }
+    let planoRemotoId = await garantirPlanoRemoto(plano)
 
     const id = novoId()
     const referenciaExterna = `viztto:${ambiente.MERCADO_PAGO_AMBIENTE}:${id}`
@@ -128,14 +138,27 @@ assinaturasRotas.post(
         diagnosticarConfiguracaoMercadoPago() ?? 'Pagador de teste nao configurado.',
         'mercado_pago_teste_nao_configurado',
       )
-    const remoto = await criarAssinaturaMercadoPago({
+    const payloadAssinatura = {
       planoId: planoRemotoId,
       referenciaExterna,
       emailPagador,
       tokenCartao: req.body.tokenCartao,
       motivo: `Viztto ${plano.nome}`,
       backUrl: `${ambiente.URL_APLICACAO}/app/configuracoes`,
-    })
+    }
+    let remoto
+    try {
+      remoto = await criarAssinaturaMercadoPago(payloadAssinatura)
+    } catch (erro) {
+      if (!erroIndicaPlanoInexistente(erro)) throw erro
+      // Plano antigo ficou no banco apos troca de credenciais: recria e tenta 1 vez.
+      await banco
+        .update(planosAssinatura)
+        .set({ mercadoPagoPlanoId: null, mercadoPagoStatus: null, atualizadoEm: new Date() })
+        .where(eq(planosAssinatura.id, plano.id))
+      planoRemotoId = await garantirPlanoRemoto({ ...plano, mercadoPagoPlanoId: null })
+      remoto = await criarAssinaturaMercadoPago({ ...payloadAssinatura, planoId: planoRemotoId })
+    }
     await banco.insert(assinaturas).values({
       id,
       workspaceId: req.sessao!.workspaceId,
@@ -203,10 +226,17 @@ assinaturasRotas.post('/admin/planos/:codigo/sincronizar', exigirAdmin, async (r
   const planoCompativel = planoRemotoId
     ? await planoPertenceAoVendedorMercadoPago(planoRemotoId)
     : false
-  const remoto =
-    planoCompativel && planoRemotoId
-      ? await atualizarPlanoMercadoPago(planoRemotoId, entrada)
-      : await criarPlanoMercadoPago(entrada)
+  let remoto
+  if (planoCompativel && planoRemotoId) {
+    try {
+      remoto = await atualizarPlanoMercadoPago(planoRemotoId, entrada)
+    } catch (erro) {
+      if (!erroIndicaPlanoInexistente(erro)) throw erro
+      remoto = await criarPlanoMercadoPago(entrada)
+    }
+  } else {
+    remoto = await criarPlanoMercadoPago(entrada)
+  }
   await banco
     .update(planosAssinatura)
     .set({

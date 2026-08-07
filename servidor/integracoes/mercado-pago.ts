@@ -56,6 +56,7 @@ async function requisitar<T>(caminho: string, init: RequestInit): Promise<T> {
       {
         status: resposta.status,
         codigo: causa?.code,
+        motivo: motivo ?? undefined,
         requestId:
           resposta.headers.get('x-request-id') ??
           resposta.headers.get('x-correlation-id') ??
@@ -64,6 +65,14 @@ async function requisitar<T>(caminho: string, init: RequestInit): Promise<T> {
     )
   }
   return conteudo
+}
+
+export function erroIndicaPlanoInexistente(erro: unknown) {
+  if (!(erro instanceof ErroHttp) || erro.codigo !== 'mercado_pago_erro') return false
+  const detalhes = erro.detalhes as { status?: number; motivo?: string } | undefined
+  const motivo = `${detalhes?.motivo ?? erro.message}`.toLowerCase()
+  if (motivo.includes('does not exist') || motivo.includes('template with id')) return true
+  return [401, 403, 404].includes(detalhes?.status ?? 0)
 }
 
 type PlanoRemoto = { id: string; status?: string; collector_id?: number }
@@ -118,15 +127,10 @@ export async function planoPertenceAoVendedorMercadoPago(planoId: string) {
   const vendedor = await obterVendedorMercadoPago()
   try {
     const plano = await obterPlanoMercadoPago(planoId)
+    if (!plano?.id || !plano.collector_id) return false
     return String(plano.collector_id) === String(vendedor.id)
   } catch (erro) {
-    const inacessivel =
-      erro instanceof ErroHttp &&
-      erro.codigo === 'mercado_pago_erro' &&
-      [401, 403, 404].includes(
-        (erro.detalhes as { status?: number } | undefined)?.status ?? 0,
-      )
-    if (inacessivel) return false
+    if (erroIndicaPlanoInexistente(erro)) return false
     throw erro
   }
 }
