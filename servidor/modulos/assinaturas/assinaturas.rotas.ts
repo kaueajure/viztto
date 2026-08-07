@@ -11,9 +11,12 @@ import {
   atualizarPlanoMercadoPago,
   criarAssinaturaCheckoutMercadoPago,
   criarAssinaturaMercadoPago,
+  criarPagamentoPixMercadoPago,
   criarPlanoMercadoPago,
+  dadosPixDoPagamento,
   diagnosticarConfiguracaoMercadoPago,
   erroIndicaPlanoInexistente,
+  obterPagamentoMercadoPago,
   planoPertenceAoVendedorMercadoPago,
   urlCheckoutAssinatura,
 } from '../../integracoes/mercado-pago.js'
@@ -58,6 +61,10 @@ const criarCheckoutEntrada = z.object({
   codigoPlano,
   emailPagador: z.string().email(),
 })
+const criarPixEntrada = z.object({
+  codigoPlano,
+  emailPagador: z.string().email(),
+})
 
 async function resolverEmailPagador(emailPagador: string) {
   const email =
@@ -71,6 +78,16 @@ async function resolverEmailPagador(emailPagador: string) {
       'mercado_pago_teste_nao_configurado',
     )
   return email
+}
+
+async function carregarPlanoAtivo(codigo: z.infer<typeof codigoPlano>) {
+  const [plano] = await banco
+    .select()
+    .from(planosAssinatura)
+    .where(eq(planosAssinatura.codigo, codigo))
+    .limit(1)
+  if (!plano?.ativo) throw new ErroHttp(404, 'Plano indisponivel.', 'plano_indisponivel')
+  return plano
 }
 
 export const assinaturasRotas = Router()
@@ -244,6 +261,115 @@ assinaturasRotas.post(
     })
   },
 )
+
+assinaturasRotas.post(
+  '/criar-pix',
+  exigirFuncao('administrador'),
+  validarCorpo(criarPixEntrada),
+  async (req, res) => {
+    const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
+    if (problemaIntegracao)
+      throw new ErroHttp(503, problemaIntegracao, 'mercado_pago_assinaturas_nao_configurado')
+    const plano = await carregarPlanoAtivo(req.body.codigoPlano)
+    const id = novoId()
+    const referenciaExterna = `viztto:${ambiente.MERCADO_PAGO_AMBIENTE}:pix:${id}`
+    const emailPagador = await resolverEmailPagador(req.body.emailPagador)
+    const pagamento = await criarPagamentoPixMercadoPago({
+      referenciaExterna,
+      emailPagador,
+      descricao: `Viztto ${plano.nome} — mensalidade`,
+      valor: Number(plano.valorMensal),
+    })
+    const pix = dadosPixDoPagamento(pagamento)
+    if (!pix.qrCode && !pix.qrCodeBase64)
+      throw new ErroHttp(
+        502,
+        'O Mercado Pago nao retornou o QR Code Pix. Confirme se a chave Pix esta ativa na conta.',
+        'mercado_pago_pix_ausente',
+      )
+    await banco.insert(assinaturas).values({
+      id,
+      workspaceId: req.sessao!.workspaceId,
+      planoAssinaturaId: plano.id,
+      mercadoPagoAssinaturaId: String(pagamento.id),
+      referenciaExterna,
+      emailPagador,
+      status: pagamento.status === 'approved' ? 'autorizada' : 'pendente',
+      ambiente: ambiente.MERCADO_PAGO_AMBIENTE,
+      criadaPorUsuarioId: req.sessao!.usuarioId,
+      criadoEm: new Date(),
+      atualizadoEm: new Date(),
+    })
+    if (pagamento.status === 'approved')
+      await banco
+        .update(workspaces)
+        .set({ plano: plano.codigo, atualizadoEm: new Date() })
+        .where(eq(workspaces.id, req.sessao!.workspaceId))
+    res.status(201).json({
+      dado: {
+        id,
+        status: pagamento.status === 'approved' ? 'approved' : 'pending',
+        pagamentoId: String(pagamento.id),
+        qrCode: pix.qrCode,
+        qrCodeBase64: pix.qrCodeBase64,
+        ticketUrl: pix.ticketUrl,
+      },
+    })
+  },
+)
+
+assinaturasRotas.get('/:id/status', exigirFuncao('administrador'), async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id)
+  const [assinatura] = await banco
+    .select()
+    .from(assinaturas)
+    .where(
+      and(eq(assinaturas.id, id), eq(assinaturas.workspaceId, req.sessao!.workspaceId)),
+    )
+    .limit(1)
+  if (!assinatura) throw new ErroHttp(404, 'Assinatura nao encontrada.', 'assinatura_nao_encontrada')
+
+  if (assinatura.status === 'pendente' && assinatura.mercadoPagoAssinaturaId) {
+    try {
+      const pagamento = await obterPagamentoMercadoPago(assinatura.mercadoPagoAssinaturaId)
+      if (pagamento.status === 'approved') {
+        await banco
+          .update(assinaturas)
+          .set({ status: 'autorizada', atualizadoEm: new Date() })
+          .where(eq(assinaturas.id, assinatura.id))
+        const [plano] = await banco
+          .select()
+          .from(planosAssinatura)
+          .where(eq(planosAssinatura.id, assinatura.planoAssinaturaId))
+          .limit(1)
+        if (plano)
+          await banco
+            .update(workspaces)
+            .set({ plano: plano.codigo, atualizadoEm: new Date() })
+            .where(eq(workspaces.id, assinatura.workspaceId))
+        res.json({
+          dado: { id: assinatura.id, status: 'autorizada', codigoPlano: plano?.codigo ?? null },
+        })
+        return
+      }
+    } catch {
+      // Mantem pendente se a consulta ao MP falhar; o webhook ainda pode concluir.
+    }
+  }
+
+  const [plano] = await banco
+    .select({ codigo: planosAssinatura.codigo })
+    .from(planosAssinatura)
+    .where(eq(planosAssinatura.id, assinatura.planoAssinaturaId))
+    .limit(1)
+  res.json({
+    dado: {
+      id: assinatura.id,
+      status: assinatura.status,
+      codigoPlano: plano?.codigo ?? null,
+    },
+  })
+})
 
 assinaturasRotas.patch(
   '/admin/planos/:codigo',

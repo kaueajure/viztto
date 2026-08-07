@@ -1,4 +1,4 @@
-import { Check, CreditCard, ExternalLink, ShieldCheck, Wallet } from 'lucide-react'
+import { Check, Copy, CreditCard, QrCode, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { MercadoPagoCardForm } from '@/components/billing/MercadoPagoCardForm'
 import { Badge } from '@/components/ui/DataDisplay'
@@ -11,7 +11,13 @@ import {
 } from '@/services/api/assinaturasApi'
 
 type PlanCode = PlanoAssinatura['codigo']
-type MetodoPagamento = 'cartao' | 'mercado_pago'
+type MetodoPagamento = 'cartao' | 'pix'
+type PixPendente = {
+  id: string
+  qrCode: string | null
+  qrCodeBase64: string | null
+}
+
 const order: Record<PlanCode, number> = { freelancer: 0, studio: 1, agency: 2 }
 
 export function PlanUpgradePanel({
@@ -29,7 +35,9 @@ export function PlanUpgradePanel({
   const [selected, setSelected] = useState<PlanoAssinatura | null>(null)
   const [metodo, setMetodo] = useState<MetodoPagamento>('cartao')
   const [loading, setLoading] = useState(true)
-  const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [pixLoading, setPixLoading] = useState(false)
+  const [pix, setPix] = useState<PixPendente | null>(null)
+  const [copiado, setCopiado] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const onPurchasedRef = useRef(onPurchased)
@@ -58,23 +66,33 @@ export function PlanUpgradePanel({
   }, [])
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('assinatura') !== 'pendente') return
-    setSuccess(
-      'Pagamento iniciado no Mercado Pago. O plano será liberado assim que a confirmação chegar.',
-    )
-    params.delete('assinatura')
-    const query = params.toString()
-    const next = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
-    window.history.replaceState({}, '', next)
-  }, [])
+    if (!pix?.id || success) return
+    const timer = window.setInterval(() => {
+      void assinaturasApi
+        .statusAssinatura(pix.id)
+        .then((response) => {
+          if (response.dado.status !== 'autorizada') return
+          const codigo = response.dado.codigoPlano
+          setSuccess('Pix confirmado. Plano liberado com sucesso.')
+          if (codigo) {
+            onPurchasedRef.current(codigo)
+            setActiveSubscription(codigo)
+          }
+          setPix(null)
+        })
+        .catch(() => undefined)
+    }, 4000)
+    return () => window.clearInterval(timer)
+  }, [pix?.id, success])
 
   function fecharModal() {
     setSelected(null)
     setMetodo('cartao')
     setError('')
     setSuccess('')
-    setCheckoutLoading(false)
+    setPixLoading(false)
+    setPix(null)
+    setCopiado(false)
   }
 
   async function submitSubscription(tokenCartao: string, emailPagador: string) {
@@ -94,21 +112,42 @@ export function PlanUpgradePanel({
     setActiveSubscription(selected.codigo)
   }
 
-  async function abrirCheckoutMercadoPago() {
+  async function gerarPix() {
     if (!selected) return
     setError('')
-    setCheckoutLoading(true)
+    setPixLoading(true)
+    setCopiado(false)
     try {
-      const response = await assinaturasApi.criarCheckout({
+      const response = await assinaturasApi.criarPix({
         codigoPlano: selected.codigo,
         emailPagador: config?.emailPagadorTeste ?? payerEmail,
       })
-      window.location.assign(response.dado.checkoutUrl)
+      if (response.dado.status === 'approved') {
+        setSuccess('Pix confirmado. Plano liberado com sucesso.')
+        onPurchasedRef.current(selected.codigo)
+        setActiveSubscription(selected.codigo)
+        setPix(null)
+        return
+      }
+      setPix({
+        id: response.dado.id,
+        qrCode: response.dado.qrCode,
+        qrCodeBase64: response.dado.qrCodeBase64,
+      })
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Não foi possível abrir o checkout do Mercado Pago.',
-      )
-      setCheckoutLoading(false)
+      setError(cause instanceof Error ? cause.message : 'Não foi possível gerar o Pix.')
+    } finally {
+      setPixLoading(false)
+    }
+  }
+
+  async function copiarCodigoPix() {
+    if (!pix?.qrCode) return
+    try {
+      await navigator.clipboard.writeText(pix.qrCode)
+      setCopiado(true)
+    } catch {
+      setError('Não foi possível copiar o código Pix.')
     }
   }
 
@@ -122,7 +161,8 @@ export function PlanUpgradePanel({
           {config && <Badge tone="warning">Mercado Pago · {config.ambiente}</Badge>}
         </div>
         <p className="mt-2 text-sm text-muted">
-          Faça upgrade com cobrança mensal. Você confirma os dados antes de concluir.
+          Faça upgrade com cobrança mensal. Cartão renova automaticamente; Pix libera o plano após a
+          confirmação do pagamento.
         </p>
       </div>
       {error && !selected && (
@@ -170,6 +210,7 @@ export function PlanUpgradePanel({
                   setError('')
                   setSuccess('')
                   setMetodo('cartao')
+                  setPix(null)
                   setSelected(plan)
                 }}
               >
@@ -226,6 +267,7 @@ export function PlanUpgradePanel({
                 }`}
                 onClick={() => {
                   setMetodo('cartao')
+                  setPix(null)
                   setError('')
                 }}
               >
@@ -235,17 +277,17 @@ export function PlanUpgradePanel({
               <button
                 type="button"
                 className={`flex min-h-12 items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors ${
-                  metodo === 'mercado_pago'
+                  metodo === 'pix'
                     ? 'border-brand bg-brand-soft text-ink'
                     : 'border-line bg-surface text-secondary hover:border-line-strong'
                 }`}
                 onClick={() => {
-                  setMetodo('mercado_pago')
+                  setMetodo('pix')
                   setError('')
                 }}
               >
-                <Wallet className="h-4 w-4" aria-hidden="true" />
-                Pix no Mercado Pago
+                <QrCode className="h-4 w-4" aria-hidden="true" />
+                Pix no site
               </button>
             </div>
           )}
@@ -253,8 +295,8 @@ export function PlanUpgradePanel({
           <p className="flex items-start gap-2 text-xs leading-relaxed text-muted">
             <ShieldCheck className="h-4 w-4 shrink-0 text-approval" />
             {metodo === 'cartao'
-              ? 'Os dados do cartão são protegidos e tokenizados pelo Mercado Pago.'
-              : 'Você será redirecionado ao Mercado Pago para pagar com Pix ou outro meio disponível na conta.'}
+              ? 'Os dados do cartão são protegidos e tokenizados pelo Mercado Pago. A renovação é automática.'
+              : 'Pagamento via Pix gerado no Mercado Pago. O plano é liberado assim que o pagamento for confirmado.'}
           </p>
           {error && (
             <p
@@ -274,22 +316,59 @@ export function PlanUpgradePanel({
                 Concluir
               </Button>
             </div>
-          ) : metodo === 'mercado_pago' ? (
-            <div className="grid gap-3 rounded-lg border border-line bg-surface-secondary p-4 sm:p-5">
-              <p className="text-sm text-muted">
-                No checkout do Mercado Pago você pode concluir com Pix. O plano é liberado após a
-                confirmação do pagamento.
-              </p>
-              <Button
-                className="w-full"
-                loading={checkoutLoading}
-                icon={<ExternalLink className="h-4 w-4" />}
-                onClick={() => {
-                  void abrirCheckoutMercadoPago()
-                }}
-              >
-                Continuar no Mercado Pago
-              </Button>
+          ) : metodo === 'pix' ? (
+            <div className="grid gap-4 rounded-lg border border-line bg-surface-secondary p-4 sm:p-5">
+              {!pix ? (
+                <>
+                  <p className="text-sm text-muted">
+                    Geramos um QR Code Pix com o valor do plano. Após o pagamento, a liberação é
+                    automática.
+                  </p>
+                  <Button
+                    className="w-full"
+                    loading={pixLoading}
+                    icon={<QrCode className="h-4 w-4" />}
+                    onClick={() => {
+                      void gerarPix()
+                    }}
+                  >
+                    Gerar Pix
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted">
+                    Escaneie o QR Code ou copie o código. Esta tela atualiza sozinha quando o Pix for
+                    confirmado.
+                  </p>
+                  {pix.qrCodeBase64 && (
+                    <img
+                      src={`data:image/png;base64,${pix.qrCodeBase64}`}
+                      alt="QR Code Pix"
+                      className="mx-auto h-52 w-52 rounded-md bg-white p-2"
+                    />
+                  )}
+                  {pix.qrCode && (
+                    <div className="grid gap-2">
+                      <textarea
+                        readOnly
+                        value={pix.qrCode}
+                        className="min-h-24 w-full resize-none rounded-md border border-line bg-surface px-3 py-2 text-xs text-ink"
+                      />
+                      <Button
+                        variant="secondary"
+                        className="w-full"
+                        icon={<Copy className="h-4 w-4" />}
+                        onClick={() => {
+                          void copiarCodigoPix()
+                        }}
+                      >
+                        {copiado ? 'Código copiado' : 'Copiar código Pix'}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           ) : (
             config?.chavePublica &&
@@ -304,7 +383,7 @@ export function PlanUpgradePanel({
           )}
           <p className="text-center text-xs text-muted">
             {config?.ambiente === 'teste'
-              ? `Ambiente de teste · pagador ${config.emailPagadorTeste ?? 'não configurado'} · nenhuma cobrança real.`
+              ? `Ambiente de teste · pagador ${config.emailPagadorTeste ?? 'não configurado'} · Pix exige produção.`
               : 'A cobrança será processada com segurança pelo Mercado Pago.'}
           </p>
         </div>

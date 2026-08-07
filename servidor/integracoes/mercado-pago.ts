@@ -213,6 +213,58 @@ export function obterAssinaturaMercadoPago(id: string) {
   return requisitar<AssinaturaRemota>(`/preapproval/${encodeURIComponent(id)}`, { method: 'GET' })
 }
 
+export type PagamentoPixRemoto = {
+  id: number | string
+  status: string
+  status_detail?: string
+  external_reference?: string
+  point_of_interaction?: {
+    transaction_data?: {
+      qr_code?: string
+      qr_code_base64?: string
+      ticket_url?: string
+    }
+  }
+}
+
+export function criarPagamentoPixMercadoPago(entrada: {
+  referenciaExterna: string
+  emailPagador: string
+  descricao: string
+  valor: number
+}) {
+  return requisitar<PagamentoPixRemoto>('/v1/payments', {
+    method: 'POST',
+    headers: {
+      'X-Idempotency-Key': `${entrada.referenciaExterna}:pix`,
+    },
+    body: JSON.stringify({
+      transaction_amount: entrada.valor,
+      description: entrada.descricao,
+      payment_method_id: 'pix',
+      external_reference: entrada.referenciaExterna,
+      payer: {
+        email: entrada.emailPagador,
+      },
+    }),
+  })
+}
+
+export function obterPagamentoMercadoPago(id: string) {
+  return requisitar<PagamentoPixRemoto>(`/v1/payments/${encodeURIComponent(id)}`, {
+    method: 'GET',
+  })
+}
+
+export function dadosPixDoPagamento(pagamento: PagamentoPixRemoto) {
+  const dados = pagamento.point_of_interaction?.transaction_data
+  return {
+    qrCode: dados?.qr_code ?? null,
+    qrCodeBase64: dados?.qr_code_base64 ?? null,
+    ticketUrl: dados?.ticket_url ?? null,
+  }
+}
+
 export function validarAssinaturaWebhook(entrada: {
   assinatura?: string
   requestId?: string

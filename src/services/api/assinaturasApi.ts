@@ -56,6 +56,24 @@ export const assinaturasApi = {
         body: json(entrada),
       },
     ),
+  criarPix: (entrada: { codigoPlano: PlanoAssinatura['codigo']; emailPagador: string }) =>
+    requisicaoApi<{
+      dado: {
+        id: string
+        status: string
+        pagamentoId: string
+        qrCode: string | null
+        qrCodeBase64: string | null
+        ticketUrl: string | null
+      }
+    }>('/api/assinaturas/criar-pix', {
+      method: 'POST',
+      body: json(entrada),
+    }),
+  statusAssinatura: (id: string) =>
+    requisicaoApi<{
+      dado: { id: string; status: string; codigoPlano: PlanoAssinatura['codigo'] | null }
+    }>(`/api/assinaturas/${id}/status`),
   listarPlanosAdmin: () =>
     requisicaoApi<{ dados: PlanoAssinatura[]; integracao: IntegracaoMercadoPago }>(
       '/api/assinaturas/admin/planos',
