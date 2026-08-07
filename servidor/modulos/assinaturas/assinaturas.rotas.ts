@@ -12,6 +12,7 @@ import {
   criarAssinaturaMercadoPago,
   criarPlanoMercadoPago,
   diagnosticarConfiguracaoMercadoPago,
+  planoPertenceAoVendedorMercadoPago,
 } from '../../integracoes/mercado-pago.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 
@@ -97,8 +98,23 @@ assinaturasRotas.post(
       .where(eq(planosAssinatura.codigo, req.body.codigoPlano))
       .limit(1)
     if (!plano?.ativo) throw new ErroHttp(404, 'Plano indisponivel.', 'plano_indisponivel')
-    if (!plano.mercadoPagoPlanoId)
-      throw new ErroHttp(409, 'O plano ainda nao foi sincronizado.', 'plano_nao_sincronizado')
+    let planoRemotoId = plano.mercadoPagoPlanoId
+    if (!planoRemotoId || !(await planoPertenceAoVendedorMercadoPago(planoRemotoId))) {
+      const remotoCriado = await criarPlanoMercadoPago({
+        nome: plano.nome,
+        valor: Number(plano.valorMensal),
+        backUrl: `${ambiente.URL_APLICACAO}/app/configuracoes`,
+      })
+      planoRemotoId = remotoCriado.id
+      await banco
+        .update(planosAssinatura)
+        .set({
+          mercadoPagoPlanoId: remotoCriado.id,
+          mercadoPagoStatus: remotoCriado.status ?? 'active',
+          atualizadoEm: new Date(),
+        })
+        .where(eq(planosAssinatura.id, plano.id))
+    }
 
     const id = novoId()
     const referenciaExterna = `viztto:${ambiente.MERCADO_PAGO_AMBIENTE}:${id}`
@@ -113,7 +129,7 @@ assinaturasRotas.post(
         'mercado_pago_teste_nao_configurado',
       )
     const remoto = await criarAssinaturaMercadoPago({
-      planoId: plano.mercadoPagoPlanoId,
+      planoId: planoRemotoId,
       referenciaExterna,
       emailPagador,
       tokenCartao: req.body.tokenCartao,
@@ -183,21 +199,14 @@ assinaturasRotas.post('/admin/planos/:codigo/sincronizar', exigirAdmin, async (r
     valor: Number(plano.valorMensal),
     backUrl: `${ambiente.URL_APLICACAO}/app/configuracoes`,
   }
-  let remoto
-  if (plano.mercadoPagoPlanoId) {
-    try {
-      remoto = await atualizarPlanoMercadoPago(plano.mercadoPagoPlanoId, entrada)
-    } catch (erro) {
-      const planoPertenceAOutraConta =
-        erro instanceof ErroHttp &&
-        erro.codigo === 'mercado_pago_erro' &&
-        (erro.detalhes as { status?: number } | undefined)?.status === 404
-      if (!planoPertenceAOutraConta) throw erro
-      remoto = await criarPlanoMercadoPago(entrada)
-    }
-  } else {
-    remoto = await criarPlanoMercadoPago(entrada)
-  }
+  const planoRemotoId = plano.mercadoPagoPlanoId
+  const planoCompativel = planoRemotoId
+    ? await planoPertenceAoVendedorMercadoPago(planoRemotoId)
+    : false
+  const remoto =
+    planoCompativel && planoRemotoId
+      ? await atualizarPlanoMercadoPago(planoRemotoId, entrada)
+      : await criarPlanoMercadoPago(entrada)
   await banco
     .update(planosAssinatura)
     .set({

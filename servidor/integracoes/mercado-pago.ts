@@ -53,13 +53,21 @@ async function requisitar<T>(caminho: string, init: RequestInit): Promise<T> {
           ? `O Mercado Pago recusou a operacao: ${motivo}`
           : 'O Mercado Pago recusou a operacao. Revise os dados informados.',
       'mercado_pago_erro',
-      { status: resposta.status, codigo: causa?.code },
+      {
+        status: resposta.status,
+        codigo: causa?.code,
+        requestId:
+          resposta.headers.get('x-request-id') ??
+          resposta.headers.get('x-correlation-id') ??
+          undefined,
+      },
     )
   }
   return conteudo
 }
 
-type PlanoRemoto = { id: string; status?: string }
+type PlanoRemoto = { id: string; status?: string; collector_id?: number }
+type VendedorRemoto = { id: number }
 export type AssinaturaRemota = {
   id: string
   status: 'pending' | 'authorized' | 'paused' | 'cancelled'
@@ -94,6 +102,33 @@ export function atualizarPlanoMercadoPago(
       back_url: entrada.backUrl,
     }),
   })
+}
+
+export function obterPlanoMercadoPago(planoId: string) {
+  return requisitar<PlanoRemoto>(`/preapproval_plan/${encodeURIComponent(planoId)}`, {
+    method: 'GET',
+  })
+}
+
+export function obterVendedorMercadoPago() {
+  return requisitar<VendedorRemoto>('/users/me', { method: 'GET' })
+}
+
+export async function planoPertenceAoVendedorMercadoPago(planoId: string) {
+  const vendedor = await obterVendedorMercadoPago()
+  try {
+    const plano = await obterPlanoMercadoPago(planoId)
+    return String(plano.collector_id) === String(vendedor.id)
+  } catch (erro) {
+    const inacessivel =
+      erro instanceof ErroHttp &&
+      erro.codigo === 'mercado_pago_erro' &&
+      [401, 403, 404].includes(
+        (erro.detalhes as { status?: number } | undefined)?.status ?? 0,
+      )
+    if (inacessivel) return false
+    throw erro
+  }
 }
 
 export function criarAssinaturaMercadoPago(entrada: {

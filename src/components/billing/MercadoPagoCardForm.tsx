@@ -31,7 +31,7 @@ function SecureField({
         id={id}
         aria-labelledby={`${id}-label`}
         className={cn(
-          'h-12 overflow-hidden rounded-md border bg-surface px-3 transition-[border-color,box-shadow]',
+          'mercado-pago-secure-field h-12 overflow-hidden rounded-md border bg-surface px-3 transition-[border-color,box-shadow]',
           invalid ? 'border-revision' : 'border-line',
           focused && 'border-brand shadow-[0_0_0_3px_rgba(184,255,79,0.2)]',
         )}
@@ -78,13 +78,14 @@ export function MercadoPagoCardForm({
     mercadoPagoRef.current = mercadoPago
     const instances: MercadoPagoFieldInstance[] = []
     const styles = {
-      color: '#f5f7fa',
+      // O iframe seguro e branco do provedor recebe inversao visual via CSS.
+      // As cores abaixo sao definidas antes dessa inversao.
+      color: '#0a0805',
       fontFamily: 'Instrument Sans, Arial, sans-serif',
       fontSize: '15px',
       height: '46px',
-      lineHeight: '46px',
       padding: '0',
-      placeholderColor: '#7f8998',
+      placeholderColor: '#807668',
     }
 
     const createField = (name: SecureFieldName, placeholder: string) => {

@@ -123,6 +123,20 @@ button:disabled {
     var(--shadow-raised);
 }
 
+/*
+ * Os Secure Fields do Mercado Pago sao iframes PCI e o documento interno usa
+ * fundo branco fixo. A inversao afeta somente esses tres campos isolados; os
+ * dados continuam sendo renderizados e processados pelo provedor.
+ */
+.mercado-pago-secure-field iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+  filter: invert(1) hue-rotate(180deg);
+}
+
 @layer components {
   .eyebrow {
     @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-secondary;
