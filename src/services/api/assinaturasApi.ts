@@ -45,6 +45,17 @@ export const assinaturasApi = {
       method: 'POST',
       body: json(entrada),
     }),
+  criarCheckout: (entrada: {
+    codigoPlano: PlanoAssinatura['codigo']
+    emailPagador: string
+  }) =>
+    requisicaoApi<{ dado: { id: string; status: string; checkoutUrl: string } }>(
+      '/api/assinaturas/criar-checkout',
+      {
+        method: 'POST',
+        body: json(entrada),
+      },
+    ),
   listarPlanosAdmin: () =>
     requisicaoApi<{ dados: PlanoAssinatura[]; integracao: IntegracaoMercadoPago }>(
       '/api/assinaturas/admin/planos',

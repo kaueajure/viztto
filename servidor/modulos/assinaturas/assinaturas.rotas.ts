@@ -9,11 +9,13 @@ import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import {
   atualizarPlanoMercadoPago,
+  criarAssinaturaCheckoutMercadoPago,
   criarAssinaturaMercadoPago,
   criarPlanoMercadoPago,
   diagnosticarConfiguracaoMercadoPago,
   erroIndicaPlanoInexistente,
   planoPertenceAoVendedorMercadoPago,
+  urlCheckoutAssinatura,
 } from '../../integracoes/mercado-pago.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 
@@ -52,6 +54,24 @@ const criarAssinaturaEntrada = z.object({
   tokenCartao: z.string().trim().min(20).max(300),
   emailPagador: z.string().email(),
 })
+const criarCheckoutEntrada = z.object({
+  codigoPlano,
+  emailPagador: z.string().email(),
+})
+
+async function resolverEmailPagador(emailPagador: string) {
+  const email =
+    ambiente.MERCADO_PAGO_AMBIENTE === 'teste'
+      ? ambiente.MERCADO_PAGO_EMAIL_PAGADOR_TESTE
+      : emailPagador
+  if (!email)
+    throw new ErroHttp(
+      503,
+      diagnosticarConfiguracaoMercadoPago() ?? 'Pagador de teste nao configurado.',
+      'mercado_pago_teste_nao_configurado',
+    )
+  return email
+}
 
 export const assinaturasRotas = Router()
 
@@ -128,16 +148,7 @@ assinaturasRotas.post(
 
     const id = novoId()
     const referenciaExterna = `viztto:${ambiente.MERCADO_PAGO_AMBIENTE}:${id}`
-    const emailPagador =
-      ambiente.MERCADO_PAGO_AMBIENTE === 'teste'
-        ? ambiente.MERCADO_PAGO_EMAIL_PAGADOR_TESTE
-        : req.body.emailPagador
-    if (!emailPagador)
-      throw new ErroHttp(
-        503,
-        diagnosticarConfiguracaoMercadoPago() ?? 'Pagador de teste nao configurado.',
-        'mercado_pago_teste_nao_configurado',
-      )
+    const emailPagador = await resolverEmailPagador(req.body.emailPagador)
     const payloadAssinatura = {
       planoId: planoRemotoId,
       referenciaExterna,
@@ -178,6 +189,73 @@ assinaturasRotas.post(
         .set({ plano: plano.codigo, atualizadoEm: new Date() })
         .where(eq(workspaces.id, req.sessao!.workspaceId))
     res.status(201).json({ dado: { id, status: remoto.status } })
+  },
+)
+
+assinaturasRotas.post(
+  '/criar-checkout',
+  exigirFuncao('administrador'),
+  validarCorpo(criarCheckoutEntrada),
+  async (req, res) => {
+    const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
+    if (problemaIntegracao)
+      throw new ErroHttp(503, problemaIntegracao, 'mercado_pago_assinaturas_nao_configurado')
+    const [plano] = await banco
+      .select()
+      .from(planosAssinatura)
+      .where(eq(planosAssinatura.codigo, req.body.codigoPlano))
+      .limit(1)
+    if (!plano?.ativo) throw new ErroHttp(404, 'Plano indisponivel.', 'plano_indisponivel')
+    let planoRemotoId = await garantirPlanoRemoto(plano)
+
+    const id = novoId()
+    const referenciaExterna = `viztto:${ambiente.MERCADO_PAGO_AMBIENTE}:${id}`
+    const emailPagador = await resolverEmailPagador(req.body.emailPagador)
+    const payloadCheckout = {
+      planoId: planoRemotoId,
+      referenciaExterna,
+      emailPagador,
+      motivo: `Viztto ${plano.nome}`,
+      backUrl: `${ambiente.URL_APLICACAO}/app/configuracoes?assinatura=pendente`,
+    }
+    let remoto
+    try {
+      remoto = await criarAssinaturaCheckoutMercadoPago(payloadCheckout)
+    } catch (erro) {
+      if (!erroIndicaPlanoInexistente(erro)) throw erro
+      await banco
+        .update(planosAssinatura)
+        .set({ mercadoPagoPlanoId: null, mercadoPagoStatus: null, atualizadoEm: new Date() })
+        .where(eq(planosAssinatura.id, plano.id))
+      planoRemotoId = await garantirPlanoRemoto({ ...plano, mercadoPagoPlanoId: null })
+      remoto = await criarAssinaturaCheckoutMercadoPago({
+        ...payloadCheckout,
+        planoId: planoRemotoId,
+      })
+    }
+    const checkoutUrl = urlCheckoutAssinatura(remoto)
+    if (!checkoutUrl)
+      throw new ErroHttp(
+        502,
+        'O Mercado Pago nao retornou o link de checkout da assinatura.',
+        'mercado_pago_checkout_ausente',
+      )
+    await banco.insert(assinaturas).values({
+      id,
+      workspaceId: req.sessao!.workspaceId,
+      planoAssinaturaId: plano.id,
+      mercadoPagoAssinaturaId: remoto.id,
+      referenciaExterna,
+      emailPagador,
+      status: 'pendente',
+      ambiente: ambiente.MERCADO_PAGO_AMBIENTE,
+      criadaPorUsuarioId: req.sessao!.usuarioId,
+      criadoEm: new Date(),
+      atualizadoEm: new Date(),
+    })
+    res.status(201).json({
+      dado: { id, status: remoto.status, checkoutUrl },
+    })
   },
 )
 

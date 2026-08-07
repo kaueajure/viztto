@@ -1,4 +1,4 @@
-import { Check, CreditCard, ShieldCheck } from 'lucide-react'
+import { Check, CreditCard, ExternalLink, ShieldCheck, Wallet } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { MercadoPagoCardForm } from '@/components/billing/MercadoPagoCardForm'
 import { Badge } from '@/components/ui/DataDisplay'
@@ -11,6 +11,7 @@ import {
 } from '@/services/api/assinaturasApi'
 
 type PlanCode = PlanoAssinatura['codigo']
+type MetodoPagamento = 'cartao' | 'mercado_pago'
 const order: Record<PlanCode, number> = { freelancer: 0, studio: 1, agency: 2 }
 
 export function PlanUpgradePanel({
@@ -26,7 +27,9 @@ export function PlanUpgradePanel({
   const [config, setConfig] = useState<CheckoutConfig | null>(null)
   const [activeSubscription, setActiveSubscription] = useState<PlanCode | null>(null)
   const [selected, setSelected] = useState<PlanoAssinatura | null>(null)
+  const [metodo, setMetodo] = useState<MetodoPagamento>('cartao')
   const [loading, setLoading] = useState(true)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const onPurchasedRef = useRef(onPurchased)
@@ -54,6 +57,26 @@ export function PlanUpgradePanel({
     }
   }, [])
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('assinatura') !== 'pendente') return
+    setSuccess(
+      'Pagamento iniciado no Mercado Pago. O plano será liberado assim que a confirmação chegar.',
+    )
+    params.delete('assinatura')
+    const query = params.toString()
+    const next = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
+    window.history.replaceState({}, '', next)
+  }, [])
+
+  function fecharModal() {
+    setSelected(null)
+    setMetodo('cartao')
+    setError('')
+    setSuccess('')
+    setCheckoutLoading(false)
+  }
+
   async function submitSubscription(tokenCartao: string, emailPagador: string) {
     if (!selected) return
     setError('')
@@ -69,6 +92,24 @@ export function PlanUpgradePanel({
     )
     onPurchasedRef.current(selected.codigo)
     setActiveSubscription(selected.codigo)
+  }
+
+  async function abrirCheckoutMercadoPago() {
+    if (!selected) return
+    setError('')
+    setCheckoutLoading(true)
+    try {
+      const response = await assinaturasApi.criarCheckout({
+        codigoPlano: selected.codigo,
+        emailPagador: config?.emailPagadorTeste ?? payerEmail,
+      })
+      window.location.assign(response.dado.checkoutUrl)
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Não foi possível abrir o checkout do Mercado Pago.',
+      )
+      setCheckoutLoading(false)
+    }
   }
 
   return (
@@ -87,6 +128,14 @@ export function PlanUpgradePanel({
       {error && !selected && (
         <p role="alert" className="text-sm text-revision">
           {error}
+        </p>
+      )}
+      {success && !selected && (
+        <p
+          role="status"
+          className="rounded-md border border-approval/30 bg-approval-soft p-3 text-sm text-approval"
+        >
+          {success}
         </p>
       )}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -117,7 +166,12 @@ export function PlanUpgradePanel({
                 icon={
                   isCurrent ? <Check className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />
                 }
-                onClick={() => setSelected(plan)}
+                onClick={() => {
+                  setError('')
+                  setSuccess('')
+                  setMetodo('cartao')
+                  setSelected(plan)
+                }}
               >
                 {!canManage
                   ? 'Somente administrador'
@@ -142,7 +196,7 @@ export function PlanUpgradePanel({
 
       <Modal
         open={Boolean(selected)}
-        onClose={() => setSelected(null)}
+        onClose={fecharModal}
         title={selected ? `Assinar ${selected.nome}` : 'Assinar plano'}
         size="wide"
       >
@@ -160,9 +214,47 @@ export function PlanUpgradePanel({
                 })}
             </p>
           </div>
+
+          {!success && (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                className={`flex min-h-12 items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors ${
+                  metodo === 'cartao'
+                    ? 'border-brand bg-brand-soft text-ink'
+                    : 'border-line bg-surface text-secondary hover:border-line-strong'
+                }`}
+                onClick={() => {
+                  setMetodo('cartao')
+                  setError('')
+                }}
+              >
+                <CreditCard className="h-4 w-4" aria-hidden="true" />
+                Cartão no site
+              </button>
+              <button
+                type="button"
+                className={`flex min-h-12 items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors ${
+                  metodo === 'mercado_pago'
+                    ? 'border-brand bg-brand-soft text-ink'
+                    : 'border-line bg-surface text-secondary hover:border-line-strong'
+                }`}
+                onClick={() => {
+                  setMetodo('mercado_pago')
+                  setError('')
+                }}
+              >
+                <Wallet className="h-4 w-4" aria-hidden="true" />
+                Pix no Mercado Pago
+              </button>
+            </div>
+          )}
+
           <p className="flex items-start gap-2 text-xs leading-relaxed text-muted">
-            <ShieldCheck className="h-4 w-4 text-approval" />
-            Os dados do cartão são protegidos e tokenizados pelo Mercado Pago.
+            <ShieldCheck className="h-4 w-4 shrink-0 text-approval" />
+            {metodo === 'cartao'
+              ? 'Os dados do cartão são protegidos e tokenizados pelo Mercado Pago.'
+              : 'Você será redirecionado ao Mercado Pago para pagar com Pix ou outro meio disponível na conta.'}
           </p>
           {error && (
             <p
@@ -178,8 +270,25 @@ export function PlanUpgradePanel({
               className="rounded-md border border-approval/30 bg-approval-soft p-4 text-sm text-approval"
             >
               <p className="font-semibold">{success}</p>
-              <Button className="mt-4" onClick={() => setSelected(null)}>
+              <Button className="mt-4" onClick={fecharModal}>
                 Concluir
+              </Button>
+            </div>
+          ) : metodo === 'mercado_pago' ? (
+            <div className="grid gap-3 rounded-lg border border-line bg-surface-secondary p-4 sm:p-5">
+              <p className="text-sm text-muted">
+                No checkout do Mercado Pago você pode concluir com Pix. O plano é liberado após a
+                confirmação do pagamento.
+              </p>
+              <Button
+                className="w-full"
+                loading={checkoutLoading}
+                icon={<ExternalLink className="h-4 w-4" />}
+                onClick={() => {
+                  void abrirCheckoutMercadoPago()
+                }}
+              >
+                Continuar no Mercado Pago
               </Button>
             </div>
           ) : (

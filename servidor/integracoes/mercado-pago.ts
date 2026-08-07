@@ -92,6 +92,8 @@ export type AssinaturaRemota = {
   id: string
   status: 'pending' | 'authorized' | 'paused' | 'cancelled'
   external_reference?: string
+  init_point?: string
+  sandbox_init_point?: string
 }
 
 export function criarPlanoMercadoPago(entrada: { nome: string; valor: number; backUrl: string }) {
@@ -169,6 +171,36 @@ export function criarAssinaturaMercadoPago(entrada: {
       status: 'authorized',
     }),
   })
+}
+
+/** Assinatura pendente: o cliente conclui Pix/cartao no checkout do Mercado Pago. */
+export function criarAssinaturaCheckoutMercadoPago(entrada: {
+  planoId: string
+  referenciaExterna: string
+  emailPagador: string
+  motivo: string
+  backUrl: string
+}) {
+  return requisitar<AssinaturaRemota>('/preapproval', {
+    method: 'POST',
+    headers: {
+      'X-Idempotency-Key': `${entrada.referenciaExterna}:checkout`,
+    },
+    body: JSON.stringify({
+      preapproval_plan_id: entrada.planoId,
+      reason: entrada.motivo,
+      external_reference: entrada.referenciaExterna,
+      payer_email: entrada.emailPagador,
+      back_url: entrada.backUrl,
+      status: 'pending',
+    }),
+  })
+}
+
+export function urlCheckoutAssinatura(remoto: AssinaturaRemota) {
+  if (ambiente.MERCADO_PAGO_AMBIENTE === 'teste')
+    return remoto.sandbox_init_point || remoto.init_point || null
+  return remoto.init_point || remoto.sandbox_init_point || null
 }
 
 export function obterAssinaturaMercadoPago(id: string) {
