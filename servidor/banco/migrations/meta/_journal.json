@@ -64,6 +64,13 @@
       "when": 1786121000000,
       "tag": "0008_plano_gratuito",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1786122000000,
+      "tag": "0009_recursos_plano",
+      "breakpoints": true
     }
   ]
 }

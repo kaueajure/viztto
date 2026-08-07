@@ -121,7 +121,7 @@ export default function SettingsPage() {
         disabled={recursosPlano ? !recursosPlano.permiteIdentidadePersonalizada : false}
         hint={
           recursosPlano && !recursosPlano.permiteIdentidadePersonalizada
-            ? 'Identidade personalizada disponível a partir do plano Studio.'
+            ? 'Seu plano não libera personalizar a marca (cor/logo). Faça upgrade para liberar.'
             : undefined
         }
       />

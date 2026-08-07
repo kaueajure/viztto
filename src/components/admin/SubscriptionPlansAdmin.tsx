@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/DataDisplay'
 import { Button } from '@/components/ui/Button'
-import { Checkbox, Input, Textarea } from '@/components/ui/FormControls'
+import { Input, Textarea } from '@/components/ui/FormControls'
 import {
   assinaturasApi,
   type IntegracaoMercadoPago,
   type PlanoAssinatura,
+  type RecursosPlano,
 } from '@/services/api/assinaturasApi'
 
 function limiarParaInput(valor: number | null) {
@@ -22,6 +23,76 @@ function limiarDeInput(valor: string): number | null {
 function limparBeneficios(linhas: string[]) {
   return linhas.map((linha) => linha.trim()).filter(Boolean)
 }
+
+const RECURSOS_ADMIN: Array<{
+  campo: keyof RecursosPlano
+  titulo: string
+  explicacao: string
+}> = [
+  {
+    campo: 'permiteComentariosImagem',
+    titulo: 'Comentar em imagens',
+    explicacao: 'Permite enviar imagens e marcar comentários em pontos da imagem.',
+  },
+  {
+    campo: 'permiteComentariosPdf',
+    titulo: 'Comentar em PDF',
+    explicacao: 'Permite enviar PDFs e comentar nesses arquivos.',
+  },
+  {
+    campo: 'permiteComentariosVideo',
+    titulo: 'Comentar em vídeo',
+    explicacao: 'Permite enviar vídeos e comentar nesses materiais.',
+  },
+  {
+    campo: 'permiteLinksPortalCliente',
+    titulo: 'Link de revisão para o cliente',
+    explicacao:
+      'Gera link e senha para o cliente revisar o projeto sem criar conta no Viztto.',
+  },
+  {
+    campo: 'permiteIdentidadePersonalizada',
+    titulo: 'Marca da empresa (cor/logo)',
+    explicacao: 'Libera trocar a cor (e logo, quando disponível) no app e no portal do cliente.',
+  },
+  {
+    campo: 'permitePortalWhiteLabel',
+    titulo: 'Portal só com a marca da empresa',
+    explicacao:
+      'Remove a marca Viztto do portal de revisão. O cliente vê apenas a identidade da empresa.',
+  },
+  {
+    campo: 'permiteFuncoesAvancadas',
+    titulo: 'Funções avançadas na equipe',
+    explicacao:
+      'Permite convidar com papéis gestor, criativo e atendimento (além de administrador e visualizador).',
+  },
+  {
+    campo: 'permiteVariosAprovadores',
+    titulo: 'Vários aprovadores no projeto',
+    explicacao: 'Permite configurar mais de um aprovador por projeto (quando a tela existir).',
+  },
+  {
+    campo: 'permiteHistoricoAvancado',
+    titulo: 'Histórico avançado',
+    explicacao: 'Libera histórico mais completo de atividades e versões (quando a tela existir).',
+  },
+  {
+    campo: 'permitePrioridadeSuporte',
+    titulo: 'Prioridade no suporte',
+    explicacao: 'Marca o workspace como elegível a atendimento prioritário.',
+  },
+  {
+    campo: 'permiteCalendarioEditorial',
+    titulo: 'Calendário editorial',
+    explicacao: 'Reserva o recurso de calendário (ainda sem tela no produto).',
+  },
+  {
+    campo: 'permiteRelatorios',
+    titulo: 'Relatórios',
+    explicacao: 'Reserva o recurso de relatórios (ainda sem tela no produto).',
+  },
+]
 
 export function SubscriptionPlansAdmin() {
   const [plans, setPlans] = useState<PlanoAssinatura[]>([])
@@ -75,8 +146,8 @@ export function SubscriptionPlansAdmin() {
           Planos de assinatura
         </h3>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Edite nome, preço, benefícios, limites e recursos. Campos de limite vazios significam
-          ilimitado. Ao salvar, o preço é sincronizado com o Mercado Pago quando necessário.
+          Edite nome, preço, benefícios, limites e recursos. Limite vazio = ilimitado. Ao salvar um
+          plano pago, também sincroniza com o Mercado Pago.
         </p>
       </div>
       {integration && !integration.configurada && (
@@ -144,7 +215,7 @@ export function SubscriptionPlansAdmin() {
 
               <Textarea
                 className="mt-4"
-                label="Benefícios (um por linha)"
+                label="Benefícios exibidos (um por linha)"
                 value={textoBeneficios}
                 onChange={(event) => {
                   const texto = event.target.value
@@ -153,11 +224,12 @@ export function SubscriptionPlansAdmin() {
                 }}
               />
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <p className="mt-5 text-sm font-semibold text-ink">Limites numéricos</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {(
                   [
                     ['maxProjetosAtivos', 'Máx. projetos ativos'],
-                    ['maxMembros', 'Máx. membros'],
+                    ['maxMembros', 'Máx. pessoas na equipe'],
                     ['maxClientes', 'Máx. clientes'],
                     ['maxArmazenamentoGb', 'Máx. armazenamento (GB)'],
                     ['maxWorkspaces', 'Máx. workspaces'],
@@ -177,27 +249,31 @@ export function SubscriptionPlansAdmin() {
                 ))}
               </div>
 
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                <Checkbox
-                  label="Identidade personalizada (logo/cor)"
-                  checked={plan.permiteIdentidadePersonalizada}
-                  onChange={(value) => change(plan.id, { permiteIdentidadePersonalizada: value })}
-                />
-                <Checkbox
-                  label="Portal white-label"
-                  checked={plan.permitePortalWhiteLabel}
-                  onChange={(value) => change(plan.id, { permitePortalWhiteLabel: value })}
-                />
-                <Checkbox
-                  label="Calendário editorial"
-                  checked={plan.permiteCalendarioEditorial}
-                  onChange={(value) => change(plan.id, { permiteCalendarioEditorial: value })}
-                />
-                <Checkbox
-                  label="Relatórios"
-                  checked={plan.permiteRelatorios}
-                  onChange={(value) => change(plan.id, { permiteRelatorios: value })}
-                />
+              <p className="mt-5 text-sm font-semibold text-ink">Recursos do plano</p>
+              <p className="mt-1 text-xs text-muted">
+                Marque o que este plano libera de verdade. Os itens com “ainda sem tela” ficam
+                reservados para quando o módulo existir.
+              </p>
+              <div className="mt-3 grid gap-3">
+                {RECURSOS_ADMIN.map((recurso) => (
+                  <label
+                    key={recurso.campo}
+                    className="flex gap-3 rounded-md border border-line bg-surface p-3"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 accent-brand"
+                      checked={Boolean(plan[recurso.campo])}
+                      onChange={(event) =>
+                        change(plan.id, { [recurso.campo]: event.target.checked })
+                      }
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-ink">{recurso.titulo}</span>
+                      <span className="mt-0.5 block text-xs text-muted">{recurso.explicacao}</span>
+                    </span>
+                  </label>
+                ))}
               </div>
 
               <p className="mt-3 truncate text-xs text-muted">
@@ -205,9 +281,9 @@ export function SubscriptionPlansAdmin() {
                   ? `Mercado Pago: ${plan.mercadoPagoPlanoId}`
                   : 'Ainda não sincronizado'}
               </p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <div className="mt-4">
                 <Button
-                  variant="secondary"
+                  className="w-full sm:w-auto"
                   loading={busy === `save-${plan.codigo}`}
                   onClick={() =>
                     void run(`save-${plan.codigo}`, () =>
@@ -230,22 +306,19 @@ export function SubscriptionPlansAdmin() {
                         permitePortalWhiteLabel: plan.permitePortalWhiteLabel,
                         permiteCalendarioEditorial: plan.permiteCalendarioEditorial,
                         permiteRelatorios: plan.permiteRelatorios,
+                        permiteComentariosImagem: plan.permiteComentariosImagem,
+                        permiteComentariosVideo: plan.permiteComentariosVideo,
+                        permiteComentariosPdf: plan.permiteComentariosPdf,
+                        permiteLinksPortalCliente: plan.permiteLinksPortalCliente,
+                        permiteVariosAprovadores: plan.permiteVariosAprovadores,
+                        permiteHistoricoAvancado: plan.permiteHistoricoAvancado,
+                        permitePrioridadeSuporte: plan.permitePrioridadeSuporte,
+                        permiteFuncoesAvancadas: plan.permiteFuncoesAvancadas,
                       }),
                     )
                   }
                 >
-                  Salvar plano
-                </Button>
-                <Button
-                  disabled={!integration?.configurada || Number(plan.valorMensal) <= 0}
-                  loading={busy === `sync-${plan.codigo}`}
-                  onClick={() =>
-                    void run(`sync-${plan.codigo}`, () =>
-                      assinaturasApi.sincronizarPlano(plan.codigo),
-                    )
-                  }
-                >
-                  Sincronizar Mercado Pago
+                  {Number(plan.valorMensal) > 0 ? 'Salvar e sincronizar' : 'Salvar plano'}
                 </Button>
               </div>
             </article>

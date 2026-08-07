@@ -1,5 +1,20 @@
 import { requisicaoApi, json } from './clienteHttp'
 
+export type RecursosPlano = {
+  permiteIdentidadePersonalizada: boolean
+  permitePortalWhiteLabel: boolean
+  permiteCalendarioEditorial: boolean
+  permiteRelatorios: boolean
+  permiteComentariosImagem: boolean
+  permiteComentariosVideo: boolean
+  permiteComentariosPdf: boolean
+  permiteLinksPortalCliente: boolean
+  permiteVariosAprovadores: boolean
+  permiteHistoricoAvancado: boolean
+  permitePrioridadeSuporte: boolean
+  permiteFuncoesAvancadas: boolean
+}
+
 export type PlanoAssinatura = {
   id: string
   codigo: 'gratuito' | 'freelancer' | 'studio' | 'agency'
@@ -13,15 +28,11 @@ export type PlanoAssinatura = {
   maxClientes: number | null
   maxArmazenamentoGb: number | null
   maxWorkspaces: number | null
-  permiteIdentidadePersonalizada: boolean
-  permitePortalWhiteLabel: boolean
-  permiteCalendarioEditorial: boolean
-  permiteRelatorios: boolean
   mercadoPagoPlanoId: string | null
   mercadoPagoStatus: string | null
   ativo: boolean
   atualizadoEm: string
-}
+} & RecursosPlano
 
 export type IntegracaoMercadoPago = {
   ambiente: 'teste' | 'producao'
@@ -57,12 +68,7 @@ export type UsoLimitesPlano = {
     armazenamentoBytes: number
     armazenamentoGb: number
   }
-  recursos: {
-    permiteIdentidadePersonalizada: boolean
-    permitePortalWhiteLabel: boolean
-    permiteCalendarioEditorial: boolean
-    permiteRelatorios: boolean
-  }
+  recursos: RecursosPlano
 }
 
 export type AtualizarPlanoEntrada = {
@@ -76,10 +82,21 @@ export type AtualizarPlanoEntrada = {
   maxClientes: number | null
   maxArmazenamentoGb: number | null
   maxWorkspaces: number | null
-  permiteIdentidadePersonalizada: boolean
-  permitePortalWhiteLabel: boolean
-  permiteCalendarioEditorial: boolean
-  permiteRelatorios: boolean
+} & RecursosPlano
+
+const recursosPadrao: RecursosPlano = {
+  permiteIdentidadePersonalizada: false,
+  permitePortalWhiteLabel: false,
+  permiteCalendarioEditorial: false,
+  permiteRelatorios: false,
+  permiteComentariosImagem: true,
+  permiteComentariosVideo: false,
+  permiteComentariosPdf: false,
+  permiteLinksPortalCliente: true,
+  permiteVariosAprovadores: false,
+  permiteHistoricoAvancado: false,
+  permitePrioridadeSuporte: false,
+  permiteFuncoesAvancadas: false,
 }
 
 function normalizarPlano(plano: PlanoAssinatura): PlanoAssinatura {
@@ -95,6 +112,16 @@ function normalizarPlano(plano: PlanoAssinatura): PlanoAssinatura {
     permitePortalWhiteLabel: Boolean(plano.permitePortalWhiteLabel),
     permiteCalendarioEditorial: Boolean(plano.permiteCalendarioEditorial),
     permiteRelatorios: Boolean(plano.permiteRelatorios),
+    permiteComentariosImagem:
+      plano.permiteComentariosImagem ?? recursosPadrao.permiteComentariosImagem,
+    permiteComentariosVideo: Boolean(plano.permiteComentariosVideo),
+    permiteComentariosPdf: Boolean(plano.permiteComentariosPdf),
+    permiteLinksPortalCliente:
+      plano.permiteLinksPortalCliente ?? recursosPadrao.permiteLinksPortalCliente,
+    permiteVariosAprovadores: Boolean(plano.permiteVariosAprovadores),
+    permiteHistoricoAvancado: Boolean(plano.permiteHistoricoAvancado),
+    permitePrioridadeSuporte: Boolean(plano.permitePrioridadeSuporte),
+    permiteFuncoesAvancadas: Boolean(plano.permiteFuncoesAvancadas),
   }
 }
 

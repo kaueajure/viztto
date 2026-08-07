@@ -13,7 +13,11 @@ import {
   notificarClienteProjetoCriado,
   reenviarSenhaPortalProjeto,
 } from '../../servicos/notificar-cliente-projeto.servico.js'
-import { garantirPodeCriarProjeto } from '../../servicos/limites-plano.servico.js'
+import {
+  garantirPodeCriarProjeto,
+  garantirLinksPortalCliente,
+  carregarPlanoDoWorkspace,
+} from '../../servicos/limites-plano.servico.js'
 import {
   gerarHashSenhaAcesso,
   gerarSenhaAcessoProjeto,
@@ -84,10 +88,12 @@ projetosRotas.post(
     if (!cliente)
       throw new ErroHttp(422, 'Cliente invalido para este workspace.', 'cliente_invalido')
     await garantirPodeCriarProjeto(req.sessao!.workspaceId)
+    const { plano } = await carregarPlanoDoWorkspace(req.sessao!.workspaceId)
     const agora = new Date()
     const id = novoId()
-    const senhaAcesso = gerarSenhaAcessoProjeto()
-    const senhaAcessoHash = await gerarHashSenhaAcesso(senhaAcesso)
+    const portalLiberado = plano.permiteLinksPortalCliente
+    const senhaAcesso = portalLiberado ? gerarSenhaAcessoProjeto() : null
+    const senhaAcessoHash = senhaAcesso ? await gerarHashSenhaAcesso(senhaAcesso) : null
     await banco.transaction(async (tx) => {
       await tx.insert(projetos).values({
         id,
@@ -108,12 +114,13 @@ projetosRotas.post(
         criadoEm: agora,
       })
     })
-    await notificarClienteProjetoCriado({
-      projetoId: id,
-      workspaceId: req.sessao!.workspaceId,
-      criadorNome: req.sessao!.usuarioNome,
-      senhaAcesso,
-    })
+    if (senhaAcesso)
+      await notificarClienteProjetoCriado({
+        projetoId: id,
+        workspaceId: req.sessao!.workspaceId,
+        criadorNome: req.sessao!.usuarioNome,
+        senhaAcesso,
+      })
     res.status(201).json({ dado: { id } })
   },
 )
@@ -134,6 +141,7 @@ projetosRotas.get('/:projetoId', async (req, res) => {
   res.json({ dado: semHashSenha(dado) })
 })
 projetosRotas.post('/:projetoId/senha-portal', exigirFuncao('atendimento'), async (req, res) => {
+  await garantirLinksPortalCliente(req.sessao!.workspaceId)
   const projetoId = String(req.params.projetoId)
   const [projeto] = await banco
     .select({ id: projetos.id })

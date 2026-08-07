@@ -22,6 +22,8 @@ import { validarCorpo } from '../../middlewares/validacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 import {
   carregarMarcaPortal,
+  garantirComentarioNoMaterial,
+  garantirLinksPortalCliente,
 } from '../../servicos/limites-plano.servico.js'
 import {
   COOKIE_PORTAL,
@@ -118,6 +120,7 @@ async function notificarEquipe(entrada: {
 
 portalRotas.get('/projetos/:projetoId', async (req, res) => {
   const projeto = await projetoPortal(String(req.params.projetoId))
+  await garantirLinksPortalCliente(projeto.workspaceId)
   const liberado = validarAcessoPortal(req.cookies?.[COOKIE_PORTAL], projeto.id)
   const marca = await carregarMarcaPortal(projeto.workspaceId)
   res.json({
@@ -139,6 +142,7 @@ portalRotas.get('/projetos/:projetoId', async (req, res) => {
 
 portalRotas.post('/projetos/:projetoId/entrar', validarCorpo(entrada), async (req, res) => {
   const projeto = await projetoPortal(String(req.params.projetoId))
+  await garantirLinksPortalCliente(projeto.workspaceId)
   if (!projeto.senhaAcessoHash)
     throw new ErroHttp(
       422,
@@ -303,6 +307,7 @@ portalRotas.post(
     exigirCookiePortal(req, projetoId)
     const projeto = await projetoPortal(projetoId)
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
+    await garantirComentarioNoMaterial(material.workspaceId, material.tipo)
     if (!material.versaoAtualId)
       throw new ErroHttp(422, 'Publique uma versao antes de comentar.', 'versao_ausente')
     if (material.status === 'aprovado')

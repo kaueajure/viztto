@@ -65,6 +65,14 @@ const atualizarEntrada = z.object({
   permitePortalWhiteLabel: z.boolean(),
   permiteCalendarioEditorial: z.boolean(),
   permiteRelatorios: z.boolean(),
+  permiteComentariosImagem: z.boolean(),
+  permiteComentariosVideo: z.boolean(),
+  permiteComentariosPdf: z.boolean(),
+  permiteLinksPortalCliente: z.boolean(),
+  permiteVariosAprovadores: z.boolean(),
+  permiteHistoricoAvancado: z.boolean(),
+  permitePrioridadeSuporte: z.boolean(),
+  permiteFuncoesAvancadas: z.boolean(),
 })
 const codigoPlanoPago = z.enum(['freelancer', 'studio', 'agency'])
 const criarAssinaturaEntrada = z.object({
@@ -443,7 +451,6 @@ assinaturasRotas.patch(
       .where(eq(planosAssinatura.codigo, codigo))
       .limit(1)
     if (!plano) throw new ErroHttp(404, 'Plano nao encontrado.', 'plano_nao_encontrado')
-    const precoAnterior = Number(plano.valorMensal)
     await banco
       .update(planosAssinatura)
       .set({
@@ -461,18 +468,25 @@ assinaturasRotas.patch(
         permitePortalWhiteLabel: req.body.permitePortalWhiteLabel,
         permiteCalendarioEditorial: req.body.permiteCalendarioEditorial,
         permiteRelatorios: req.body.permiteRelatorios,
+        permiteComentariosImagem: req.body.permiteComentariosImagem,
+        permiteComentariosVideo: req.body.permiteComentariosVideo,
+        permiteComentariosPdf: req.body.permiteComentariosPdf,
+        permiteLinksPortalCliente: req.body.permiteLinksPortalCliente,
+        permiteVariosAprovadores: req.body.permiteVariosAprovadores,
+        permiteHistoricoAvancado: req.body.permiteHistoricoAvancado,
+        permitePrioridadeSuporte: req.body.permitePrioridadeSuporte,
+        permiteFuncoesAvancadas: req.body.permiteFuncoesAvancadas,
         atualizadoPorUsuarioId: req.sessao!.usuarioId,
         atualizadoEm: new Date(),
       })
       .where(eq(planosAssinatura.id, plano.id))
 
-    const precoMudou = precoAnterior !== req.body.valorMensal
     const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
-    if (!precoMudou || problemaIntegracao || req.body.valorMensal <= 0) {
+    if (problemaIntegracao || req.body.valorMensal <= 0) {
       res.json({
         mensagem:
-          problemaIntegracao && precoMudou && req.body.valorMensal > 0
-            ? 'Plano atualizado. Configure o Mercado Pago para sincronizar o preço na cobrança.'
+          problemaIntegracao && req.body.valorMensal > 0
+            ? 'Plano atualizado. Configure o Mercado Pago para sincronizar a cobrança.'
             : 'Plano atualizado.',
       })
       return
@@ -486,7 +500,7 @@ assinaturasRotas.patch(
     if (!planoAtualizado)
       throw new ErroHttp(404, 'Plano nao encontrado.', 'plano_nao_encontrado')
     await sincronizarPlanoComMercadoPago(planoAtualizado, req.sessao!.usuarioId)
-    res.json({ mensagem: 'Plano atualizado e preço sincronizado com o Mercado Pago.' })
+    res.json({ mensagem: 'Plano atualizado e sincronizado com o Mercado Pago.' })
   },
 )
 

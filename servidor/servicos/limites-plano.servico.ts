@@ -213,9 +213,90 @@ export async function garantirIdentidadePersonalizada(
   if (corMudou || logoMudou)
     throw new ErroHttp(
       403,
-      'Identidade personalizada nao esta disponivel no seu plano.',
+      'Personalizar a marca da empresa nao esta disponivel no seu plano.',
       'recurso_identidade',
     )
+}
+
+export async function garantirLinksPortalCliente(workspaceId: string) {
+  const { plano } = await carregarPlanoDoWorkspace(workspaceId)
+  if (!plano.permiteLinksPortalCliente)
+    throw new ErroHttp(
+      403,
+      'Links de portal para o cliente nao estao disponiveis no seu plano.',
+      'recurso_portal',
+    )
+}
+
+export async function garantirTipoMaterial(workspaceId: string, tipo: string) {
+  const { plano } = await carregarPlanoDoWorkspace(workspaceId)
+  if (tipo === 'imagem' && !plano.permiteComentariosImagem)
+    throw new ErroHttp(
+      403,
+      'Materiais de imagem nao estao disponiveis no seu plano.',
+      'recurso_imagem',
+    )
+  if (tipo === 'video' && !plano.permiteComentariosVideo)
+    throw new ErroHttp(
+      403,
+      'Materiais de video nao estao disponiveis no seu plano.',
+      'recurso_video',
+    )
+  if (tipo === 'pdf' && !plano.permiteComentariosPdf)
+    throw new ErroHttp(403, 'Materiais PDF nao estao disponiveis no seu plano.', 'recurso_pdf')
+}
+
+export async function garantirComentarioNoMaterial(workspaceId: string, tipoMaterial: string) {
+  const { plano } = await carregarPlanoDoWorkspace(workspaceId)
+  if (tipoMaterial === 'imagem' && !plano.permiteComentariosImagem)
+    throw new ErroHttp(
+      403,
+      'Comentarios em imagens nao estao disponiveis no seu plano.',
+      'recurso_comentario_imagem',
+    )
+  if (tipoMaterial === 'video' && !plano.permiteComentariosVideo)
+    throw new ErroHttp(
+      403,
+      'Comentarios em video nao estao disponiveis no seu plano.',
+      'recurso_comentario_video',
+    )
+  if (tipoMaterial === 'pdf' && !plano.permiteComentariosPdf)
+    throw new ErroHttp(
+      403,
+      'Comentarios em PDF nao estao disponiveis no seu plano.',
+      'recurso_comentario_pdf',
+    )
+}
+
+export async function garantirFuncaoEquipe(
+  workspaceId: string,
+  funcao: 'administrador' | 'gestor' | 'criativo' | 'atendimento' | 'visualizador',
+) {
+  if (funcao === 'administrador' || funcao === 'visualizador') return
+  const { plano } = await carregarPlanoDoWorkspace(workspaceId)
+  if (!plano.permiteFuncoesAvancadas)
+    throw new ErroHttp(
+      403,
+      'Funcoes avancadas de equipe (gestor, criativo, atendimento) nao estao disponiveis no seu plano.',
+      'recurso_funcoes',
+    )
+}
+
+function recursosDoPlano(plano: PlanoAssinaturaLinha) {
+  return {
+    permiteIdentidadePersonalizada: plano.permiteIdentidadePersonalizada,
+    permitePortalWhiteLabel: plano.permitePortalWhiteLabel,
+    permiteCalendarioEditorial: plano.permiteCalendarioEditorial,
+    permiteRelatorios: plano.permiteRelatorios,
+    permiteComentariosImagem: plano.permiteComentariosImagem,
+    permiteComentariosVideo: plano.permiteComentariosVideo,
+    permiteComentariosPdf: plano.permiteComentariosPdf,
+    permiteLinksPortalCliente: plano.permiteLinksPortalCliente,
+    permiteVariosAprovadores: plano.permiteVariosAprovadores,
+    permiteHistoricoAvancado: plano.permiteHistoricoAvancado,
+    permitePrioridadeSuporte: plano.permitePrioridadeSuporte,
+    permiteFuncoesAvancadas: plano.permiteFuncoesAvancadas,
+  }
 }
 
 export async function obterUsoELimitesDoWorkspace(workspaceId: string) {
@@ -255,12 +336,7 @@ export async function obterUsoELimitesDoWorkspace(workspaceId: string) {
       armazenamentoBytes,
       armazenamentoGb: Number((armazenamentoBytes / (1024 * 1024 * 1024)).toFixed(2)),
     },
-    recursos: {
-      permiteIdentidadePersonalizada: plano.permiteIdentidadePersonalizada,
-      permitePortalWhiteLabel: plano.permitePortalWhiteLabel,
-      permiteCalendarioEditorial: plano.permiteCalendarioEditorial,
-      permiteRelatorios: plano.permiteRelatorios,
-    },
+    recursos: recursosDoPlano(plano),
     workspace: workspace ?? null,
   }
 }
@@ -283,5 +359,7 @@ export async function carregarMarcaPortal(workspaceId: string) {
       : COR_PADRAO,
     logoUrl: plano.permiteIdentidadePersonalizada ? (workspace?.logoUrl ?? null) : null,
     whiteLabel: plano.permitePortalWhiteLabel,
+    portalLiberado: plano.permiteLinksPortalCliente,
   }
 }
+

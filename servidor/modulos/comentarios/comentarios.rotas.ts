@@ -15,6 +15,7 @@ import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 import { notificarClienteProjetoAlterado } from '../../servicos/notificar-cliente-projeto.servico.js'
+import { garantirComentarioNoMaterial } from '../../servicos/limites-plano.servico.js'
 
 const novoComentario = z.object({
   versaoMaterialId: z.string().uuid(),
@@ -108,6 +109,7 @@ comentariosRotas.post(
       )
       .limit(1)
     if (!material) throw new ErroHttp(404, 'Material nao encontrado.', 'material_nao_encontrado')
+    await garantirComentarioNoMaterial(req.sessao!.workspaceId, material.tipo)
     const [versao] = await banco
       .select({ id: versoesMaterial.id })
       .from(versoesMaterial)
