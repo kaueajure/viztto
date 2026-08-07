@@ -42,25 +42,36 @@ async function requisitar<T>(caminho: string, init: RequestInit): Promise<T> {
     cause?: Array<{ code?: string | number; description?: string }>
   }
   if (!resposta.ok) {
-    const causa = conteudo.cause?.find((item) => item.description)
+    const causas = Array.isArray(conteudo.cause) ? conteudo.cause : []
+    const causa = causas.find((item) => item.description)
     const motivo = causa?.description ?? conteudo.message ?? conteudo.error
+    const requestId =
+      resposta.headers.get('x-request-id') ??
+      resposta.headers.get('x-correlation-id') ??
+      undefined
     const tokenIncompativel = resposta.status === 404 && motivo === 'Card token service not found'
+    const detalheCausas =
+      causas.length > 0
+        ? causas
+            .map((item) => item.description ?? (item.code != null ? String(item.code) : ''))
+            .filter(Boolean)
+            .join('; ')
+        : undefined
+    const mensagemBase = tokenIncompativel
+      ? 'As credenciais TEST-* nao suportam assinaturas com cartao. Use Public Key e Access Token APP_USR-* da conta vendedora de teste.'
+      : detalheCausas || motivo
+        ? `O Mercado Pago recusou a operacao: ${detalheCausas || motivo}`
+        : 'O Mercado Pago recusou a operacao. Revise os dados informados.'
     throw new ErroHttp(
       502,
-      tokenIncompativel
-        ? 'As credenciais TEST-* nao suportam assinaturas com cartao. Use Public Key e Access Token APP_USR-* da conta vendedora de teste.'
-        : motivo
-          ? `O Mercado Pago recusou a operacao: ${motivo}`
-          : 'O Mercado Pago recusou a operacao. Revise os dados informados.',
+      requestId ? `${mensagemBase} (request_id: ${requestId})` : mensagemBase,
       'mercado_pago_erro',
       {
         status: resposta.status,
         codigo: causa?.code,
         motivo: motivo ?? undefined,
-        requestId:
-          resposta.headers.get('x-request-id') ??
-          resposta.headers.get('x-correlation-id') ??
-          undefined,
+        causas,
+        requestId,
       },
     )
   }
@@ -145,6 +156,9 @@ export function criarAssinaturaMercadoPago(entrada: {
 }) {
   return requisitar<AssinaturaRemota>('/preapproval', {
     method: 'POST',
+    headers: {
+      'X-Idempotency-Key': entrada.referenciaExterna,
+    },
     body: JSON.stringify({
       preapproval_plan_id: entrada.planoId,
       reason: entrada.motivo,
