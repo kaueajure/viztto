@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/DataDisplay'
 import { Button } from '@/components/ui/Button'
-import { Checkbox, Input } from '@/components/ui/FormControls'
+import { Checkbox, Input, Textarea } from '@/components/ui/FormControls'
 import {
   assinaturasApi,
   type IntegracaoMercadoPago,
@@ -19,8 +19,13 @@ function limiarDeInput(valor: string): number | null {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : null
 }
 
+function limparBeneficios(linhas: string[]) {
+  return linhas.map((linha) => linha.trim()).filter(Boolean)
+}
+
 export function SubscriptionPlansAdmin() {
   const [plans, setPlans] = useState<PlanoAssinatura[]>([])
+  const [beneficiosTexto, setBeneficiosTexto] = useState<Record<string, string>>({})
   const [integration, setIntegration] = useState<IntegracaoMercadoPago | null>(null)
   const [busy, setBusy] = useState('')
   const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
@@ -29,6 +34,11 @@ export function SubscriptionPlansAdmin() {
     const response = await assinaturasApi.listarPlanosAdmin()
     setPlans(response.dados)
     setIntegration(response.integracao)
+    setBeneficiosTexto(
+      Object.fromEntries(
+        response.dados.map((plan) => [plan.id, (plan.beneficios ?? []).join('\n')]),
+      ),
+    )
   }
   useEffect(() => {
     void load().catch((cause) =>
@@ -86,6 +96,8 @@ export function SubscriptionPlansAdmin() {
       <div className="grid gap-4">
         {plans.map((plan) => {
           const amount = Number(plan.valorMensal)
+          const textoBeneficios =
+            beneficiosTexto[plan.id] ?? (plan.beneficios ?? []).join('\n')
           return (
             <article
               key={plan.id}
@@ -98,7 +110,7 @@ export function SubscriptionPlansAdmin() {
                     value={plan.nome}
                     onChange={(event) => change(plan.id, { nome: event.target.value })}
                   />
-                  <Input
+                  <Textarea
                     className="mt-3"
                     label="Descrição"
                     value={plan.descricao}
@@ -130,21 +142,16 @@ export function SubscriptionPlansAdmin() {
                 </label>
               </div>
 
-              <label className="mt-4 block text-sm font-medium text-ink">
-                Benefícios (um por linha)
-                <textarea
-                  className="mt-1.5 min-h-28 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink"
-                  value={(plan.beneficios ?? []).join('\n')}
-                  onChange={(event) =>
-                    change(plan.id, {
-                      beneficios: event.target.value
-                        .split('\n')
-                        .map((line) => line.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                />
-              </label>
+              <Textarea
+                className="mt-4"
+                label="Benefícios (um por linha)"
+                value={textoBeneficios}
+                onChange={(event) => {
+                  const texto = event.target.value
+                  setBeneficiosTexto((atual) => ({ ...atual, [plan.id]: texto }))
+                  change(plan.id, { beneficios: limparBeneficios(texto.split('\n')) })
+                }}
+              />
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {(
@@ -209,7 +216,11 @@ export function SubscriptionPlansAdmin() {
                         descricao: plan.descricao.trim(),
                         valorMensal: amount,
                         ativo: plan.ativo,
-                        beneficios: plan.beneficios ?? [],
+                        beneficios: limparBeneficios(
+                          (beneficiosTexto[plan.id] ?? (plan.beneficios ?? []).join('\n')).split(
+                            '\n',
+                          ),
+                        ),
                         maxProjetosAtivos: plan.maxProjetosAtivos,
                         maxMembros: plan.maxMembros,
                         maxClientes: plan.maxClientes,
