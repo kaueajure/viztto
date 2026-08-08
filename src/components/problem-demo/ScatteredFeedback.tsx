@@ -1,4 +1,4 @@
-import { AlertCircle, CircleHelp, CornerDownRight } from 'lucide-react'
+import { CircleHelp, CornerDownRight } from 'lucide-react'
 import { AudioMessage } from './AudioMessage'
 import { EmailPreview } from './EmailPreview'
 import { FileVersion } from './FileVersion'
@@ -80,13 +80,6 @@ export function ScatteredFeedback() {
         <Badge>Aprovado?</Badge>
         <Badge tone="brand">Nova versão</Badge>
         <Badge tone="warning">Pendente</Badge>
-      </div>
-
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-[29%] top-[36%] hidden items-center gap-2 text-[10px] text-revision lg:flex"
-      >
-        <AlertCircle className="h-3 w-3" /> pertence a qual versão?
       </div>
     </div>
   )

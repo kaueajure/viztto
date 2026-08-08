@@ -33,6 +33,11 @@ export type PlanoAssinatura = {
   atualizadoEm: string
 } & RecursosPlano
 
+export type PlanoPublico = Pick<
+  PlanoAssinatura,
+  'codigo' | 'nome' | 'descricao' | 'valorMensal' | 'moeda' | 'beneficios'
+>
+
 export type IntegracaoMercadoPago = {
   ambiente: 'teste' | 'producao'
   configurada: boolean
@@ -77,7 +82,8 @@ export type UsoLimitesPlano = {
     armazenamentoGb: number
   }
   recursos: RecursosPlano
-  billing?: (AssinaturaBilling & { assinaturaId: string; codigoPlano: PlanoAssinatura['codigo'] }) | null
+  billing?:
+    (AssinaturaBilling & { assinaturaId: string; codigoPlano: PlanoAssinatura['codigo'] }) | null
 }
 
 export type AtualizarPlanoEntrada = {
@@ -132,7 +138,20 @@ function normalizarPlano(plano: PlanoAssinatura): PlanoAssinatura {
   }
 }
 
+function normalizarPlanoPublico(plano: PlanoPublico): PlanoPublico {
+  return {
+    ...plano,
+    beneficios: Array.isArray(plano.beneficios) ? plano.beneficios : [],
+  }
+}
+
 export const assinaturasApi = {
+  listarPlanosPublicos: async () => {
+    const response = await requisicaoApi<{ dados: PlanoPublico[] }>(
+      '/api/publico/assinaturas/planos',
+    )
+    return response.dados.map(normalizarPlanoPublico)
+  },
   listarPlanos: async () => {
     const response = await requisicaoApi<{
       dados: PlanoAssinatura[]
@@ -155,10 +174,7 @@ export const assinaturasApi = {
       method: 'POST',
       body: json(entrada),
     }),
-  criarCheckout: (entrada: {
-    codigoPlano: PlanoAssinatura['codigo']
-    emailPagador: string
-  }) =>
+  criarCheckout: (entrada: { codigoPlano: PlanoAssinatura['codigo']; emailPagador: string }) =>
     requisicaoApi<{ dado: { id: string; status: string; checkoutUrl: string } }>(
       '/api/assinaturas/criar-checkout',
       {

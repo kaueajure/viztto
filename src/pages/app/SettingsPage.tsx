@@ -9,6 +9,7 @@ import { configuracoesApi, type Preferencias } from '@/services/api/configuracoe
 import { assinaturasApi, type UsoLimitesPlano } from '@/services/api/assinaturasApi'
 import { SubscriptionPlansAdmin } from '@/components/admin/SubscriptionPlansAdmin'
 import { PlanUpgradePanel } from '@/components/billing/PlanUpgradePanel'
+import { PortalBrandPreview } from '@/components/portal/PortalBrandPreview'
 
 const preferenciasPadrao: Preferencias = {
   comentarios: true,
@@ -109,7 +110,7 @@ export default function SettingsPage() {
     </div>
   )
   const workspacePanel = (
-    <div className="grid max-w-xl gap-4">
+    <div className="grid max-w-3xl gap-4">
       <Input label="Nome do workspace" value={name} onChange={(e) => setName(e.target.value)} />
       <Input
         label="Slug"
@@ -117,77 +118,98 @@ export default function SettingsPage() {
         onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
         hint={`Portal do cliente: viztto.site/${slug || 'sua-empresa'}/{id-do-projeto}`}
       />
-      <Input
-        label="Cor principal do portal"
-        type="color"
-        value={color}
-        onChange={(e) => setColor(e.target.value)}
-        className="h-11 p-1"
-        disabled={portalBloqueado}
-        hint={
-          portalBloqueado
-            ? 'Seu plano não libera configurar o portal próprio (cor e logo). Faça upgrade para liberar.'
-            : 'Cor usada no portal de revisão do cliente.'
-        }
-      />
-      <div className="grid gap-2">
-        <p className="text-sm font-medium text-ink">Logo do portal</p>
-        {logoUrl ? (
-          <img src={logoUrl} alt="" className="h-12 w-auto max-w-xs object-contain" />
-        ) : (
-          <p className="text-sm text-muted">Nenhum logo enviado.</p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <label
-            className={`inline-flex cursor-pointer items-center rounded-md border border-line px-3 py-2 text-sm ${
-              portalBloqueado || saving === 'logo' ? 'pointer-events-none opacity-50' : ''
-            }`}
-          >
-            Enviar logo
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
-              disabled={portalBloqueado || saving === 'logo'}
-              onChange={(event) => {
-                const arquivo = event.target.files?.[0]
-                event.target.value = ''
-                if (!arquivo) return
-                void execute(
-                  'logo',
-                  async () => {
-                    const resposta = await configuracoesApi.enviarLogo(arquivo)
-                    setLogoUrl(resposta.dado.logoUrl)
-                  },
-                  'Logo atualizado.',
-                )
-              }}
-            />
-          </label>
-          {logoUrl && (
-            <Button
-              variant="ghost"
-              loading={saving === 'logo-remove'}
-              disabled={portalBloqueado}
-              onClick={() =>
-                void execute(
-                  'logo-remove',
-                  async () => {
-                    await configuracoesApi.removerLogo()
-                    setLogoUrl(null)
-                  },
-                  'Logo removido.',
-                )
-              }
-            >
-              Remover
-            </Button>
-          )}
+      <section className="mt-2 rounded-lg border border-line bg-surface-secondary/35 p-4 sm:p-5">
+        <div>
+          <p className="font-semibold text-ink">Identidade do portal próprio</p>
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-secondary">
+            A marca escolhida aqui assume todo o portal enviado ao cliente: cabeçalho, botões,
+            destaques e identificação da página. Nos planos elegíveis, nenhum elemento visual da
+            Viztto é exibido.
+          </p>
         </div>
-        {portalBloqueado && (
-          <p className="text-xs text-muted">Disponível nos planos com portal próprio.</p>
-        )}
-      </div>
+        <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,1fr)] lg:items-start">
+          <div className="grid gap-4">
+            <Input
+              label="Cor principal do portal"
+              type="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              className="h-11 p-1"
+              disabled={portalBloqueado}
+              hint={
+                portalBloqueado
+                  ? 'Seu plano não libera configurar o portal próprio. Faça upgrade para liberar.'
+                  : 'Aplicada em todas as ações e destaques do portal.'
+              }
+            />
+            <div className="grid gap-2">
+              <p className="text-sm font-medium text-ink">Logo do portal</p>
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={`Logo atual de ${name || 'sua empresa'}`}
+                  className="h-12 w-auto max-w-xs object-contain object-left"
+                />
+              ) : (
+                <p className="text-sm text-muted">
+                  Sem logo, o portal usa as iniciais e o nome do workspace.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <label
+                  className={`inline-flex cursor-pointer items-center rounded-md border border-line px-3 py-2 text-sm ${
+                    portalBloqueado || saving === 'logo' ? 'pointer-events-none opacity-50' : ''
+                  }`}
+                >
+                  Enviar logo
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    disabled={portalBloqueado || saving === 'logo'}
+                    onChange={(event) => {
+                      const arquivo = event.target.files?.[0]
+                      event.target.value = ''
+                      if (!arquivo) return
+                      void execute(
+                        'logo',
+                        async () => {
+                          const resposta = await configuracoesApi.enviarLogo(arquivo)
+                          setLogoUrl(resposta.dado.logoUrl)
+                        },
+                        'Logo atualizado.',
+                      )
+                    }}
+                  />
+                </label>
+                {logoUrl && (
+                  <Button
+                    variant="ghost"
+                    loading={saving === 'logo-remove'}
+                    disabled={portalBloqueado}
+                    onClick={() =>
+                      void execute(
+                        'logo-remove',
+                        async () => {
+                          await configuracoesApi.removerLogo()
+                          setLogoUrl(null)
+                        },
+                        'Logo removido.',
+                      )
+                    }
+                  >
+                    Remover
+                  </Button>
+                )}
+              </div>
+              {portalBloqueado && (
+                <p className="text-xs text-muted">Disponível nos planos com portal próprio.</p>
+              )}
+            </div>
+          </div>
+          <PortalBrandPreview companyName={name} color={color} logoUrl={logoUrl} />
+        </div>
+      </section>
       <Button
         loading={saving === 'workspace'}
         onClick={() =>

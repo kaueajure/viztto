@@ -23,6 +23,7 @@ import { diretorioDist } from './configuracao/caminhos.js'
 import { uploadsDisponiveis } from './configuracao/upload.js'
 import { assinaturasRotas } from './modulos/assinaturas/assinaturas.rotas.js'
 import { webhookMercadoPagoRotas } from './modulos/assinaturas/webhook.rotas.js'
+import { planosPublicosRotas } from './modulos/assinaturas/planos-publicos.rotas.js'
 
 export function criarAplicacao(preparacao: Promise<void> = Promise.resolve()) {
   const app = express()
@@ -93,6 +94,7 @@ export function criarAplicacao(preparacao: Promise<void> = Promise.resolve()) {
   })
   app.get('/api/autenticacao/csrf', emitirCsrf)
   app.use('/api/webhooks/mercado-pago', webhookMercadoPagoRotas)
+  app.use('/api/publico/assinaturas', planosPublicosRotas)
   app.use('/api', protegerCsrf)
   app.use('/api/autenticacao', autenticacaoRotas)
   app.use('/api/portal', portalRotas)

@@ -1,5 +1,17 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState } from 'react'
+import { ArrowRight, CalendarDays, FolderOpen, Inbox } from 'lucide-react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router'
+import {
+  PortalAccessBadge,
+  PortalBrandIdentity,
+  PortalBrandShell,
+  type PortalBrand,
+} from '@/components/portal/PortalBrand'
+import { PortalMaterialThumbnail } from '@/components/portal/PortalMaterialThumbnail'
+import {
+  PORTAL_UNAVAILABLE_MESSAGE,
+  PortalUnavailableState,
+} from '@/components/portal/PortalUnavailableState'
 import {
   caminhoPortalMaterial,
   caminhoPortalProjeto,
@@ -15,11 +27,7 @@ type ResumoPortal = {
   clienteNome: string
   workspaceSlug: string
   liberado: boolean
-  marca?: {
-    corPrincipal: string
-    logoUrl: string | null
-    whiteLabel: boolean
-  }
+  marca?: PortalBrand
 }
 
 type ConteudoPortal = {
@@ -54,6 +62,14 @@ const rotuloStatus: Record<string, string> = {
   arquivado: 'Arquivado',
 }
 
+const rotuloTipo: Record<string, string> = {
+  imagem: 'Imagem',
+  video: 'Vídeo',
+  pdf: 'PDF',
+  apresentacao: 'Apresentação',
+  pagina_web: 'Página web',
+}
+
 export default function PortalProjetoPage() {
   const { workspaceSlug = '', projectId = '' } = useParams()
   const [searchParams] = useSearchParams()
@@ -68,12 +84,12 @@ export default function PortalProjetoPage() {
   useEffect(() => {
     if (!slugValido) {
       setCarregando(false)
-      setErro('Este link não é válido.')
+      setErro(PORTAL_UNAVAILABLE_MESSAGE)
       return
     }
     if (!tokenPortal) {
       setCarregando(false)
-      setErro('Este link está incompleto. Peça um novo link de compartilhamento à equipe.')
+      setErro(PORTAL_UNAVAILABLE_MESSAGE)
       return
     }
     let ativo = true
@@ -96,7 +112,11 @@ export default function PortalProjetoPage() {
         if (!ativo) return
         setResumo(null)
         setConteudo(null)
-        setErro(error instanceof ApiError ? error.message : 'Não foi possível abrir este projeto.')
+        setErro(
+          error instanceof ApiError && [401, 403, 404].includes(error.status)
+            ? PORTAL_UNAVAILABLE_MESSAGE
+            : 'Não foi possível abrir este projeto agora.',
+        )
       } finally {
         if (ativo) setCarregando(false)
       }
@@ -107,20 +127,12 @@ export default function PortalProjetoPage() {
   }, [workspaceSlug, projectId, slugValido, tokenPortal])
 
   if (!slugValido || !tokenPortal) {
-    return (
-      <div className="mx-auto max-w-lg px-5 py-16 text-center">
-        <h1 className="text-2xl font-semibold">Projeto indisponível</h1>
-        <p className="mt-3 text-secondary">{erro || 'Este link não é válido.'}</p>
-      </div>
-    )
+    return <PortalUnavailableState message={erro || undefined} />
   }
 
   if (resumo && resumo.workspaceSlug !== workspaceSlug) {
     return (
-      <Navigate
-        to={caminhoPortalProjeto(resumo.workspaceSlug, projectId, tokenPortal)}
-        replace
-      />
+      <Navigate to={caminhoPortalProjeto(resumo.workspaceSlug, projectId, tokenPortal)} replace />
     )
   }
 
@@ -133,88 +145,123 @@ export default function PortalProjetoPage() {
   }
 
   if (!resumo || !conteudo) {
-    return (
-      <div className="mx-auto max-w-lg px-5 py-16 text-center">
-        <h1 className="text-2xl font-semibold">Projeto indisponível</h1>
-        <p className="mt-3 text-secondary">{erro || 'Este link não é válido.'}</p>
-      </div>
-    )
+    return <PortalUnavailableState message={erro || undefined} />
   }
 
   return (
-    <div
-      className="mx-auto max-w-3xl px-5 py-10"
-      style={
-        resumo.marca
-          ? ({ ['--portal-brand' as string]: resumo.marca.corPrincipal } as CSSProperties)
-          : undefined
-      }
+    <PortalBrandShell
+      brand={resumo.marca}
+      companyName={conteudo.projeto.empresaNome}
+      pageTitle={conteudo.projeto.nome}
     >
-      <div className="border-b border-line pb-6">
-        {resumo.marca?.logoUrl && (
-          <img src={resumo.marca.logoUrl} alt="" className="mb-3 h-8 w-auto object-contain" />
-        )}
-        <p className="text-sm text-muted">{conteudo.projeto.empresaNome}</p>
-        <h1 className="mt-1 text-3xl font-semibold">{conteudo.projeto.nome}</h1>
-        <p className="mt-2 text-sm text-secondary">
-          {rotuloStatus[conteudo.projeto.status] ?? conteudo.projeto.status}
-          {conteudo.projeto.prazoEm
-            ? ` · prazo ${new Date(conteudo.projeto.prazoEm).toLocaleDateString('pt-BR')}`
-            : ''}
-        </p>
-        <p className="mt-3 text-sm text-secondary">
-          Abra um material para comentar, pedir alterações ou aprovar.
-        </p>
-        {conteudo.projeto.descricao && (
-          <p className="mt-3 text-secondary">{conteudo.projeto.descricao}</p>
-        )}
-      </div>
-      <h2 className="mt-8 text-lg font-semibold">Materiais para revisar</h2>
-      <div className="mt-4 divide-y divide-line rounded-md border border-line">
-        {conteudo.materiais.map((material) => (
-          <Link
-            className="flex items-center justify-between gap-4 p-4 hover:bg-surface-secondary"
-            to={caminhoPortalMaterial(workspaceSlug, projectId, material.id, tokenPortal)}
-            key={material.id}
-          >
-            <div className="flex min-w-0 items-center gap-3">
-              {material.imagemUrl && material.tipo === 'imagem' ? (
-                <img
-                  src={comTokenPortal(material.imagemUrl, tokenPortal)}
-                  alt=""
-                  className="h-14 w-14 shrink-0 rounded-md object-cover"
-                />
-              ) : (
-                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-md bg-surface-secondary text-xs text-muted">
-                  {material.tipo === 'video' ? 'Vídeo' : material.tipo === 'pdf' ? 'PDF' : '—'}
+      <header className="border-b border-line/80 bg-background/75 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+          <PortalBrandIdentity brand={resumo.marca} companyName={conteudo.projeto.empresaNome} />
+          <PortalAccessBadge />
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-5 py-8 sm:px-7 sm:py-12">
+        <section className="overflow-hidden rounded-xl border border-line bg-surface/85 p-6 shadow-raised backdrop-blur sm:p-9">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
+            Portal do cliente
+          </p>
+          <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <h1 className="max-w-3xl break-words text-3xl font-semibold tracking-[-0.035em] sm:text-5xl">
+                {conteudo.projeto.nome}
+              </h1>
+              <p className="mt-4 max-w-2xl leading-relaxed text-secondary">
+                {conteudo.projeto.descricao ||
+                  'Acesse os materiais deste projeto para comentar, solicitar ajustes ou registrar sua aprovação.'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-secondary lg:max-w-xs lg:justify-end">
+              <span className="inline-flex items-center gap-2 rounded-full border border-line bg-background/60 px-3 py-2">
+                <FolderOpen className="h-3.5 w-3.5 text-brand" aria-hidden />
+                {rotuloStatus[conteudo.projeto.status] ?? conteudo.projeto.status}
+              </span>
+              {conteudo.projeto.prazoEm && (
+                <span className="inline-flex items-center gap-2 rounded-full border border-line bg-background/60 px-3 py-2">
+                  <CalendarDays className="h-3.5 w-3.5 text-brand" aria-hidden />
+                  Prazo {new Date(conteudo.projeto.prazoEm).toLocaleDateString('pt-BR')}
                 </span>
               )}
-              <div className="min-w-0">
-                <p className="font-semibold">{material.nome}</p>
-                <p className="mt-1 text-xs text-secondary">
-                  {material.tipo}
-                  {material.versaoAtual ? ` · v${material.versaoAtual}` : ''} ·{' '}
-                  {rotuloStatus[material.status] ?? material.status}
-                </p>
-              </div>
             </div>
-            <span
-              className="shrink-0 text-sm font-semibold"
-              style={{ color: 'var(--portal-brand, var(--color-brand, #b8ff4f))' }}
-            >
-              Revisar
-            </span>
-          </Link>
-        ))}
-        {!conteudo.materiais.length && (
-          <p className="p-5 text-secondary">Nenhum material publicado ainda.</p>
+          </div>
+        </section>
+
+        <section className="mt-9" aria-labelledby="materiais-heading">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand">
+                Projeto
+              </p>
+              <h2 id="materiais-heading" className="mt-1 text-xl font-semibold">
+                Materiais para revisar
+              </h2>
+            </div>
+            <p className="text-sm text-muted">
+              {conteudo.materiais.length}{' '}
+              {conteudo.materiais.length === 1 ? 'material' : 'materiais'}
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {conteudo.materiais.map((material) => (
+              <Link
+                className="group flex min-h-28 items-center justify-between gap-3 rounded-lg border border-line bg-surface/80 p-4 shadow-soft transition hover:-translate-y-0.5 hover:border-brand hover:bg-surface-elevated focus-visible:border-brand sm:gap-4"
+                to={caminhoPortalMaterial(workspaceSlug, projectId, material.id, tokenPortal)}
+                key={material.id}
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <PortalMaterialThumbnail
+                    type={material.tipo}
+                    imageUrl={
+                      material.imagemUrl ? comTokenPortal(material.imagemUrl, tokenPortal) : null
+                    }
+                  />
+                  <div className="min-w-0">
+                    <p className="break-words font-semibold text-ink">{material.nome}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-secondary">
+                      {rotuloTipo[material.tipo] ?? material.tipo}
+                      {material.versaoAtual ? ` · v${material.versaoAtual}` : ''}
+                    </p>
+                    <p className="mt-2 text-[11px] font-medium text-muted">
+                      {rotuloStatus[material.status] ?? material.status}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight
+                  className="h-5 w-5 shrink-0 text-brand transition-transform group-hover:translate-x-1"
+                  aria-hidden
+                />
+              </Link>
+            ))}
+          </div>
+
+          {!conteudo.materiais.length && (
+            <div className="mt-4 rounded-lg border border-dashed border-line bg-surface/70 p-7 text-center sm:p-10">
+              <Inbox className="mx-auto h-7 w-7 text-muted" aria-hidden />
+              <p className="mt-3 font-semibold">Nenhum material disponível para revisão</p>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-secondary">
+                Ainda não há materiais disponíveis neste projeto. Quando a equipe publicar algo, ele
+                aparecerá aqui.
+              </p>
+            </div>
+          )}
+        </section>
+      </main>
+
+      <footer className="px-5 py-7 text-center text-xs text-muted">
+        {resumo.marca?.whiteLabel ? (
+          <span>{conteudo.projeto.empresaNome} · Portal do cliente</span>
+        ) : (
+          <span>
+            Portal de revisão · <span className="font-medium text-secondary">Viztto</span>
+          </span>
         )}
-      </div>
-      {!resumo.marca?.whiteLabel && (
-        <p className="mt-8 text-center text-xs text-muted">
-          Portal de revisão · <span className="font-medium text-secondary">Viztto</span>
-        </p>
-      )}
-    </div>
+      </footer>
+    </PortalBrandShell>
   )
 }

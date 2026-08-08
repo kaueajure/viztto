@@ -1,5 +1,6 @@
 import { Container } from '@/components/layout/Container'
 import { Section } from '@/components/layout/Section'
+import { ProblemFeedbackScene } from '@/components/problem-demo/ProblemFeedbackScene'
 
 export function ProblemSection() {
   return (
@@ -9,8 +10,8 @@ export function ProblemSection() {
       className="scroll-mt-24 pb-8 pt-20 md:pb-10 md:pt-28"
     >
       <Container>
-        <div className="grid gap-7 lg:grid-cols-12 lg:items-end">
-          <div className="lg:col-span-8">
+        <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-12">
+          <div className="lg:col-span-5">
             <p className="eyebrow text-brand">O problema não é o feedback</p>
             <h2 id="problem-title" className="heading-lg mt-4 max-w-4xl">
               O feedback está em todo lugar.
@@ -23,11 +24,14 @@ export function ProblemSection() {
                 />
               </span>
             </h2>
+            <p className="body-lg mt-6 max-w-xl">
+              Mensagens, áudios, e-mails e arquivos duplicados fazem sua equipe perder tempo tentando
+              descobrir qual alteração pertence a qual versão.
+            </p>
           </div>
-          <p className="body-lg max-w-xl lg:col-span-4">
-            Mensagens, áudios, e-mails e arquivos duplicados fazem sua equipe perder tempo tentando
-            descobrir qual alteração pertence a qual versão.
-          </p>
+          <div className="lg:col-span-7">
+            <ProblemFeedbackScene />
+          </div>
         </div>
       </Container>
     </Section>

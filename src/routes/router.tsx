@@ -1,10 +1,11 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router'
 import { MarketingLayout } from '@/components/layout/MarketingLayout'
+import { PortalLayout } from '@/components/layout/PortalLayout'
 import { UtilityLayout } from '@/components/layout/UtilityLayout'
 import { LoadingSkeleton } from '@/components/ui/DataDisplay'
+import HomePage from '@/pages/HomePage'
 
-const HomePage = lazy(() => import('@/pages/HomePage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 const TermsPage = lazy(() =>
   import('@/pages/LegalPages').then((module) => ({ default: module.TermsPage })),
@@ -133,7 +134,7 @@ export const router = createBrowserRouter([
   {
     element: <MarketingLayout />,
     children: [
-      { path: '/', element: page(<HomePage />) },
+      { path: '/', element: <HomePage /> },
       { path: '/produto', element: page(<ProdutoPage />) },
       { path: '/recursos', element: page(<RecursosPage />) },
       { path: '/precos', element: page(<PrecosPage />) },
@@ -198,7 +199,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    element: <UtilityLayout />,
+    element: <PortalLayout />,
     children: [
       { path: '/p/:projectId', element: page(<PortalLegacyRedirect />) },
       {
@@ -210,6 +211,11 @@ export const router = createBrowserRouter([
         element: page(<PortalRevisaoPage />),
       },
       { path: '/:workspaceSlug/:projectId', element: page(<PortalProjetoPage />) },
+    ],
+  },
+  {
+    element: <UtilityLayout />,
+    children: [
       { path: '/termos', element: page(<TermsPage />) },
       { path: '/privacidade', element: page(<PrivacyPage />) },
       { path: '*', element: page(<NotFoundPage />) },

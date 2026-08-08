@@ -17,13 +17,26 @@ const nextPhase: Record<DemoPhase, DemoPhase> = {
 const phaseDuration = (phase: DemoPhase) =>
   phase === 'resetting' ? demoResetDuration : demoPhaseContent[phase].duration
 
-export function ProductDemo({ restartSignal = 0 }: { restartSignal?: number }) {
+export function ProductDemo({
+  restartSignal = 0,
+  suppressEntrance = false,
+  onPhaseChange,
+}: {
+  restartSignal?: number
+  /** Quando true, a entrada fica a cargo do wrapper (ex.: Hero 3D). */
+  suppressEntrance?: boolean
+  onPhaseChange?: (phase: DemoPhase) => void
+}) {
   const reducedMotion = Boolean(useReducedMotion())
   const root = useRef<HTMLElement>(null)
   const inView = useInView(root, { amount: 0.15 })
   const [phase, setPhase] = useState<DemoPhase>('waiting')
   const [pageVisible, setPageVisible] = useState(() => document.visibilityState === 'visible')
   const visiblePhase: DemoPhase = reducedMotion ? 'approved' : phase
+
+  useEffect(() => {
+    onPhaseChange?.(visiblePhase)
+  }, [onPhaseChange, visiblePhase])
 
   useEffect(() => {
     const handleVisibility = () => setPageVisible(document.visibilityState === 'visible')
@@ -59,9 +72,12 @@ export function ProductDemo({ restartSignal = 0 }: { restartSignal?: number }) {
       id="demonstracao"
       aria-label="Demonstração do fluxo de revisão do Viztto"
       className="relative scroll-mt-24 overflow-hidden rounded-xl border border-line bg-surface shadow-raised"
-      initial={reducedMotion ? false : { opacity: 0, y: 22 }}
+      initial={suppressEntrance || reducedMotion ? false : { opacity: 0, y: 22 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: reducedMotion ? 0 : 0.55, delay: reducedMotion ? 0 : 0.24 }}
+      transition={{
+        duration: suppressEntrance || reducedMotion ? 0 : 0.55,
+        delay: suppressEntrance || reducedMotion ? 0 : 0.24,
+      }}
     >
       <div aria-hidden="true" className="absolute inset-x-12 top-0 h-px bg-brand/45" />
       <motion.div

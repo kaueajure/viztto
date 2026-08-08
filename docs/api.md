@@ -1,6 +1,10 @@
 # API REST
 
-Todas as rotas de dominio exigem cookie de sessao. Rotas de escrita tambem exigem `X-CSRF-Token`, obtido por `GET /api/autenticacao/csrf`. Respostas de erro seguem `{ "erro": { "codigo", "mensagem", "detalhes?" } }`.
+As rotas de dominio exigem cookie de sessao, exceto as listadas como publicas. Rotas de escrita tambem exigem `X-CSRF-Token`, obtido por `GET /api/autenticacao/csrf`. Respostas de erro seguem `{ "erro": { "codigo", "mensagem", "detalhes?" } }`.
+
+## Publico
+
+- `GET /api/publico/assinaturas/planos` — planos ativos com os dados comerciais exibidos no site
 
 ## Autenticacao
 
@@ -26,4 +30,3 @@ Todas as rotas de dominio exigem cookie de sessao. Rotas de escrita tambem exige
 - `GET /arquivos/:arquivoId` (arquivo autorizado pelo workspace)
 
 Listas de clientes, projetos e materiais aceitam `pagina`, `porPagina` e `busca` e retornam metadados de paginacao.
-

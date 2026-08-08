@@ -116,6 +116,47 @@ afterAll(async () => {
 })
 
 describe('API integrada com MySQL', () => {
+  it('publica somente os dados comerciais dos planos ativos sem exigir login', async () => {
+    const [plano] = await banco
+      .select({ codigo: esquema.planosAssinatura.codigo, ativo: esquema.planosAssinatura.ativo })
+      .from(esquema.planosAssinatura)
+      .limit(1)
+    expect(plano).toBeDefined()
+
+    await banco
+      .update(esquema.planosAssinatura)
+      .set({ ativo: false })
+      .where(eq(esquema.planosAssinatura.codigo, plano!.codigo))
+    try {
+      const resposta = await supertest(app).get('/api/publico/assinaturas/planos').expect(200)
+
+      expect(resposta.headers['cache-control']).toBe('no-store')
+      expect(resposta.body.dados.length).toBeGreaterThan(0)
+      expect(
+        resposta.body.dados.every((item: { ativo?: boolean }) => item.ativo === undefined),
+      ).toBe(true)
+      expect(
+        resposta.body.dados.some((item: { codigo: string }) => item.codigo === plano!.codigo),
+      ).toBe(false)
+      expect(resposta.body.dados[0]).toEqual(
+        expect.objectContaining({
+          codigo: expect.any(String),
+          nome: expect.any(String),
+          descricao: expect.any(String),
+          valorMensal: expect.anything(),
+          moeda: expect.any(String),
+          beneficios: expect.any(Array),
+        }),
+      )
+      expect(resposta.body.dados[0]).not.toHaveProperty('mercadoPagoPlanoId')
+    } finally {
+      await banco
+        .update(esquema.planosAssinatura)
+        .set({ ativo: plano!.ativo })
+        .where(eq(esquema.planosAssinatura.codigo, plano!.codigo))
+    }
+  })
+
   it('protege escrita contra CSRF', async () => {
     await supertest(app)
       .post('/api/autenticacao/entrar')
