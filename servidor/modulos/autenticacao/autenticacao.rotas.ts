@@ -23,6 +23,7 @@ import {
 } from '../../servicos/email.servico.js'
 import { garantirPodeCriarWorkspace } from '../../servicos/limites-plano.servico.js'
 import { gerarHash, normalizarEmail, novoId, novoToken } from '../../utilitarios/seguranca.js'
+import { slugReservado } from '../../utilitarios/slugs.js'
 
 const acesso = rateLimit({
   windowMs: 15 * 60_000,
@@ -378,6 +379,10 @@ autenticacaoRotas.get('/slug-disponivel', async (req, res) => {
   if (!/^[a-z0-9-]{2,120}$/.test(slug)) {
     throw new ErroHttp(422, 'Slug invalido.', 'dados_invalidos')
   }
+  if (slugReservado(slug)) {
+    res.json({ disponivel: false })
+    return
+  }
   const [existente] = await banco
     .select({ id: workspaces.id })
     .from(workspaces)
@@ -396,6 +401,8 @@ autenticacaoRotas.post('/onboarding', acesso, validarCorpo(onboarding), async (r
     .limit(1)
   if (!usuario?.emailVerificadoEm)
     throw new ErroHttp(403, 'Verifique o e-mail antes do onboarding.', 'email_nao_verificado')
+  if (slugReservado(req.body.slug))
+    throw new ErroHttp(422, 'Essa URL esta reservada. Escolha outro slug.', 'slug_reservado')
   const [slugEmUso] = await banco
     .select({ id: workspaces.id })
     .from(workspaces)

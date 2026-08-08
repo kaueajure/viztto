@@ -59,6 +59,6 @@ export function validarAcessoPortal(token: string | undefined, projetoId: string
   }
 }
 
-export function linkPortalProjeto(projetoId: string) {
-  return `${ambiente.URL_APLICACAO.replace(/\/$/, '')}/p/${projetoId}`
+export function linkPortalProjeto(projetoId: string, workspaceSlug: string) {
+  return `${ambiente.URL_APLICACAO.replace(/\/$/, '')}/${workspaceSlug}/${projetoId}`
 }

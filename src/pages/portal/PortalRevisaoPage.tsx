@@ -1,16 +1,31 @@
 import { ArrowLeft, Check, MessageSquarePlus, Send, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+} from 'react'
 import { Link, useParams } from 'react-router'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
 import { MaterialPreview } from '@/components/review/MaterialPreview'
 import { Button, IconButton } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/FormControls'
+import { caminhoPortalProjeto, UUID_RE } from '@/lib/portalPaths'
 import { ApiError, json, requisicaoApi } from '@/services/api/clienteHttp'
 import type { ReviewComment } from '@/types/domain'
 import { cn } from '@/lib/cn'
 
 type DetalhePortal = {
-  projeto: { id: string; nome: string; empresaNome: string; clienteNome: string }
+  projeto: {
+    id: string
+    nome: string
+    empresaNome: string
+    clienteNome: string
+    workspaceSlug?: string
+  }
   material: { id: string; nome: string; status: string; tipo: string }
   versao: {
     id: string
@@ -19,6 +34,11 @@ type DetalhePortal = {
     arquivoId: string
     aprovada: boolean
     imagemUrl: string
+  }
+  marca?: {
+    corPrincipal: string
+    logoUrl: string | null
+    whiteLabel: boolean
   }
 }
 
@@ -32,7 +52,7 @@ const rotuloStatus: Record<string, string> = {
 }
 
 export default function PortalRevisaoPage() {
-  const { projectId = '', materialId = '' } = useParams()
+  const { workspaceSlug = '', projectId = '', materialId = '' } = useParams()
   const [detalhe, setDetalhe] = useState<DetalhePortal | null>(null)
   const [comentarios, setComentarios] = useState<ReviewComment[]>([])
   const [erro, setErro] = useState('')
@@ -46,15 +66,23 @@ export default function PortalRevisaoPage() {
   const [zoom, setZoom] = useState(100)
   const draftRef = useRef<HTMLTextAreaElement>(null)
 
-  const base = `/api/portal/projetos/${projectId}/materiais/${materialId}`
+  const slugValido = Boolean(workspaceSlug) && UUID_RE.test(projectId)
+  const voltarHref = caminhoPortalProjeto(workspaceSlug, projectId)
+  const base = `/api/portal/projetos/${projectId}/materiais/${materialId}?slug=${encodeURIComponent(workspaceSlug)}`
+  const baseMutacao = `/api/portal/projetos/${projectId}/materiais/${materialId}`
 
   const carregar = useCallback(async () => {
+    if (!slugValido) {
+      setCarregando(false)
+      setErro('Este link não é válido.')
+      return
+    }
     setCarregando(true)
     setErro('')
     try {
       const [{ dado }, lista] = await Promise.all([
         requisicaoApi<{ dado: DetalhePortal }>(base),
-        requisicaoApi<{ dados: ReviewComment[] }>(`${base}/comentarios`),
+        requisicaoApi<{ dados: ReviewComment[] }>(`${baseMutacao}/comentarios`),
       ])
       setDetalhe(dado)
       setComentarios(
@@ -74,7 +102,7 @@ export default function PortalRevisaoPage() {
     } finally {
       setCarregando(false)
     }
-  }, [base])
+  }, [base, baseMutacao, slugValido])
 
   useEffect(() => {
     void carregar()
@@ -89,6 +117,9 @@ export default function PortalRevisaoPage() {
     [comentarios],
   )
   const aprovado = detalhe?.material.status === 'aprovado'
+  const estiloMarca = detalhe?.marca
+    ? ({ ['--portal-brand' as string]: detalhe.marca.corPrincipal } as CSSProperties)
+    : undefined
 
   const publicarComentario = async (event: FormEvent) => {
     event.preventDefault()
@@ -96,7 +127,7 @@ export default function PortalRevisaoPage() {
     setEnviando(true)
     setErro('')
     try {
-      await requisicaoApi(`${base}/comentarios`, {
+      await requisicaoApi(`${baseMutacao}/comentarios`, {
         method: 'POST',
         body: json({
           texto: draftText.trim(),
@@ -119,7 +150,7 @@ export default function PortalRevisaoPage() {
     setEnviando(true)
     setErro('')
     try {
-      await requisicaoApi(`${base}/solicitar-alteracoes`, { method: 'POST' })
+      await requisicaoApi(`${baseMutacao}/solicitar-alteracoes`, { method: 'POST' })
       setAviso('Alterações solicitadas. A equipe foi avisada.')
       await carregar()
     } catch (error) {
@@ -133,7 +164,7 @@ export default function PortalRevisaoPage() {
     setEnviando(true)
     setErro('')
     try {
-      await requisicaoApi(`${base}/aprovar`, {
+      await requisicaoApi(`${baseMutacao}/aprovar`, {
         method: 'POST',
         body: json({ confirmarPendencias: abertos > 0 }),
       })
@@ -156,7 +187,7 @@ export default function PortalRevisaoPage() {
       <div className="mx-auto max-w-lg px-5 py-16 text-center">
         <h1 className="text-2xl font-semibold">Revisão indisponível</h1>
         <p className="mt-3 text-secondary">{erro}</p>
-        <Link className="mt-6 inline-block text-sm font-semibold text-brand" to={`/p/${projectId}`}>
+        <Link className="mt-6 inline-block text-sm font-semibold text-brand" to={voltarHref}>
           Voltar ao projeto
         </Link>
       </div>
@@ -164,16 +195,24 @@ export default function PortalRevisaoPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] flex-col">
+    <div className="flex min-h-[calc(100vh-8rem)] flex-col" style={estiloMarca}>
       <div className="border-b border-line px-4 py-4 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <Link
-              to={`/p/${projectId}`}
-              className="inline-flex items-center gap-2 text-sm text-secondary hover:text-brand"
+              to={voltarHref}
+              className="inline-flex items-center gap-2 text-sm text-secondary hover:opacity-80"
+              style={{ color: 'var(--portal-brand, var(--color-brand))' }}
             >
               <ArrowLeft className="h-4 w-4" /> Voltar ao projeto
             </Link>
+            {detalhe.marca?.logoUrl && (
+              <img
+                src={detalhe.marca.logoUrl}
+                alt=""
+                className="mt-3 h-8 w-auto object-contain"
+              />
+            )}
             <p className="mt-2 text-sm text-muted">{detalhe.projeto.empresaNome}</p>
             <h1 className="truncate text-2xl font-semibold">{detalhe.material.nome}</h1>
             <p className="mt-1 text-sm text-secondary">
@@ -339,6 +378,11 @@ export default function PortalRevisaoPage() {
           </div>
         </aside>
       </div>
+      {!detalhe.marca?.whiteLabel && (
+        <p className="py-6 text-center text-xs text-muted">
+          Portal de revisão · <span className="font-medium text-secondary">Viztto</span>
+        </p>
+      )}
     </div>
   )
 }

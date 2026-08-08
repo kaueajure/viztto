@@ -111,6 +111,7 @@ const SettingsPage = lazy(() => import('@/pages/app/SettingsPage'))
 const ReviewWorkspacePage = lazy(() => import('@/pages/app/ReviewWorkspacePage'))
 const PortalProjetoPage = lazy(() => import('@/pages/portal/PortalProjetoPage'))
 const PortalRevisaoPage = lazy(() => import('@/pages/portal/PortalRevisaoPage'))
+const PortalLegacyRedirect = lazy(() => import('@/pages/portal/PortalLegacyRedirect'))
 const loading = (
   <div className="mx-auto max-w-page px-5 py-20">
     <LoadingSkeleton className="h-12 w-1/2" />
@@ -190,8 +191,16 @@ export const router = createBrowserRouter([
   {
     element: <UtilityLayout />,
     children: [
-      { path: '/p/:projectId', element: page(<PortalProjetoPage />) },
-      { path: '/p/:projectId/materiais/:materialId', element: page(<PortalRevisaoPage />) },
+      { path: '/p/:projectId', element: page(<PortalLegacyRedirect />) },
+      {
+        path: '/p/:projectId/materiais/:materialId',
+        element: page(<PortalLegacyRedirect />),
+      },
+      {
+        path: '/:workspaceSlug/:projectId/materiais/:materialId',
+        element: page(<PortalRevisaoPage />),
+      },
+      { path: '/:workspaceSlug/:projectId', element: page(<PortalProjetoPage />) },
       { path: '/termos', element: page(<TermsPage />) },
       { path: '/privacidade', element: page(<PrivacyPage />) },
       { path: '*', element: page(<NotFoundPage />) },

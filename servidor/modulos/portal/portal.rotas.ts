@@ -20,6 +20,7 @@ import {
 import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
+import { absolutoDoCaminhoRelativo } from '../../servicos/arquivo.servico.js'
 import {
   carregarMarcaPortal,
   garantirComentarioNoMaterial,
@@ -51,7 +52,7 @@ const autorNomeSql = sql<string>`coalesce(${comentarios.autorExternoNome}, ${usu
   'autorNome',
 )
 
-async function projetoPortal(projetoId: string) {
+async function projetoPortal(projetoId: string, workspaceSlug?: string) {
   const [linha] = await banco
     .select({
       id: projetos.id,
@@ -64,6 +65,7 @@ async function projetoPortal(projetoId: string) {
       senhaAcessoHash: projetos.senhaAcessoHash,
       criadoPorUsuarioId: projetos.criadoPorUsuarioId,
       empresaNome: workspaces.nome,
+      workspaceSlug: workspaces.slug,
       clienteNome: clientes.nome,
     })
     .from(projetos)
@@ -72,6 +74,8 @@ async function projetoPortal(projetoId: string) {
     .where(and(eq(projetos.id, projetoId), isNull(projetos.excluidoEm)))
     .limit(1)
   if (!linha) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
+  if (workspaceSlug && linha.workspaceSlug !== workspaceSlug)
+    throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
   return linha
 }
 
@@ -119,7 +123,8 @@ async function notificarEquipe(entrada: {
 }
 
 portalRotas.get('/projetos/:projetoId', async (req, res) => {
-  const projeto = await projetoPortal(String(req.params.projetoId))
+  const slugQuery = typeof req.query.slug === 'string' ? req.query.slug : undefined
+  const projeto = await projetoPortal(String(req.params.projetoId), slugQuery)
   await garantirLinksPortalCliente(projeto.workspaceId)
   const liberado = validarAcessoPortal(req.cookies?.[COOKIE_PORTAL], projeto.id)
   const marca = await carregarMarcaPortal(projeto.workspaceId)
@@ -129,6 +134,7 @@ portalRotas.get('/projetos/:projetoId', async (req, res) => {
       nome: projeto.nome,
       empresaNome: marca.empresaNome,
       clienteNome: projeto.clienteNome,
+      workspaceSlug: projeto.workspaceSlug,
       liberado,
       temSenha: Boolean(projeto.senhaAcessoHash),
       marca: {
@@ -138,6 +144,25 @@ portalRotas.get('/projetos/:projetoId', async (req, res) => {
       },
     },
   })
+})
+
+portalRotas.get('/workspaces/:workspaceId/logo', async (req, res) => {
+  const workspaceId = String(req.params.workspaceId)
+  const marca = await carregarMarcaPortal(workspaceId)
+  if (!marca.logoUrl)
+    throw new ErroHttp(404, 'Logo nao encontrado.', 'logo_nao_encontrado')
+  const [workspace] = await banco
+    .select({ logoUrl: workspaces.logoUrl })
+    .from(workspaces)
+    .where(and(eq(workspaces.id, workspaceId), isNull(workspaces.excluidoEm)))
+    .limit(1)
+  if (!workspace?.logoUrl)
+    throw new ErroHttp(404, 'Logo nao encontrado.', 'logo_nao_encontrado')
+  const absoluto = absolutoDoCaminhoRelativo(workspace.logoUrl)
+  const ext = path.extname(workspace.logoUrl).toLowerCase()
+  const mime =
+    ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg'
+  res.type(mime).setHeader('Cache-Control', 'private, max-age=3600').sendFile(absoluto)
 })
 
 portalRotas.post('/projetos/:projetoId/entrar', validarCorpo(entrada), async (req, res) => {
@@ -204,8 +229,9 @@ portalRotas.get('/projetos/:projetoId/conteudo', async (req, res) => {
 
 portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) => {
   const projetoId = String(req.params.projetoId)
+  const slugQuery = typeof req.query.slug === 'string' ? req.query.slug : undefined
   exigirCookiePortal(req, projetoId)
-  const projeto = await projetoPortal(projetoId)
+  const projeto = await projetoPortal(projetoId, slugQuery)
   const material = await materialDoProjeto(String(req.params.materialId), projetoId)
   if (!material.versaoAtualId)
     throw new ErroHttp(422, 'Este material ainda nao tem versao para revisar.', 'versao_ausente')
@@ -221,6 +247,7 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) =
     .where(and(eq(versoesMaterial.id, material.versaoAtualId), isNull(versoesMaterial.excluidoEm)))
     .limit(1)
   if (!versao) throw new ErroHttp(404, 'Versao nao encontrada.', 'versao_nao_encontrada')
+  const marca = await carregarMarcaPortal(projeto.workspaceId)
   res.json({
     dado: {
       projeto: {
@@ -228,6 +255,7 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) =
         nome: projeto.nome,
         empresaNome: projeto.empresaNome,
         clienteNome: projeto.clienteNome,
+        workspaceSlug: projeto.workspaceSlug,
       },
       material: {
         id: material.id,
@@ -238,6 +266,11 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) =
       versao: {
         ...versao,
         imagemUrl: `/api/portal/projetos/${projetoId}/arquivos/${versao.arquivoId}`,
+      },
+      marca: {
+        corPrincipal: marca.corPrincipal,
+        logoUrl: marca.logoUrl,
+        whiteLabel: marca.whiteLabel,
       },
     },
   })

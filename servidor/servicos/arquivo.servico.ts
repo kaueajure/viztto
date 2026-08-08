@@ -66,6 +66,28 @@ export async function armazenarImagem(
   }
 }
 
+const logosPermitidos = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+/** Salva logo do workspace (JPEG/PNG/WebP) e devolve o caminho relativo. */
+export async function armazenarLogoWorkspace(buffer: Buffer, workspaceId: string) {
+  const tipo = await fileTypeFromBuffer(buffer)
+  if (!tipo || !logosPermitidos.has(tipo.mime))
+    throw new ErroHttp(415, 'Use JPEG, PNG ou WebP para o logo.', 'arquivo_invalido')
+  const nomeArmazenado = `${randomUUID()}.${tipo.ext}`
+  const caminhoRelativo = path.posix.join('workspaces', workspaceId, 'logo', nomeArmazenado)
+  const destino = path.join(diretorioUploads, ...caminhoRelativo.split('/'))
+  await mkdir(path.dirname(destino), { recursive: true })
+  await writeFile(destino, buffer, { flag: 'wx' })
+  return { caminhoAbsoluto: destino, caminhoRelativo, mimeType: tipo.mime }
+}
+
 export async function removerArquivoSalvo(caminhoAbsoluto: string) {
   await rm(caminhoAbsoluto, { force: true })
+}
+
+export function absolutoDoCaminhoRelativo(caminhoRelativo: string) {
+  const absoluto = path.resolve(diretorioUploads, ...caminhoRelativo.split('/'))
+  if (!absoluto.startsWith(`${diretorioUploads}${path.sep}`))
+    throw new ErroHttp(400, 'Caminho de arquivo invalido.', 'arquivo_invalido')
+  return absoluto
 }

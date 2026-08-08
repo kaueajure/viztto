@@ -10,6 +10,7 @@ type DestinoCliente = {
   projetoId: string
   projetoNome: string
   empresaNome: string
+  workspaceSlug: string
 }
 
 async function destinoDoProjeto(
@@ -23,6 +24,7 @@ async function destinoDoProjeto(
       clienteNome: clientes.nome,
       email: clientes.email,
       empresaNome: workspaces.nome,
+      workspaceSlug: workspaces.slug,
     })
     .from(projetos)
     .innerJoin(clientes, eq(clientes.id, projetos.clienteId))
@@ -46,6 +48,7 @@ async function destinoDoProjeto(
     projetoId: linha.projetoId,
     projetoNome: linha.projetoNome,
     empresaNome: linha.empresaNome,
+    workspaceSlug: linha.workspaceSlug,
   }
 }
 
@@ -65,7 +68,7 @@ export async function notificarClienteProjetoCriado(entrada: {
       projetoNome: destino.projetoNome,
       criadorNome: entrada.criadorNome.trim() || 'Alguem da equipe',
       empresaNome: destino.empresaNome,
-      link: linkPortalProjeto(destino.projetoId),
+      link: linkPortalProjeto(destino.projetoId, destino.workspaceSlug),
       senhaAcesso: entrada.senhaAcesso,
     })
   } catch (erro) {
@@ -91,7 +94,7 @@ export async function reenviarSenhaPortalProjeto(entrada: {
     projetoNome: destino.projetoNome,
     criadorNome: entrada.criadorNome.trim() || 'Alguem da equipe',
     empresaNome: destino.empresaNome,
-    link: linkPortalProjeto(destino.projetoId),
+    link: linkPortalProjeto(destino.projetoId, destino.workspaceSlug),
     senhaAcesso: entrada.senhaAcesso,
   })
   return { enviado, motivo: enviado ? null : ('email_falhou' as const) }
@@ -112,7 +115,7 @@ export async function notificarClienteProjetoAlterado(entrada: {
       projetoNome: destino.projetoNome,
       empresaNome: destino.empresaNome,
       resumo: entrada.resumo,
-      link: linkPortalProjeto(destino.projetoId),
+      link: linkPortalProjeto(destino.projetoId, destino.workspaceSlug),
     })
   } catch (erro) {
     console.error(

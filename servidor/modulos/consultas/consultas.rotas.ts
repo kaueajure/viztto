@@ -13,7 +13,14 @@ import { exigirAdmin, exigirFuncao } from '../../middlewares/autorizacao.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { ErroHttp } from '../../middlewares/erros.js'
 import { z } from 'zod'
+import { receberImagem } from '../../configuracao/upload.js'
 import { garantirIdentidadePersonalizada } from '../../servicos/limites-plano.servico.js'
+import {
+  absolutoDoCaminhoRelativo,
+  armazenarLogoWorkspace,
+  removerArquivoSalvo,
+} from '../../servicos/arquivo.servico.js'
+import { slugReservado } from '../../utilitarios/slugs.js'
 
 const perfilEntrada = z.object({ nome: z.string().trim().min(2).max(160) })
 const workspaceEntrada = z.object({
@@ -35,9 +42,14 @@ const preferenciasEntrada = z.object({
   sistema: z.boolean(),
 })
 
+function urlLogoWorkspace(workspaceId: string, logoRelativo: string | null | undefined) {
+  return logoRelativo ? `/api/portal/workspaces/${workspaceId}/logo` : null
+}
+
 export const consultasRotas = Router()
 
 consultasRotas.get('/configuracoes', async (req, res) => {
+  const workspaceId = req.sessao!.workspaceId
   const [[preferencias], [workspace]] = await Promise.all([
     banco
       .select()
@@ -49,9 +61,10 @@ consultasRotas.get('/configuracoes', async (req, res) => {
         nome: workspaces.nome,
         slug: workspaces.slug,
         corPrincipal: workspaces.corPrincipal,
+        logoUrl: workspaces.logoUrl,
       })
       .from(workspaces)
-      .where(eq(workspaces.id, req.sessao!.workspaceId))
+      .where(eq(workspaces.id, workspaceId))
       .limit(1),
   ])
   res.json({
@@ -69,7 +82,14 @@ consultasRotas.get('/configuracoes', async (req, res) => {
         email: true,
         sistema: true,
       },
-      workspace,
+      workspace: workspace
+        ? {
+            nome: workspace.nome,
+            slug: workspace.slug,
+            corPrincipal: workspace.corPrincipal,
+            logoUrl: urlLogoWorkspace(workspaceId, workspace.logoUrl),
+          }
+        : null,
     },
   })
 })
@@ -87,6 +107,8 @@ consultasRotas.patch(
   exigirFuncao('gestor'),
   validarCorpo(workspaceEntrada),
   async (req, res) => {
+    if (slugReservado(req.body.slug))
+      throw new ErroHttp(422, 'Essa URL esta reservada. Escolha outro slug.', 'slug_reservado')
     const [slugEmUso] = await banco
       .select({ id: workspaces.id })
       .from(workspaces)
@@ -102,6 +124,65 @@ consultasRotas.patch(
     res.json({ mensagem: 'Workspace atualizado.' })
   },
 )
+
+consultasRotas.post(
+  '/configuracoes/workspace/logo',
+  exigirFuncao('gestor'),
+  receberImagem,
+  async (req, res) => {
+    const workspaceId = req.sessao!.workspaceId
+    await garantirIdentidadePersonalizada(workspaceId, '#b8ff4f', 'upload')
+    if (!req.file) throw new ErroHttp(422, 'Selecione a imagem do logo.', 'arquivo_ausente')
+    const [atual] = await banco
+      .select({ logoUrl: workspaces.logoUrl })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1)
+    const salvo = await armazenarLogoWorkspace(req.file.buffer, workspaceId)
+    try {
+      await banco
+        .update(workspaces)
+        .set({ logoUrl: salvo.caminhoRelativo, atualizadoEm: new Date() })
+        .where(eq(workspaces.id, workspaceId))
+    } catch (erro) {
+      await removerArquivoSalvo(salvo.caminhoAbsoluto)
+      throw erro
+    }
+    if (atual?.logoUrl) {
+      try {
+        await removerArquivoSalvo(absolutoDoCaminhoRelativo(atual.logoUrl))
+      } catch {
+        /* logo anterior invalido — ignora */
+      }
+    }
+    res.json({
+      mensagem: 'Logo atualizado.',
+      dado: { logoUrl: urlLogoWorkspace(workspaceId, salvo.caminhoRelativo) },
+    })
+  },
+)
+
+consultasRotas.delete('/configuracoes/workspace/logo', exigirFuncao('gestor'), async (req, res) => {
+  const workspaceId = req.sessao!.workspaceId
+  await garantirIdentidadePersonalizada(workspaceId, '#b8ff4f', 'remover')
+  const [atual] = await banco
+    .select({ logoUrl: workspaces.logoUrl })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId))
+    .limit(1)
+  await banco
+    .update(workspaces)
+    .set({ logoUrl: null, atualizadoEm: new Date() })
+    .where(eq(workspaces.id, workspaceId))
+  if (atual?.logoUrl) {
+    try {
+      await removerArquivoSalvo(absolutoDoCaminhoRelativo(atual.logoUrl))
+    } catch {
+      /* ignore */
+    }
+  }
+  res.json({ mensagem: 'Logo removido.' })
+})
 
 consultasRotas.put(
   '/configuracoes/preferencias',

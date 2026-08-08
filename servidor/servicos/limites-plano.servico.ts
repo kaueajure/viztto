@@ -285,7 +285,6 @@ export async function garantirFuncaoEquipe(
 function recursosDoPlano(plano: PlanoAssinaturaLinha) {
   return {
     permiteIdentidadePersonalizada: plano.permiteIdentidadePersonalizada,
-    permitePortalWhiteLabel: plano.permitePortalWhiteLabel,
     permiteCalendarioEditorial: plano.permiteCalendarioEditorial,
     permiteRelatorios: plano.permiteRelatorios,
     permiteComentariosImagem: plano.permiteComentariosImagem,
@@ -352,13 +351,14 @@ export async function carregarMarcaPortal(workspaceId: string) {
     .from(workspaces)
     .where(eq(workspaces.id, workspaceId))
     .limit(1)
+  const portalPersonalizado = plano.permiteIdentidadePersonalizada
   return {
     empresaNome: workspace?.nome ?? 'Empresa',
-    corPrincipal: plano.permiteIdentidadePersonalizada
-      ? (workspace?.corPrincipal ?? COR_PADRAO)
-      : COR_PADRAO,
-    logoUrl: plano.permiteIdentidadePersonalizada ? (workspace?.logoUrl ?? null) : null,
-    whiteLabel: plano.permitePortalWhiteLabel,
+    corPrincipal: portalPersonalizado ? (workspace?.corPrincipal ?? COR_PADRAO) : COR_PADRAO,
+    logoUrl: portalPersonalizado && workspace?.logoUrl
+      ? `/api/portal/workspaces/${workspaceId}/logo`
+      : null,
+    whiteLabel: portalPersonalizado,
     portalLiberado: plano.permiteLinksPortalCliente,
   }
 }

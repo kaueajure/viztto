@@ -1,8 +1,9 @@
 import { LockKeyhole } from 'lucide-react'
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, Navigate, useParams } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/FormControls'
+import { caminhoPortalMaterial, caminhoPortalProjeto, UUID_RE } from '@/lib/portalPaths'
 import { ApiError, requisicaoApi, json } from '@/services/api/clienteHttp'
 
 type ResumoPortal = {
@@ -10,6 +11,7 @@ type ResumoPortal = {
   nome: string
   empresaNome: string
   clienteNome: string
+  workspaceSlug: string
   liberado: boolean
   temSenha: boolean
   marca?: {
@@ -52,7 +54,7 @@ const rotuloStatus: Record<string, string> = {
 }
 
 export default function PortalProjetoPage() {
-  const { projectId = '' } = useParams()
+  const { workspaceSlug = '', projectId = '' } = useParams()
   const [resumo, setResumo] = useState<ResumoPortal | null>(null)
   const [conteudo, setConteudo] = useState<ConteudoPortal | null>(null)
   const [senha, setSenha] = useState('')
@@ -60,12 +62,14 @@ export default function PortalProjetoPage() {
   const [carregando, setCarregando] = useState(true)
   const [enviando, setEnviando] = useState(false)
 
+  const slugValido = Boolean(workspaceSlug) && UUID_RE.test(projectId)
+
   const carregar = async () => {
     setCarregando(true)
     setErro('')
     try {
       const { dado } = await requisicaoApi<{ dado: ResumoPortal }>(
-        `/api/portal/projetos/${projectId}`,
+        `/api/portal/projetos/${projectId}?slug=${encodeURIComponent(workspaceSlug)}`,
       )
       setResumo(dado)
       if (dado.liberado) {
@@ -86,8 +90,14 @@ export default function PortalProjetoPage() {
   }
 
   useEffect(() => {
+    if (!slugValido) {
+      setCarregando(false)
+      setErro('Este link não é válido.')
+      return
+    }
     void carregar()
-  }, [projectId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recarrega ao mudar rota
+  }, [workspaceSlug, projectId, slugValido])
 
   const entrar = async (event: FormEvent) => {
     event.preventDefault()
@@ -111,6 +121,19 @@ export default function PortalProjetoPage() {
     await requisicaoApi(`/api/portal/projetos/${projectId}/sair`, { method: 'POST' })
     setConteudo(null)
     await carregar()
+  }
+
+  if (!slugValido) {
+    return (
+      <div className="mx-auto max-w-lg px-5 py-16 text-center">
+        <h1 className="text-2xl font-semibold">Projeto indisponível</h1>
+        <p className="mt-3 text-secondary">{erro || 'Este link não é válido.'}</p>
+      </div>
+    )
+  }
+
+  if (resumo && resumo.workspaceSlug !== workspaceSlug) {
+    return <Navigate to={caminhoPortalProjeto(resumo.workspaceSlug, projectId)} replace />
   }
 
   if (carregando) {
@@ -231,7 +254,7 @@ export default function PortalProjetoPage() {
         {conteudo.materiais.map((material) => (
           <Link
             className="flex items-center justify-between gap-4 p-4 hover:bg-surface-secondary"
-            to={`/p/${projectId}/materiais/${material.id}`}
+            to={caminhoPortalMaterial(workspaceSlug, projectId, material.id)}
             key={material.id}
           >
             <div className="flex min-w-0 items-center gap-3">

@@ -2,7 +2,6 @@ import { requisicaoApi, json } from './clienteHttp'
 
 export type RecursosPlano = {
   permiteIdentidadePersonalizada: boolean
-  permitePortalWhiteLabel: boolean
   permiteCalendarioEditorial: boolean
   permiteRelatorios: boolean
   permiteComentariosImagem: boolean
@@ -86,7 +85,6 @@ export type AtualizarPlanoEntrada = {
 
 const recursosPadrao: RecursosPlano = {
   permiteIdentidadePersonalizada: false,
-  permitePortalWhiteLabel: false,
   permiteCalendarioEditorial: false,
   permiteRelatorios: false,
   permiteComentariosImagem: true,
@@ -109,7 +107,6 @@ function normalizarPlano(plano: PlanoAssinatura): PlanoAssinatura {
     maxArmazenamentoGb: plano.maxArmazenamentoGb ?? null,
     maxWorkspaces: plano.maxWorkspaces ?? null,
     permiteIdentidadePersonalizada: Boolean(plano.permiteIdentidadePersonalizada),
-    permitePortalWhiteLabel: Boolean(plano.permitePortalWhiteLabel),
     permiteCalendarioEditorial: Boolean(plano.permiteCalendarioEditorial),
     permiteRelatorios: Boolean(plano.permiteRelatorios),
     permiteComentariosImagem:

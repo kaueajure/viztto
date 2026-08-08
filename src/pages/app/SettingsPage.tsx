@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [name, setName] = useState(workspace.name)
   const [slug, setSlug] = useState(workspace.slug)
   const [color, setColor] = useState('#b8ff4f')
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [notifications, setNotifications] = useState(preferenciasPadrao)
   const [recursosPlano, setRecursosPlano] = useState<UsoLimitesPlano['recursos'] | null>(null)
 
@@ -42,6 +43,7 @@ export default function SettingsPage() {
         setName(dado.workspace.nome)
         setSlug(dado.workspace.slug)
         setColor(dado.workspace.corPrincipal)
+        setLogoUrl(dado.workspace.logoUrl)
         setNotifications(dado.preferencias)
       })
       .catch((erro) => {
@@ -62,6 +64,9 @@ export default function SettingsPage() {
       active = false
     }
   }, [])
+
+  const portalPersonalizado = recursosPlano?.permiteIdentidadePersonalizada
+  const portalBloqueado = recursosPlano != null && !portalPersonalizado
 
   const execute = async (key: string, action: () => Promise<void>, message: string) => {
     setSaving(key)
@@ -110,21 +115,79 @@ export default function SettingsPage() {
         label="Slug"
         value={slug}
         onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-        hint={`viztto.site/${slug}`}
+        hint={`Portal do cliente: viztto.site/${slug || 'sua-empresa'}/{id-do-projeto}`}
       />
       <Input
-        label="Cor principal"
+        label="Cor principal do portal"
         type="color"
         value={color}
         onChange={(e) => setColor(e.target.value)}
         className="h-11 p-1"
-        disabled={recursosPlano ? !recursosPlano.permiteIdentidadePersonalizada : false}
+        disabled={portalBloqueado}
         hint={
-          recursosPlano && !recursosPlano.permiteIdentidadePersonalizada
-            ? 'Seu plano não libera personalizar a marca (cor/logo). Faça upgrade para liberar.'
-            : undefined
+          portalBloqueado
+            ? 'Seu plano não libera configurar o portal próprio (cor e logo). Faça upgrade para liberar.'
+            : 'Cor usada no portal de revisão do cliente.'
         }
       />
+      <div className="grid gap-2">
+        <p className="text-sm font-medium text-ink">Logo do portal</p>
+        {logoUrl ? (
+          <img src={logoUrl} alt="" className="h-12 w-auto max-w-xs object-contain" />
+        ) : (
+          <p className="text-sm text-muted">Nenhum logo enviado.</p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <label
+            className={`inline-flex cursor-pointer items-center rounded-md border border-line px-3 py-2 text-sm ${
+              portalBloqueado || saving === 'logo' ? 'pointer-events-none opacity-50' : ''
+            }`}
+          >
+            Enviar logo
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              disabled={portalBloqueado || saving === 'logo'}
+              onChange={(event) => {
+                const arquivo = event.target.files?.[0]
+                event.target.value = ''
+                if (!arquivo) return
+                void execute(
+                  'logo',
+                  async () => {
+                    const resposta = await configuracoesApi.enviarLogo(arquivo)
+                    setLogoUrl(resposta.dado.logoUrl)
+                  },
+                  'Logo atualizado.',
+                )
+              }}
+            />
+          </label>
+          {logoUrl && (
+            <Button
+              variant="ghost"
+              loading={saving === 'logo-remove'}
+              disabled={portalBloqueado}
+              onClick={() =>
+                void execute(
+                  'logo-remove',
+                  async () => {
+                    await configuracoesApi.removerLogo()
+                    setLogoUrl(null)
+                  },
+                  'Logo removido.',
+                )
+              }
+            >
+              Remover
+            </Button>
+          )}
+        </div>
+        {portalBloqueado && (
+          <p className="text-xs text-muted">Disponível nos planos com portal próprio.</p>
+        )}
+      </div>
       <Button
         loading={saving === 'workspace'}
         onClick={() =>

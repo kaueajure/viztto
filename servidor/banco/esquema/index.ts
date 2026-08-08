@@ -107,7 +107,6 @@ export const planosAssinatura = mysqlTable(
     permiteIdentidadePersonalizada: boolean('permite_identidade_personalizada')
       .notNull()
       .default(false),
-    permitePortalWhiteLabel: boolean('permite_portal_white_label').notNull().default(false),
     permiteCalendarioEditorial: boolean('permite_calendario_editorial').notNull().default(false),
     permiteRelatorios: boolean('permite_relatorios').notNull().default(false),
     permiteComentariosImagem: boolean('permite_comentarios_imagem').notNull().default(true),

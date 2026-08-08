@@ -71,6 +71,13 @@
       "when": 1786122000000,
       "tag": "0009_recursos_plano",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1786123000000,
+      "tag": "0010_portal_personalizado",
+      "breakpoints": true
     }
   ]
 }

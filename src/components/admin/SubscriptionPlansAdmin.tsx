@@ -52,14 +52,9 @@ const RECURSOS_ADMIN: Array<{
   },
   {
     campo: 'permiteIdentidadePersonalizada',
-    titulo: 'Marca da empresa (cor/logo)',
-    explicacao: 'Libera trocar a cor (e logo, quando disponível) no app e no portal do cliente.',
-  },
-  {
-    campo: 'permitePortalWhiteLabel',
-    titulo: 'Portal só com a marca da empresa',
+    titulo: 'Configurar portal próprio',
     explicacao:
-      'Remove a marca Viztto do portal de revisão. O cliente vê apenas a identidade da empresa.',
+      'Libera cor, logo e portal de revisão sem a marca Viztto (URL e visual da empresa).',
   },
   {
     campo: 'permiteFuncoesAvancadas',
@@ -303,7 +298,6 @@ export function SubscriptionPlansAdmin() {
                         maxArmazenamentoGb: plan.maxArmazenamentoGb,
                         maxWorkspaces: plan.maxWorkspaces,
                         permiteIdentidadePersonalizada: plan.permiteIdentidadePersonalizada,
-                        permitePortalWhiteLabel: plan.permitePortalWhiteLabel,
                         permiteCalendarioEditorial: plan.permiteCalendarioEditorial,
                         permiteRelatorios: plan.permiteRelatorios,
                         permiteComentariosImagem: plan.permiteComentariosImagem,
