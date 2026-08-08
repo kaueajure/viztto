@@ -16,7 +16,6 @@ import { z } from 'zod'
 import { receberImagem } from '../../configuracao/upload.js'
 import { garantirIdentidadePersonalizada } from '../../servicos/limites-plano.servico.js'
 import {
-  absolutoDoCaminhoRelativo,
   armazenarLogoWorkspace,
   removerArquivoSalvo,
 } from '../../servicos/arquivo.servico.js'
@@ -145,12 +144,12 @@ consultasRotas.post(
         .set({ logoUrl: salvo.caminhoRelativo, atualizadoEm: new Date() })
         .where(eq(workspaces.id, workspaceId))
     } catch (erro) {
-      await removerArquivoSalvo(salvo.caminhoAbsoluto)
+      await removerArquivoSalvo(salvo.caminhoRelativo)
       throw erro
     }
     if (atual?.logoUrl) {
       try {
-        await removerArquivoSalvo(absolutoDoCaminhoRelativo(atual.logoUrl))
+        await removerArquivoSalvo(atual.logoUrl)
       } catch {
         /* logo anterior invalido — ignora */
       }
@@ -176,7 +175,7 @@ consultasRotas.delete('/configuracoes/workspace/logo', exigirFuncao('gestor'), a
     .where(eq(workspaces.id, workspaceId))
   if (atual?.logoUrl) {
     try {
-      await removerArquivoSalvo(absolutoDoCaminhoRelativo(atual.logoUrl))
+      await removerArquivoSalvo(atual.logoUrl)
     } catch {
       /* ignore */
     }

@@ -18,6 +18,16 @@ const segredoOpcional = (minimo: number) =>
     z.string().min(minimo).optional(),
   )
 
+const textoOpcional = z.preprocess(
+  (valor) => (typeof valor === 'string' && valor.trim() === '' ? undefined : valor),
+  z.string().min(1).optional(),
+)
+
+const urlOpcional = z.preprocess(
+  (valor) => (typeof valor === 'string' && valor.trim() === '' ? undefined : valor),
+  z.string().url().optional(),
+)
+
 const esquema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: portaOpcional,
@@ -30,6 +40,12 @@ const esquema = z.object({
   SEGREDO_SESSAO: z.string().min(32),
   URL_APLICACAO: z.string().url().optional(),
   DIRETORIO_UPLOADS: z.string().default('./uploads'),
+  /** Endpoint S3-compativel (R2, MinIO, Spaces…). Se definido com bucket/chaves, uploads usam objeto em vez do disco. */
+  ARMAZENAMENTO_OBJETO_ENDPOINT: urlOpcional,
+  ARMAZENAMENTO_OBJETO_REGIAO: textoOpcional,
+  ARMAZENAMENTO_OBJETO_BUCKET: textoOpcional,
+  ARMAZENAMENTO_OBJETO_ACCESS_KEY: textoOpcional,
+  ARMAZENAMENTO_OBJETO_SECRET_KEY: textoOpcional,
   TAMANHO_MAXIMO_IMAGEM_MB: z.coerce.number().positive().max(50).default(15),
   TAMANHO_MAXIMO_ARQUIVO_MB: z.coerce.number().positive().max(500).default(100),
   COOKIE_SEGURO: booleano(false),

@@ -7,20 +7,20 @@ const columns = [
   {
     title: 'Produto',
     links: [
+      ['Produto', '/produto'],
+      ['Recursos', '/recursos'],
+      ['Preços', '/precos'],
       ['Como funciona', '/#como-funciona'],
-      ['Recursos', '/#recursos'],
-      ['Para quem', '/#publicos'],
-      ['Preços', '/#precos'],
     ],
   },
   {
     title: 'Formatos',
     links: [
-      ['Imagens', '/#recursos'],
-      ['Vídeos', '/#recursos'],
-      ['PDFs', '/#recursos'],
-      ['Apresentações', '/#recursos'],
-      ['Sites', '/#recursos'],
+      ['Imagens', '/recursos'],
+      ['Vídeos', '/recursos'],
+      ['PDFs', '/recursos'],
+      ['Apresentações', '/recursos'],
+      ['Sites', '/recursos'],
     ],
   },
   {

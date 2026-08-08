@@ -1,6 +1,6 @@
 export const commercialLinks = [
-  { label: 'Como funciona', to: '/#como-funciona' },
-  { label: 'Recursos', to: '/#recursos' },
-  { label: 'Para quem', to: '/#publicos' },
-  { label: 'Preços', to: '/#precos' },
+  { label: 'Produto', to: '/produto' },
+  { label: 'Recursos', to: '/recursos' },
+  { label: 'Preços', to: '/precos' },
+  { label: 'Contato', to: '/contato' },
 ] as const

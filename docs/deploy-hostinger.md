@@ -77,9 +77,21 @@ npm run banco:migrar:producao
 
 ## Uploads persistentes
 
-`DIRETORIO_UPLOADS` precisa apontar para armazenamento persistente e gravável. A inicialização cria e testa o diretório e recusa caminhos dentro de `dist`, `build-servidor`, `node_modules` ou diretório temporário do sistema. Confirme no hPanel que uma nova implantação não remove `./uploads`.
+Por padrao, `DIRETORIO_UPLOADS` precisa apontar para armazenamento persistente e gravavel. A inicializacao cria e testa o diretorio e recusa caminhos dentro de `dist`, `build-servidor`, `node_modules` ou diretorio temporario do sistema. Confirme no hPanel que uma nova implantacao nao remove `./uploads`.
 
-Faça backup coordenado do MySQL e dos uploads conforme [backup.md](backup.md). O banco não deve ser exposto à internet pública.
+Para object storage S3-compativel (Cloudflare R2, MinIO, Spaces etc.), configure:
+
+```
+ARMAZENAMENTO_OBJETO_ENDPOINT=https://xxxx.r2.cloudflarestorage.com
+ARMAZENAMENTO_OBJETO_REGIAO=auto
+ARMAZENAMENTO_OBJETO_BUCKET=viztto
+ARMAZENAMENTO_OBJETO_ACCESS_KEY=...
+ARMAZENAMENTO_OBJETO_SECRET_KEY=...
+```
+
+Com essas variaveis, novos arquivos usam o bucket (chave = `caminho_relativo` no banco) e o disco local deixa de ser obrigatorio. Migre objetos existentes se ja houver uploads em `./uploads`.
+
+Faca backup coordenado do MySQL e dos uploads (disco ou bucket) conforme [backup.md](backup.md). O banco nao deve ser exposto a internet publica.
 
 ## Diagnóstico
 

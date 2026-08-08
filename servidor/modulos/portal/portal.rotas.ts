@@ -1,9 +1,7 @@
-import path from 'node:path'
 import { Router } from 'express'
 import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
-import { diretorioUploads } from '../../configuracao/upload.js'
 import {
   aprovacoes,
   arquivos,
@@ -20,7 +18,7 @@ import {
 import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
-import { absolutoDoCaminhoRelativo } from '../../servicos/arquivo.servico.js'
+import { enviarArquivoResposta } from '../../servicos/arquivo.servico.js'
 import {
   carregarMarcaPortal,
   garantirComentarioNoMaterial,
@@ -172,11 +170,10 @@ portalRotas.get('/workspaces/:workspaceId/logo', async (req, res) => {
     .limit(1)
   if (!workspace?.logoUrl)
     throw new ErroHttp(404, 'Logo nao encontrado.', 'logo_nao_encontrado')
-  const absoluto = absolutoDoCaminhoRelativo(workspace.logoUrl)
-  const ext = path.extname(workspace.logoUrl).toLowerCase()
+  const ext = workspace.logoUrl.toLowerCase().split('.').pop()
   const mime =
-    ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg'
-  res.type(mime).setHeader('Cache-Control', 'private, max-age=3600').sendFile(absoluto)
+    ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
+  await enviarArquivoResposta(res, workspace.logoUrl, mime)
 })
 
 portalRotas.get('/projetos/:projetoId/conteudo', async (req, res) => {
@@ -290,10 +287,7 @@ portalRotas.get('/projetos/:projetoId/arquivos/:arquivoId', async (req, res) => 
     )
     .limit(1)
   if (!arquivo) throw new ErroHttp(404, 'Arquivo nao encontrado.', 'arquivo_nao_encontrado')
-  const absoluto = path.resolve(diretorioUploads, ...arquivo.caminhoRelativo.split('/'))
-  if (!absoluto.startsWith(`${diretorioUploads}${path.sep}`))
-    throw new ErroHttp(400, 'Caminho de arquivo invalido.', 'arquivo_invalido')
-  res.type(arquivo.mimeType).setHeader('Cache-Control', 'private, max-age=3600').sendFile(absoluto)
+  await enviarArquivoResposta(res, arquivo.caminhoRelativo, arquivo.mimeType)
 })
 
 portalRotas.get('/projetos/:projetoId/materiais/:materialId/comentarios', async (req, res) => {

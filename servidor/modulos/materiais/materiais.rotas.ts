@@ -163,7 +163,7 @@ materiaisRotas.post('/', exigirFuncao('criativo'), receberImagem, async (req, re
       })
     })
   } catch (erro) {
-    await removerArquivoSalvo(salvo.caminhoAbsoluto)
+    await removerArquivoSalvo(salvo.registro.caminhoRelativo)
     throw erro
   }
   await notificarClienteProjetoAlterado({
@@ -302,7 +302,7 @@ materiaisRotas.post(
         })
       })
     } catch (erro) {
-      await removerArquivoSalvo(salvo.caminhoAbsoluto)
+      await removerArquivoSalvo(salvo.registro.caminhoRelativo)
       throw erro
     }
     await notificarClienteProjetoAlterado({

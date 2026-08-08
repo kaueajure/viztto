@@ -1,19 +1,28 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router'
-import { DesignSystemLayout } from '@/components/layout/DesignSystemLayout'
 import { MarketingLayout } from '@/components/layout/MarketingLayout'
 import { UtilityLayout } from '@/components/layout/UtilityLayout'
 import { LoadingSkeleton } from '@/components/ui/DataDisplay'
 
 const HomePage = lazy(() => import('@/pages/HomePage'))
-const PlaceholderPage = lazy(() => import('@/pages/PlaceholderPage'))
-const DesignSystemPage = lazy(() => import('@/pages/DesignSystemPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 const TermsPage = lazy(() =>
   import('@/pages/LegalPages').then((module) => ({ default: module.TermsPage })),
 )
 const PrivacyPage = lazy(() =>
   import('@/pages/LegalPages').then((module) => ({ default: module.PrivacyPage })),
+)
+const ProdutoPage = lazy(() =>
+  import('@/pages/marketing/MarketingPages').then((module) => ({ default: module.ProdutoPage })),
+)
+const RecursosPage = lazy(() =>
+  import('@/pages/marketing/MarketingPages').then((module) => ({ default: module.RecursosPage })),
+)
+const PrecosPage = lazy(() =>
+  import('@/pages/marketing/MarketingPages').then((module) => ({ default: module.PrecosPage })),
+)
+const ContatoPage = lazy(() =>
+  import('@/pages/marketing/MarketingPages').then((module) => ({ default: module.ContatoPage })),
 )
 const AuthAreaLayout = lazy(() =>
   import('@/components/layout/ProductAreaLayouts').then((module) => ({
@@ -125,10 +134,10 @@ export const router = createBrowserRouter([
     element: <MarketingLayout />,
     children: [
       { path: '/', element: page(<HomePage />) },
-      { path: '/produto', element: page(<PlaceholderPage />) },
-      { path: '/recursos', element: page(<PlaceholderPage />) },
-      { path: '/precos', element: page(<PlaceholderPage />) },
-      { path: '/contato', element: page(<PlaceholderPage />) },
+      { path: '/produto', element: page(<ProdutoPage />) },
+      { path: '/recursos', element: page(<RecursosPage />) },
+      { path: '/precos', element: page(<PrecosPage />) },
+      { path: '/contato', element: page(<ContatoPage />) },
     ],
   },
   {
@@ -205,9 +214,5 @@ export const router = createBrowserRouter([
       { path: '/privacidade', element: page(<PrivacyPage />) },
       { path: '*', element: page(<NotFoundPage />) },
     ],
-  },
-  {
-    element: <DesignSystemLayout />,
-    children: [{ path: '/design-system', element: page(<DesignSystemPage />) }],
   },
 ])

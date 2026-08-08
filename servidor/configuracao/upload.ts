@@ -8,6 +8,15 @@ import { diretorioDist, raizProjeto } from './caminhos.js'
 
 export const diretorioUploads = path.resolve(raizProjeto, ambiente.DIRETORIO_UPLOADS)
 
+function armazenamentoObjetoConfigurado() {
+  return Boolean(
+    ambiente.ARMAZENAMENTO_OBJETO_ENDPOINT &&
+      ambiente.ARMAZENAMENTO_OBJETO_BUCKET &&
+      ambiente.ARMAZENAMENTO_OBJETO_ACCESS_KEY &&
+      ambiente.ARMAZENAMENTO_OBJETO_SECRET_KEY,
+  )
+}
+
 function dentroDe(caminho: string, base: string) {
   const relativo = path.relative(base, caminho)
   return relativo === '' || (!relativo.startsWith('..') && !path.isAbsolute(relativo))
@@ -19,10 +28,14 @@ const proibidos = [
   path.join(raizProjeto, 'node_modules'),
   os.tmpdir(),
 ]
-if (proibidos.some((proibido) => dentroDe(diretorioUploads, proibido)))
+if (
+  !armazenamentoObjetoConfigurado() &&
+  proibidos.some((proibido) => dentroDe(diretorioUploads, proibido))
+)
   throw new Error('DIRETORIO_UPLOADS deve apontar para um diretório persistente e isolado.')
 
 export async function validarDiretorioUploads() {
+  if (armazenamentoObjetoConfigurado()) return
   await mkdir(diretorioUploads, { recursive: true })
   await access(diretorioUploads, constants.R_OK | constants.W_OK)
   const teste = path.join(diretorioUploads, `.viztto-escrita-${process.pid}`)
@@ -32,6 +45,7 @@ export async function validarDiretorioUploads() {
 }
 
 export async function uploadsDisponiveis() {
+  if (armazenamentoObjetoConfigurado()) return true
   try {
     await access(diretorioUploads, constants.R_OK | constants.W_OK)
     return true
