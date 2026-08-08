@@ -1,10 +1,7 @@
-import { LockKeyhole } from 'lucide-react'
-import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, Navigate, useParams } from 'react-router'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/FormControls'
 import { caminhoPortalMaterial, caminhoPortalProjeto, UUID_RE } from '@/lib/portalPaths'
-import { ApiError, requisicaoApi, json } from '@/services/api/clienteHttp'
+import { ApiError, requisicaoApi } from '@/services/api/clienteHttp'
 
 type ResumoPortal = {
   id: string
@@ -13,7 +10,6 @@ type ResumoPortal = {
   clienteNome: string
   workspaceSlug: string
   liberado: boolean
-  temSenha: boolean
   marca?: {
     corPrincipal: string
     logoUrl: string | null
@@ -57,37 +53,10 @@ export default function PortalProjetoPage() {
   const { workspaceSlug = '', projectId = '' } = useParams()
   const [resumo, setResumo] = useState<ResumoPortal | null>(null)
   const [conteudo, setConteudo] = useState<ConteudoPortal | null>(null)
-  const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
   const [carregando, setCarregando] = useState(true)
-  const [enviando, setEnviando] = useState(false)
 
   const slugValido = Boolean(workspaceSlug) && UUID_RE.test(projectId)
-
-  const carregar = async () => {
-    setCarregando(true)
-    setErro('')
-    try {
-      const { dado } = await requisicaoApi<{ dado: ResumoPortal }>(
-        `/api/portal/projetos/${projectId}?slug=${encodeURIComponent(workspaceSlug)}`,
-      )
-      setResumo(dado)
-      if (dado.liberado) {
-        const detalhe = await requisicaoApi<{ dado: ConteudoPortal }>(
-          `/api/portal/projetos/${projectId}/conteudo`,
-        )
-        setConteudo(detalhe.dado)
-      } else {
-        setConteudo(null)
-      }
-    } catch (error) {
-      setResumo(null)
-      setConteudo(null)
-      setErro(error instanceof ApiError ? error.message : 'Não foi possível abrir este projeto.')
-    } finally {
-      setCarregando(false)
-    }
-  }
 
   useEffect(() => {
     if (!slugValido) {
@@ -95,33 +64,34 @@ export default function PortalProjetoPage() {
       setErro('Este link não é válido.')
       return
     }
-    void carregar()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- recarrega ao mudar rota
-  }, [workspaceSlug, projectId, slugValido])
-
-  const entrar = async (event: FormEvent) => {
-    event.preventDefault()
-    setEnviando(true)
+    let ativo = true
+    setCarregando(true)
     setErro('')
-    try {
-      await requisicaoApi(`/api/portal/projetos/${projectId}/entrar`, {
-        method: 'POST',
-        body: json({ senha }),
-      })
-      setSenha('')
-      await carregar()
-    } catch (error) {
-      setErro(error instanceof ApiError ? error.message : 'Senha inválida.')
-    } finally {
-      setEnviando(false)
+    void (async () => {
+      try {
+        const { dado } = await requisicaoApi<{ dado: ResumoPortal }>(
+          `/api/portal/projetos/${projectId}?slug=${encodeURIComponent(workspaceSlug)}`,
+        )
+        if (!ativo) return
+        setResumo(dado)
+        const detalhe = await requisicaoApi<{ dado: ConteudoPortal }>(
+          `/api/portal/projetos/${projectId}/conteudo`,
+        )
+        if (!ativo) return
+        setConteudo(detalhe.dado)
+      } catch (error) {
+        if (!ativo) return
+        setResumo(null)
+        setConteudo(null)
+        setErro(error instanceof ApiError ? error.message : 'Não foi possível abrir este projeto.')
+      } finally {
+        if (ativo) setCarregando(false)
+      }
+    })()
+    return () => {
+      ativo = false
     }
-  }
-
-  const sair = async () => {
-    await requisicaoApi(`/api/portal/projetos/${projectId}/sair`, { method: 'POST' })
-    setConteudo(null)
-    await carregar()
-  }
+  }, [workspaceSlug, projectId, slugValido])
 
   if (!slugValido) {
     return (
@@ -144,70 +114,11 @@ export default function PortalProjetoPage() {
     )
   }
 
-  if (!resumo) {
+  if (!resumo || !conteudo) {
     return (
       <div className="mx-auto max-w-lg px-5 py-16 text-center">
         <h1 className="text-2xl font-semibold">Projeto indisponível</h1>
         <p className="mt-3 text-secondary">{erro || 'Este link não é válido.'}</p>
-      </div>
-    )
-  }
-
-  if (!conteudo) {
-    return (
-      <div
-        className="mx-auto grid max-w-lg gap-6 px-5 py-16"
-        style={
-          resumo.marca
-            ? ({ ['--portal-brand' as string]: resumo.marca.corPrincipal } as CSSProperties)
-            : undefined
-        }
-      >
-        <div className="rounded-xl border border-line bg-surface p-6 shadow-raised sm:p-8">
-          {resumo.marca?.logoUrl ? (
-            <img src={resumo.marca.logoUrl} alt="" className="h-10 w-auto object-contain" />
-          ) : (
-            <span
-              className="grid h-11 w-11 place-items-center rounded-lg border text-brand"
-              style={{
-                borderColor: 'color-mix(in srgb, var(--portal-brand, #b8ff4f) 30%, transparent)',
-                background: 'color-mix(in srgb, var(--portal-brand, #b8ff4f) 18%, transparent)',
-                color: 'var(--portal-brand, #b8ff4f)',
-              }}
-            >
-              <LockKeyhole className="h-5 w-5" />
-            </span>
-          )}
-          <p className="mt-5 text-sm text-muted">{resumo.empresaNome}</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{resumo.nome}</h1>
-          <p className="mt-3 text-secondary">
-            Digite a senha enviada por e-mail para acessar e revisar este projeto.
-          </p>
-          {!resumo.temSenha && (
-            <p className="mt-3 text-sm text-revision">
-              Este projeto ainda não tem senha. Peça uma nova ao responsável.
-            </p>
-          )}
-          <form onSubmit={(event) => void entrar(event)} className="mt-7 grid gap-4">
-            <Input
-              label="Senha de acesso"
-              type="password"
-              autoComplete="current-password"
-              value={senha}
-              onChange={(event) => setSenha(event.target.value)}
-              required
-            />
-            {erro && <p className="text-sm text-revision">{erro}</p>}
-            <Button type="submit" loading={enviando} disabled={!resumo.temSenha}>
-              Entrar no projeto
-            </Button>
-          </form>
-        </div>
-        {!resumo.marca?.whiteLabel && (
-          <p className="text-center text-xs text-muted">
-            Portal de revisão · <span className="font-medium text-secondary">Viztto</span>
-          </p>
-        )}
       </div>
     )
   }
@@ -221,33 +132,24 @@ export default function PortalProjetoPage() {
           : undefined
       }
     >
-      <div className="flex flex-col gap-4 border-b border-line pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          {resumo.marca?.logoUrl && (
-            <img
-              src={resumo.marca.logoUrl}
-              alt=""
-              className="mb-3 h-8 w-auto object-contain"
-            />
-          )}
-          <p className="text-sm text-muted">{conteudo.projeto.empresaNome}</p>
-          <h1 className="mt-1 text-3xl font-semibold">{conteudo.projeto.nome}</h1>
-          <p className="mt-2 text-sm text-secondary">
-            {rotuloStatus[conteudo.projeto.status] ?? conteudo.projeto.status}
-            {conteudo.projeto.prazoEm
-              ? ` · prazo ${new Date(conteudo.projeto.prazoEm).toLocaleDateString('pt-BR')}`
-              : ''}
-          </p>
-          <p className="mt-3 text-sm text-secondary">
-            Abra um material para comentar, pedir alterações ou aprovar.
-          </p>
-          {conteudo.projeto.descricao && (
-            <p className="mt-3 text-secondary">{conteudo.projeto.descricao}</p>
-          )}
-        </div>
-        <Button variant="ghost" onClick={() => void sair()}>
-          Sair
-        </Button>
+      <div className="border-b border-line pb-6">
+        {resumo.marca?.logoUrl && (
+          <img src={resumo.marca.logoUrl} alt="" className="mb-3 h-8 w-auto object-contain" />
+        )}
+        <p className="text-sm text-muted">{conteudo.projeto.empresaNome}</p>
+        <h1 className="mt-1 text-3xl font-semibold">{conteudo.projeto.nome}</h1>
+        <p className="mt-2 text-sm text-secondary">
+          {rotuloStatus[conteudo.projeto.status] ?? conteudo.projeto.status}
+          {conteudo.projeto.prazoEm
+            ? ` · prazo ${new Date(conteudo.projeto.prazoEm).toLocaleDateString('pt-BR')}`
+            : ''}
+        </p>
+        <p className="mt-3 text-sm text-secondary">
+          Abra um material para comentar, pedir alterações ou aprovar.
+        </p>
+        {conteudo.projeto.descricao && (
+          <p className="mt-3 text-secondary">{conteudo.projeto.descricao}</p>
+        )}
       </div>
       <h2 className="mt-8 text-lg font-semibold">Materiais para revisar</h2>
       <div className="mt-4 divide-y divide-line rounded-md border border-line">

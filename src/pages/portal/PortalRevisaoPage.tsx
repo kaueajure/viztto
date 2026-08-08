@@ -97,7 +97,7 @@ export default function PortalRevisaoPage() {
       setErro(
         error instanceof ApiError
           ? error.message
-          : 'Não foi possível abrir este material. Entre com a senha do projeto.',
+          : 'Não foi possível abrir este material.',
       )
     } finally {
       setCarregando(false)

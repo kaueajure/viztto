@@ -127,7 +127,7 @@ type ConteudoProjetoCriado = {
   criadorNome: string
   empresaNome: string
   link: string
-  senhaAcesso: string
+  senhaAcesso?: string
 }
 
 type ConteudoProjetoAlterado = {
@@ -144,7 +144,6 @@ export function montarEmailProjetoCriado({
   criadorNome,
   empresaNome,
   link,
-  senhaAcesso,
 }: ConteudoProjetoCriado) {
   const primeiroNome = clienteNome.trim().split(/\s+/)[0] || 'ola'
   const assunto = `Novo projeto: ${projetoNome}`
@@ -153,12 +152,8 @@ export function montarEmailProjetoCriado({
     '',
     `${criadorNome} (${empresaNome}) criou o projeto "${projetoNome}" para voce no Viztto.`,
     '',
-    `Senha de acesso: ${senhaAcesso}`,
-    '',
-    'Use o link abaixo e informe a senha para abrir o projeto:',
+    'Abra o link abaixo para revisar o projeto (nao precisa de senha):',
     link,
-    '',
-    'Nao compartilhe esta senha. Somente quem a possui consegue entrar neste projeto.',
     '',
     'Equipe Viztto',
   ].join('\n')
@@ -167,9 +162,7 @@ export function montarEmailProjetoCriado({
     assunto,
     titulo: 'Novo projeto para voce',
     corpo: `Ola, ${escaparHtml(primeiroNome)}. <strong>${escaparHtml(criadorNome)}</strong> da empresa <strong>${escaparHtml(empresaNome)}</strong> criou o projeto <strong>${escaparHtml(projetoNome)}</strong> no Viztto.`,
-    extra: `<p style="margin:18px 0 0 0;font-size:14px;line-height:1.6;color:#a7b0be;">Senha de acesso:</p>
-              <p style="margin:8px 0 0 0;font-size:22px;font-weight:700;letter-spacing:0.12em;color:#b8ff4f;">${escaparHtml(senhaAcesso)}</p>
-              <p style="margin:12px 0 0 0;font-size:12px;line-height:1.6;color:#7f8998;">Nao compartilhe esta senha. Somente quem a possui consegue entrar neste projeto.</p>`,
+    extra: `<p style="margin:16px 0 0 0;font-size:13px;line-height:1.6;color:#7f8998;">Abra o link para revisar. Nao e necessario informar senha.</p>`,
     cta: 'Abrir projeto',
     link,
   })
@@ -193,7 +186,7 @@ export function montarEmailProjetoAlterado({
     '',
     resumo,
     '',
-    'Acesse com a senha enviada no e-mail de criacao do projeto:',
+    'Abra o link abaixo para revisar (nao precisa de senha):',
     link,
     '',
     'Equipe Viztto',
@@ -203,7 +196,7 @@ export function montarEmailProjetoAlterado({
     assunto,
     titulo: 'Alteracao no projeto',
     corpo: `Ola, ${escaparHtml(primeiroNome)}. O projeto <strong>${escaparHtml(projetoNome)}</strong> de <strong>${escaparHtml(empresaNome)}</strong> foi atualizado: ${escaparHtml(resumo)}`,
-    extra: `<p style="margin:16px 0 0 0;font-size:13px;line-height:1.6;color:#7f8998;">Use a senha de acesso enviada quando o projeto foi criado.</p>`,
+    extra: `<p style="margin:16px 0 0 0;font-size:13px;line-height:1.6;color:#7f8998;">Abra o link para revisar. Nao e necessario informar senha.</p>`,
     cta: 'Ver projeto',
     link,
   })

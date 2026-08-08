@@ -13,6 +13,7 @@ import { Input, Select, Textarea } from '@/components/ui/FormControls'
 import { Modal, Tabs } from '@/components/ui/Interactive'
 import { useAppData } from '@/contexts/AppDataContext'
 import { dadosApi } from '@/services/api/dadosApi'
+import { caminhoPortalProjeto } from '@/lib/portalPaths'
 import type { ProjectStatus } from '@/types/domain'
 
 const filters: Array<[string, ProjectStatus | 'all']> = [
@@ -202,15 +203,14 @@ export function NewProjectPage() {
 
 export function ProjectDetailPage() {
   const { projectId } = useParams()
-  const { projects, clients, materials: allMaterials, addMaterial } = useAppData()
+  const { projects, clients, materials: allMaterials, addMaterial, workspace } = useAppData()
   const [materialModal, setMaterialModal] = useState(false)
   const [materialForm, setMaterialForm] = useState({ name: '', type: 'image' })
   const [materialFile, setMaterialFile] = useState<File | null>(null)
   const [materialSubmitting, setMaterialSubmitting] = useState(false)
   const [materialError, setMaterialError] = useState('')
-  const [portalSending, setPortalSending] = useState(false)
-  const [portalMessage, setPortalMessage] = useState('')
-  const [portalError, setPortalError] = useState('')
+  const [shareMessage, setShareMessage] = useState('')
+  const [shareError, setShareError] = useState('')
   const project = projects.find((item) => item.id === projectId)
   if (!project)
     return (
@@ -221,6 +221,26 @@ export function ProjectDetailPage() {
     )
   const client = clients.find((item) => item.id === project.clientId)
   const materials = allMaterials.filter((item) => item.projectId === project.id)
+  const linkPortal =
+    workspace.slug && project.id
+      ? `${window.location.origin}${caminhoPortalProjeto(workspace.slug, project.id)}`
+      : ''
+
+  const compartilharLink = async () => {
+    setShareMessage('')
+    setShareError('')
+    if (!linkPortal) {
+      setShareError('Defina o slug do workspace nas configurações para gerar o link.')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(linkPortal)
+      setShareMessage('Link do portal copiado. O cliente abre sem senha.')
+    } catch {
+      setShareError(`Copie manualmente: ${linkPortal}`)
+    }
+  }
+
   const overview = (
     <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
       <div>
@@ -244,40 +264,20 @@ export function ProjectDetailPage() {
     <div>
       <div className="mb-4 flex justify-end">
         <div className="flex flex-wrap gap-3">
-          <Button
-            variant="ghost"
-            loading={portalSending}
-            onClick={async () => {
-              if (!window.confirm('Gerar uma nova senha? A senha anterior deixará de funcionar.'))
-                return
-              setPortalSending(true)
-              setPortalMessage('')
-              setPortalError('')
-              try {
-                const resposta = await dadosApi.reenviarSenhaPortal(project.id)
-                setPortalMessage(resposta.mensagem)
-              } catch (erro) {
-                setPortalError(
-                  erro instanceof Error ? erro.message : 'Não foi possível enviar a senha.',
-                )
-              } finally {
-                setPortalSending(false)
-              }
-            }}
-          >
-            Regenerar e reenviar senha
+          <Button variant="ghost" onClick={() => void compartilharLink()}>
+            Compartilhar link
           </Button>
           <Button onClick={() => setMaterialModal(true)}>Adicionar material</Button>
         </div>
       </div>
-      {portalMessage && (
-        <p role="status" className="mt-3 text-sm text-approval">
-          {portalMessage}
+      {shareMessage && (
+        <p role="status" className="mb-3 text-sm text-approval">
+          {shareMessage}
         </p>
       )}
-      {portalError && (
-        <p role="alert" className="mt-3 text-sm text-revision">
-          {portalError}
+      {shareError && (
+        <p role="alert" className="mb-3 text-sm text-revision">
+          {shareError}
         </p>
       )}
       <div className="divide-y divide-line rounded-md border border-line">
@@ -317,8 +317,21 @@ export function ProjectDetailPage() {
             <AvatarGroup names={project.members} />
           </div>
         </div>
-        <Button onClick={() => setMaterialModal(true)}>Adicionar material</Button>
+        <div className="flex flex-wrap gap-3">
+          <Button variant="outline" onClick={() => void compartilharLink()}>
+            Compartilhar link
+          </Button>
+          <Button onClick={() => setMaterialModal(true)}>Adicionar material</Button>
+        </div>
       </div>
+      {(shareMessage || shareError) && (
+        <p
+          role={shareError ? 'alert' : 'status'}
+          className={`mt-4 text-sm ${shareError ? 'text-revision' : 'text-approval'}`}
+        >
+          {shareError || shareMessage}
+        </p>
+      )}
       <div className="mt-6 rounded-lg border border-line bg-surface px-5">
         <Tabs
           items={[
