@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Interactive'
 import {
   assinaturasApi,
+  type AssinaturaBilling,
   type CheckoutConfig,
   type PlanoAssinatura,
 } from '@/services/api/assinaturasApi'
@@ -20,6 +21,13 @@ type PixPendente = {
 
 const order: Record<PlanCode, number> = { gratuito: 0, freelancer: 1, studio: 2, agency: 3 }
 
+function formatarData(valor: string | Date | null | undefined) {
+  if (!valor) return null
+  const data = typeof valor === 'string' ? new Date(valor) : valor
+  if (Number.isNaN(data.getTime())) return null
+  return data.toLocaleDateString('pt-BR')
+}
+
 export function PlanUpgradePanel({
   payerEmail,
   canManage,
@@ -32,9 +40,11 @@ export function PlanUpgradePanel({
   const [plans, setPlans] = useState<PlanoAssinatura[]>([])
   const [config, setConfig] = useState<CheckoutConfig | null>(null)
   const [activeSubscription, setActiveSubscription] = useState<PlanCode | null>(null)
+  const [billing, setBilling] = useState<AssinaturaBilling | null>(null)
   const [selected, setSelected] = useState<PlanoAssinatura | null>(null)
   const [metodo, setMetodo] = useState<MetodoPagamento>('cartao')
   const [loading, setLoading] = useState(true)
+  const [cancelando, setCancelando] = useState(false)
   const [pixLoading, setPixLoading] = useState(false)
   const [pix, setPix] = useState<PixPendente | null>(null)
   const [copiado, setCopiado] = useState(false)
@@ -52,6 +62,7 @@ export function PlanUpgradePanel({
         setPlans(response.dados)
         setConfig(response.integracao)
         setActiveSubscription(response.assinaturaAtual)
+        setBilling(response.assinaturaBilling)
       })
       .catch((cause) => {
         if (active)
@@ -78,6 +89,26 @@ export function PlanUpgradePanel({
             onPurchasedRef.current(codigo)
             setActiveSubscription(codigo)
           }
+          setBilling((atual) =>
+            atual
+              ? {
+                  ...atual,
+                  id: response.dado.id,
+                  status: 'autorizada',
+                  vigenciaAte: response.dado.vigenciaAte ?? null,
+                  carenciaAte: null,
+                  motivoStatus: null,
+                  ehPix: true,
+                }
+              : {
+                  id: response.dado.id,
+                  status: 'autorizada',
+                  vigenciaAte: response.dado.vigenciaAte ?? null,
+                  carenciaAte: null,
+                  motivoStatus: null,
+                  ehPix: true,
+                },
+          )
           setPix(null)
         })
         .catch(() => undefined)
@@ -103,13 +134,24 @@ export function PlanUpgradePanel({
       tokenCartao,
       emailPagador,
     })
+    const autorizada = response.dado.status === 'authorized' || response.dado.status === 'autorizada'
     setSuccess(
-      response.dado.status === 'authorized'
+      autorizada
         ? 'Plano contratado com sucesso.'
         : 'Assinatura enviada e aguardando confirmação.',
     )
-    onPurchasedRef.current(selected.codigo)
-    setActiveSubscription(selected.codigo)
+    if (autorizada) {
+      onPurchasedRef.current(selected.codigo)
+      setActiveSubscription(selected.codigo)
+      setBilling({
+        id: response.dado.id,
+        status: 'autorizada',
+        carenciaAte: null,
+        vigenciaAte: null,
+        motivoStatus: null,
+        ehPix: false,
+      })
+    }
   }
 
   async function gerarPix() {
@@ -122,10 +164,18 @@ export function PlanUpgradePanel({
         codigoPlano: selected.codigo,
         emailPagador: payerEmail,
       })
-      if (response.dado.status === 'approved') {
+      if (response.dado.status === 'approved' || response.dado.status === 'autorizada') {
         setSuccess('Pix confirmado. Plano liberado com sucesso.')
         onPurchasedRef.current(selected.codigo)
         setActiveSubscription(selected.codigo)
+        setBilling({
+          id: response.dado.id,
+          status: 'autorizada',
+          carenciaAte: null,
+          vigenciaAte: null,
+          motivoStatus: null,
+          ehPix: true,
+        })
         setPix(null)
         return
       }
@@ -151,6 +201,41 @@ export function PlanUpgradePanel({
     }
   }
 
+  async function cancelarPlano() {
+    if (!billing?.id || !canManage) return
+    setError('')
+    setCancelando(true)
+    try {
+      const response = await assinaturasApi.cancelarAssinatura(billing.id)
+      const fim = formatarData(response.dado.carenciaAte)
+      setBilling({
+        ...billing,
+        status: response.dado.status,
+        carenciaAte: response.dado.carenciaAte,
+        motivoStatus: 'cancelamento_usuario',
+      })
+      setSuccess(
+        fim
+          ? `Cancelamento iniciado. Você mantém o plano até ${fim}.`
+          : response.mensagem,
+      )
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível cancelar o plano.')
+    } finally {
+      setCancelando(false)
+    }
+  }
+
+  const dataCarencia = formatarData(billing?.carenciaAte)
+  const dataVigencia = formatarData(billing?.vigenciaAte)
+  const planoPagoAtivo =
+    Boolean(billing) &&
+    activeSubscription != null &&
+    activeSubscription !== 'gratuito' &&
+    (billing?.status === 'autorizada' || billing?.status === 'pausada')
+  const cancelamentoEmAndamento =
+    billing?.status === 'pausada' && billing.motivoStatus === 'cancelamento_usuario'
+
   return (
     <section aria-labelledby="plans-title" className="grid gap-5">
       <div>
@@ -174,6 +259,41 @@ export function PlanUpgradePanel({
         >
           {success}
         </p>
+      )}
+      {dataCarencia && (
+        <p
+          role="status"
+          className="rounded-md border border-warning/30 bg-warning-soft p-3 text-sm text-warning"
+        >
+          {cancelamentoEmAndamento
+            ? `Cancelamento em andamento. Você mantém o acesso ao plano até ${dataCarencia}.`
+            : `Há um problema de cobrança. Você mantém o acesso ao plano até ${dataCarencia}.`}
+        </p>
+      )}
+      {!dataCarencia && dataVigencia && billing?.ehPix && (
+        <p
+          role="status"
+          className="rounded-md border border-line bg-surface-secondary p-3 text-sm text-secondary"
+        >
+          Plano via Pix válido até {dataVigencia}. Renove antes dessa data para manter o acesso.
+        </p>
+      )}
+      {planoPagoAtivo && canManage && !cancelamentoEmAndamento && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-surface-secondary p-3">
+          <p className="text-sm text-muted">
+            Ao cancelar, você mantém o plano por mais 7 dias e depois volta ao gratuito.
+          </p>
+          <Button
+            variant="secondary"
+            loading={cancelando}
+            disabled={loading}
+            onClick={() => {
+              void cancelarPlano()
+            }}
+          >
+            Cancelar plano
+          </Button>
+        </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {
@@ -312,7 +432,7 @@ export function PlanUpgradePanel({
             <ShieldCheck className="h-4 w-4 shrink-0 text-approval" />
             {metodo === 'cartao'
               ? 'Os dados do cartão são protegidos e tokenizados pelo Mercado Pago. A renovação é automática.'
-              : 'Pagamento via Pix gerado no Mercado Pago. O plano é liberado assim que o pagamento for confirmado.'}
+              : 'Pagamento via Pix gerado no Mercado Pago. O plano é liberado assim que o pagamento for confirmado e vale por 7 dias.'}
           </p>
           {error && (
             <p

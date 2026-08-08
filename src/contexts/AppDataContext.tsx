@@ -92,8 +92,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }
   }
   useEffect(() => {
+    if (!user?.workspaceId) {
+      setLoading(false)
+      return
+    }
     void refresh()
-  }, [])
+  }, [user?.workspaceId])
   const value = useMemo<Valor>(
     () => ({
       ...estado,
@@ -109,8 +113,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       },
       async addClient(d) {
         const r = await dadosApi.cliente(d)
-        await refresh()
-        return {
+        const client: Client = {
           ...d,
           id: r.dado.id,
           workspaceId: estado.workspace.id,
@@ -120,11 +123,20 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }
+        setEstado((atual) => ({
+          ...atual,
+          clients: [...atual.clients.filter((item) => item.id !== client.id), client],
+        }))
+        try {
+          await refresh()
+        } catch {
+          /* mantém o cliente otimista se o reload falhar */
+        }
+        return client
       },
       async addProject(d) {
         const r = await dadosApi.projeto(d)
-        await refresh()
-        return {
+        const project: Project = {
           id: r.dado.id,
           clientId: d.clientId,
           name: d.name,
@@ -138,6 +150,16 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           members: d.members ?? [],
           updatedAt: new Date().toISOString(),
         }
+        setEstado((atual) => ({
+          ...atual,
+          projects: [...atual.projects.filter((item) => item.id !== project.id), project],
+        }))
+        try {
+          await refresh()
+        } catch {
+          /* mantém o projeto otimista se o reload falhar */
+        }
+        return project
       },
       async addTeamMember(d) {
         await dadosApi.convidarMembro(d)

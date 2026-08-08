@@ -155,6 +155,7 @@ export function NewClientPage() {
   const navigate = useNavigate()
   const { addClient } = useAppData()
   const [saved, setSaved] = useState(false)
+  const [erro, setErro] = useState('')
   const [form, setForm] = useState({
     name: '',
     company: '',
@@ -170,9 +171,15 @@ export function NewClientPage() {
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!form.name.trim()) return
-    const client = await addClient(form)
-    setSaved(true)
-    window.setTimeout(() => navigate(`/app/clientes/${client.id}`), 350)
+    setErro('')
+    try {
+      const client = await addClient(form)
+      setSaved(true)
+      window.setTimeout(() => navigate(`/app/clientes/${client.id}`), 350)
+    } catch (falha) {
+      setSaved(false)
+      setErro(falha instanceof Error ? falha.message : 'Não foi possível salvar o cliente.')
+    }
   }
   return (
     <div>
@@ -203,6 +210,11 @@ export function NewClientPage() {
         {saved && (
           <p role="status" className="mt-4 text-sm text-approval">
             Cliente salvo com sucesso.
+          </p>
+        )}
+        {erro && (
+          <p role="alert" className="mt-4 text-sm text-revision">
+            {erro}
           </p>
         )}
         <div className="mt-6 flex gap-3">

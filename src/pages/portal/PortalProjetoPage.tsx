@@ -1,6 +1,11 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { Link, Navigate, useParams } from 'react-router'
-import { caminhoPortalMaterial, caminhoPortalProjeto, UUID_RE } from '@/lib/portalPaths'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router'
+import {
+  caminhoPortalMaterial,
+  caminhoPortalProjeto,
+  comTokenPortal,
+  UUID_RE,
+} from '@/lib/portalPaths'
 import { ApiError, requisicaoApi } from '@/services/api/clienteHttp'
 
 type ResumoPortal = {
@@ -51,6 +56,8 @@ const rotuloStatus: Record<string, string> = {
 
 export default function PortalProjetoPage() {
   const { workspaceSlug = '', projectId = '' } = useParams()
+  const [searchParams] = useSearchParams()
+  const tokenPortal = searchParams.get('t')?.trim() || ''
   const [resumo, setResumo] = useState<ResumoPortal | null>(null)
   const [conteudo, setConteudo] = useState<ConteudoPortal | null>(null)
   const [erro, setErro] = useState('')
@@ -64,18 +71,24 @@ export default function PortalProjetoPage() {
       setErro('Este link não é válido.')
       return
     }
+    if (!tokenPortal) {
+      setCarregando(false)
+      setErro('Este link está incompleto. Peça um novo link de compartilhamento à equipe.')
+      return
+    }
     let ativo = true
     setCarregando(true)
     setErro('')
     void (async () => {
       try {
+        const qs = `slug=${encodeURIComponent(workspaceSlug)}&t=${encodeURIComponent(tokenPortal)}`
         const { dado } = await requisicaoApi<{ dado: ResumoPortal }>(
-          `/api/portal/projetos/${projectId}?slug=${encodeURIComponent(workspaceSlug)}`,
+          `/api/portal/projetos/${projectId}?${qs}`,
         )
         if (!ativo) return
         setResumo(dado)
         const detalhe = await requisicaoApi<{ dado: ConteudoPortal }>(
-          `/api/portal/projetos/${projectId}/conteudo`,
+          comTokenPortal(`/api/portal/projetos/${projectId}/conteudo`, tokenPortal),
         )
         if (!ativo) return
         setConteudo(detalhe.dado)
@@ -91,9 +104,9 @@ export default function PortalProjetoPage() {
     return () => {
       ativo = false
     }
-  }, [workspaceSlug, projectId, slugValido])
+  }, [workspaceSlug, projectId, slugValido, tokenPortal])
 
-  if (!slugValido) {
+  if (!slugValido || !tokenPortal) {
     return (
       <div className="mx-auto max-w-lg px-5 py-16 text-center">
         <h1 className="text-2xl font-semibold">Projeto indisponível</h1>
@@ -103,7 +116,12 @@ export default function PortalProjetoPage() {
   }
 
   if (resumo && resumo.workspaceSlug !== workspaceSlug) {
-    return <Navigate to={caminhoPortalProjeto(resumo.workspaceSlug, projectId)} replace />
+    return (
+      <Navigate
+        to={caminhoPortalProjeto(resumo.workspaceSlug, projectId, tokenPortal)}
+        replace
+      />
+    )
   }
 
   if (carregando) {
@@ -156,13 +174,13 @@ export default function PortalProjetoPage() {
         {conteudo.materiais.map((material) => (
           <Link
             className="flex items-center justify-between gap-4 p-4 hover:bg-surface-secondary"
-            to={caminhoPortalMaterial(workspaceSlug, projectId, material.id)}
+            to={caminhoPortalMaterial(workspaceSlug, projectId, material.id, tokenPortal)}
             key={material.id}
           >
             <div className="flex min-w-0 items-center gap-3">
               {material.imagemUrl && material.tipo === 'imagem' ? (
                 <img
-                  src={material.imagemUrl}
+                  src={comTokenPortal(material.imagemUrl, tokenPortal)}
                   alt=""
                   className="h-14 w-14 shrink-0 rounded-md object-cover"
                 />

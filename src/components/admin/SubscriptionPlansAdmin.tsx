@@ -159,6 +159,21 @@ export function SubscriptionPlansAdmin() {
           {feedback.text}
         </p>
       )}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-surface-secondary p-3">
+        <p className="max-w-xl text-sm text-muted">
+          Reconcilia carências e vigências Pix vencidas (revoga para gratuito). Pode ser agendado via
+          cron apontando para o endpoint ou script.
+        </p>
+        <Button
+          variant="secondary"
+          loading={busy === 'reconciliar'}
+          onClick={() => {
+            void run('reconciliar', () => assinaturasApi.reconciliarAdmin())
+          }}
+        >
+          Reconciliar assinaturas
+        </Button>
+      </div>
       <div className="grid gap-4">
         {plans.map((plan) => {
           const amount = Number(plan.valorMensal)

@@ -34,6 +34,6 @@ export const faqItems = [
   {
     title: 'Posso cancelar o plano?',
     content:
-      'As condições de cancelamento e demais detalhes comerciais serão definidos antes da abertura oficial.',
+      'Sim. Ao cancelar, você mantém o acesso ao plano atual por 7 dias e, após esse período, o workspace volta automaticamente ao plano gratuito. No Pix avulso, o acesso também dura 7 dias a partir da confirmação do pagamento, salvo nova renovação.',
   },
 ]

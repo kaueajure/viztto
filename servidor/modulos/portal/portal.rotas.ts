@@ -26,6 +26,7 @@ import {
   garantirComentarioNoMaterial,
   garantirLinksPortalCliente,
 } from '../../servicos/limites-plano.servico.js'
+import { tokenPortalConfere } from '../../servicos/projeto-acesso.servico.js'
 
 const novoComentarioPortal = z.object({
   texto: z.string().trim().min(1).max(5000),
@@ -52,7 +53,7 @@ async function projetoPortal(projetoId: string, workspaceSlug?: string) {
       status: projetos.status,
       tipo: projetos.tipo,
       prazoEm: projetos.prazoEm,
-      senhaAcessoHash: projetos.senhaAcessoHash,
+      tokenPortal: projetos.tokenPortal,
       criadoPorUsuarioId: projetos.criadoPorUsuarioId,
       empresaNome: workspaces.nome,
       workspaceSlug: workspaces.slug,
@@ -69,10 +70,31 @@ async function projetoPortal(projetoId: string, workspaceSlug?: string) {
   return linha
 }
 
-/** Acesso ao portal: o link do projeto basta (sem senha). */
-async function exigirAcessoPortal(projetoId: string, workspaceSlug?: string) {
+function tokenDaRequisicao(req: {
+  query: Record<string, unknown>
+  headers: { [key: string]: unknown }
+}) {
+  const query = req.query.t
+  if (typeof query === 'string' && query.trim()) return query.trim()
+  const header = req.headers['x-portal-token']
+  if (typeof header === 'string' && header.trim()) return header.trim()
+  return undefined
+}
+
+/** Acesso ao portal exige o token do link compartilhado (?t=...). */
+async function exigirAcessoPortal(
+  projetoId: string,
+  tokenRecebido: string | undefined,
+  workspaceSlug?: string,
+) {
   const projeto = await projetoPortal(projetoId, workspaceSlug)
   await garantirLinksPortalCliente(projeto.workspaceId)
+  if (!tokenPortalConfere(tokenRecebido, projeto.tokenPortal))
+    throw new ErroHttp(
+      401,
+      'Link de acesso invalido ou incompleto. Peca um novo link a equipe.',
+      'portal_token_invalido',
+    )
   return projeto
 }
 
@@ -115,7 +137,11 @@ async function notificarEquipe(entrada: {
 
 portalRotas.get('/projetos/:projetoId', async (req, res) => {
   const slugQuery = typeof req.query.slug === 'string' ? req.query.slug : undefined
-  const projeto = await exigirAcessoPortal(String(req.params.projetoId), slugQuery)
+  const projeto = await exigirAcessoPortal(
+    String(req.params.projetoId),
+    tokenDaRequisicao(req),
+    slugQuery,
+  )
   const marca = await carregarMarcaPortal(projeto.workspaceId)
   res.json({
     dado: {
@@ -155,7 +181,7 @@ portalRotas.get('/workspaces/:workspaceId/logo', async (req, res) => {
 
 portalRotas.get('/projetos/:projetoId/conteudo', async (req, res) => {
   const projetoId = String(req.params.projetoId)
-  const projeto = await exigirAcessoPortal(projetoId)
+  const projeto = await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
   const lista = await banco
     .select({
       id: materiais.id,
@@ -197,7 +223,7 @@ portalRotas.get('/projetos/:projetoId/conteudo', async (req, res) => {
 portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) => {
   const projetoId = String(req.params.projetoId)
   const slugQuery = typeof req.query.slug === 'string' ? req.query.slug : undefined
-  const projeto = await exigirAcessoPortal(projetoId, slugQuery)
+  const projeto = await exigirAcessoPortal(projetoId, tokenDaRequisicao(req), slugQuery)
   const material = await materialDoProjeto(String(req.params.materialId), projetoId)
   if (!material.versaoAtualId)
     throw new ErroHttp(422, 'Este material ainda nao tem versao para revisar.', 'versao_ausente')
@@ -244,7 +270,7 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) =
 
 portalRotas.get('/projetos/:projetoId/arquivos/:arquivoId', async (req, res) => {
   const projetoId = String(req.params.projetoId)
-  await exigirAcessoPortal(projetoId)
+  await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
   const [arquivo] = await banco
     .select({
       id: arquivos.id,
@@ -272,7 +298,7 @@ portalRotas.get('/projetos/:projetoId/arquivos/:arquivoId', async (req, res) => 
 
 portalRotas.get('/projetos/:projetoId/materiais/:materialId/comentarios', async (req, res) => {
   const projetoId = String(req.params.projetoId)
-  await exigirAcessoPortal(projetoId)
+  await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
   const material = await materialDoProjeto(String(req.params.materialId), projetoId)
   const dados = await banco
     .select({ comentario: comentarios, autorNome: autorNomeSql })
@@ -303,7 +329,7 @@ portalRotas.post(
   validarCorpo(novoComentarioPortal),
   async (req, res) => {
     const projetoId = String(req.params.projetoId)
-    await exigirAcessoPortal(projetoId)
+    await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
     const projeto = await projetoPortal(projetoId)
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     await garantirComentarioNoMaterial(material.workspaceId, material.tipo)
@@ -366,7 +392,7 @@ portalRotas.post(
   '/projetos/:projetoId/materiais/:materialId/solicitar-alteracoes',
   async (req, res) => {
     const projetoId = String(req.params.projetoId)
-    await exigirAcessoPortal(projetoId)
+    await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
     const projeto = await projetoPortal(projetoId)
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)
@@ -427,7 +453,7 @@ portalRotas.post(
   validarCorpo(decisaoPortal),
   async (req, res) => {
     const projetoId = String(req.params.projetoId)
-    await exigirAcessoPortal(projetoId)
+    await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
     const projeto = await projetoPortal(projetoId)
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)

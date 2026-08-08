@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { and, count, desc, eq, isNull, like } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
-import { atividades, clientes, projetos } from '../../banco/esquema/index.js'
+import { atividades, clientes, projetos, workspaces } from '../../banco/esquema/index.js'
 import { exigirFuncao } from '../../middlewares/autorizacao.js'
 import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
@@ -11,7 +11,7 @@ import { novoId } from '../../utilitarios/seguranca.js'
 import {
   notificarClienteProjetoAlterado,
   notificarClienteProjetoCriado,
-  reenviarSenhaPortalProjeto,
+  reenviarLinkPortalProjeto,
 } from '../../servicos/notificar-cliente-projeto.servico.js'
 import {
   garantirPodeCriarProjeto,
@@ -19,11 +19,11 @@ import {
   carregarPlanoDoWorkspace,
 } from '../../servicos/limites-plano.servico.js'
 import {
-  gerarHashSenhaAcesso,
-  gerarSenhaAcessoProjeto,
+  gerarTokenPortal,
+  linkPortalProjeto,
 } from '../../servicos/projeto-acesso.servico.js'
 
-function semHashSenha<T extends { senhaAcessoHash?: string | null }>(projeto: T) {
+function semSegredosPortal<T extends { senhaAcessoHash?: string | null }>(projeto: T) {
   const { senhaAcessoHash: _omitido, ...resto } = projeto
   void _omitido
   return resto
@@ -66,7 +66,7 @@ projetosRotas.get('/', async (req, res) => {
       .limit(q.porPagina)
       .offset((q.pagina - 1) * q.porPagina),
   ])
-  res.json(paginar(q.pagina, q.porPagina, c?.total ?? 0, dados.map(semHashSenha)))
+  res.json(paginar(q.pagina, q.porPagina, c?.total ?? 0, dados.map(semSegredosPortal)))
 })
 
 projetosRotas.post(
@@ -92,8 +92,7 @@ projetosRotas.post(
     const agora = new Date()
     const id = novoId()
     const portalLiberado = plano.permiteLinksPortalCliente
-    const senhaAcesso = portalLiberado ? gerarSenhaAcessoProjeto() : null
-    const senhaAcessoHash = senhaAcesso ? await gerarHashSenhaAcesso(senhaAcesso) : null
+    const tokenPortal = portalLiberado ? gerarTokenPortal() : null
     await banco.transaction(async (tx) => {
       await tx.insert(projetos).values({
         id,
@@ -102,7 +101,7 @@ projetosRotas.post(
         criadoEm: agora,
         atualizadoEm: agora,
         ...req.body,
-        senhaAcessoHash,
+        tokenPortal,
       })
       await tx.insert(atividades).values({
         id: novoId(),
@@ -114,12 +113,11 @@ projetosRotas.post(
         criadoEm: agora,
       })
     })
-    if (senhaAcesso)
+    if (tokenPortal)
       await notificarClienteProjetoCriado({
         projetoId: id,
         workspaceId: req.sessao!.workspaceId,
         criadorNome: req.sessao!.usuarioNome,
-        senhaAcesso,
       })
     res.status(201).json({ dado: { id } })
   },
@@ -138,9 +136,48 @@ projetosRotas.get('/:projetoId', async (req, res) => {
     )
     .limit(1)
   if (!dado) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
-  res.json({ dado: semHashSenha(dado) })
+  res.json({ dado: semSegredosPortal(dado) })
 })
-projetosRotas.post('/:projetoId/senha-portal', exigirFuncao('atendimento'), async (req, res) => {
+
+/** Retorna (e cria se preciso) o link do portal com token. */
+projetosRotas.get('/:projetoId/link-portal', exigirFuncao('atendimento'), async (req, res) => {
+  await garantirLinksPortalCliente(req.sessao!.workspaceId)
+  const projetoId = String(req.params.projetoId)
+  const [projeto] = await banco
+    .select({
+      id: projetos.id,
+      tokenPortal: projetos.tokenPortal,
+      slug: workspaces.slug,
+    })
+    .from(projetos)
+    .innerJoin(workspaces, eq(workspaces.id, projetos.workspaceId))
+    .where(
+      and(
+        eq(projetos.id, projetoId),
+        eq(projetos.workspaceId, req.sessao!.workspaceId),
+        isNull(projetos.excluidoEm),
+      ),
+    )
+    .limit(1)
+  if (!projeto) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
+  let token = projeto.tokenPortal
+  if (!token) {
+    token = gerarTokenPortal()
+    await banco
+      .update(projetos)
+      .set({ tokenPortal: token, atualizadoEm: new Date() })
+      .where(eq(projetos.id, projetoId))
+  }
+  res.json({
+    dado: {
+      tokenPortal: token,
+      link: linkPortalProjeto(projetoId, projeto.slug, token),
+    },
+  })
+})
+
+/** Regenera o token (invalida links antigos) e reenvia por e-mail. */
+projetosRotas.post('/:projetoId/link-portal', exigirFuncao('atendimento'), async (req, res) => {
   await garantirLinksPortalCliente(req.sessao!.workspaceId)
   const projetoId = String(req.params.projetoId)
   const [projeto] = await banco
@@ -155,33 +192,45 @@ projetosRotas.post('/:projetoId/senha-portal', exigirFuncao('atendimento'), asyn
     )
     .limit(1)
   if (!projeto) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
-  const senhaAcesso = gerarSenhaAcessoProjeto()
-  const envio = await reenviarSenhaPortalProjeto({
+  const tokenPortal = gerarTokenPortal()
+  await banco
+    .update(projetos)
+    .set({ tokenPortal, atualizadoEm: new Date() })
+    .where(eq(projetos.id, projetoId))
+  const envio = await reenviarLinkPortalProjeto({
     projetoId,
     workspaceId: req.sessao!.workspaceId,
     criadorNome: req.sessao!.usuarioNome,
-    senhaAcesso,
   })
   if (!envio.enviado) {
     if (envio.motivo === 'cliente_sem_email')
       throw new ErroHttp(
         422,
-        'Cadastre o e-mail do cliente antes de reenviar a senha.',
+        'Cadastre o e-mail do cliente antes de reenviar o link.',
         'cliente_sem_email',
       )
+    if (envio.motivo === 'token_ausente')
+      throw new ErroHttp(500, 'Token do portal nao foi gerado.', 'token_ausente')
     throw new ErroHttp(
       503,
-      'Nao foi possivel enviar a nova senha. Tente novamente.',
+      'Nao foi possivel enviar o link. Tente novamente.',
       'email_falhou',
     )
   }
-  const agora = new Date()
-  await banco
-    .update(projetos)
-    .set({ senhaAcessoHash: await gerarHashSenhaAcesso(senhaAcesso), atualizadoEm: agora })
-    .where(eq(projetos.id, projetoId))
-  res.json({ mensagem: 'Nova senha gerada e enviada ao cliente.' })
+  const [ws] = await banco
+    .select({ slug: workspaces.slug })
+    .from(workspaces)
+    .where(eq(workspaces.id, req.sessao!.workspaceId))
+    .limit(1)
+  res.json({
+    mensagem: 'Novo link gerado e enviado ao cliente. Links anteriores deixaram de funcionar.',
+    dado: {
+      tokenPortal,
+      link: ws ? linkPortalProjeto(projetoId, ws.slug, tokenPortal) : null,
+    },
+  })
 })
+
 projetosRotas.patch(
   '/:projetoId',
   exigirFuncao('atendimento'),

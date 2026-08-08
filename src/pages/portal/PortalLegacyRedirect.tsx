@@ -1,23 +1,31 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useParams } from 'react-router'
+import { Navigate, useParams, useSearchParams } from 'react-router'
 import { ApiError, requisicaoApi } from '@/services/api/clienteHttp'
 import { caminhoPortalMaterial, caminhoPortalProjeto } from '@/lib/portalPaths'
 
-/** Redireciona /p/:projectId para /{slug}/{projectId}. */
+/** Redireciona /p/:projectId para /{slug}/{projectId}?t=... quando o token vier na query. */
 export default function PortalLegacyRedirect() {
   const { projectId = '', materialId } = useParams()
+  const [searchParams] = useSearchParams()
+  const tokenPortal = searchParams.get('t')?.trim() || ''
   const [destino, setDestino] = useState<string | null>(null)
   const [erro, setErro] = useState('')
 
   useEffect(() => {
+    if (!tokenPortal) {
+      setErro('Este link está incompleto. Peça um novo link de compartilhamento à equipe.')
+      return
+    }
     let ativo = true
-    void requisicaoApi<{ dado: { workspaceSlug: string } }>(`/api/portal/projetos/${projectId}`)
+    void requisicaoApi<{ dado: { workspaceSlug: string } }>(
+      `/api/portal/projetos/${projectId}?t=${encodeURIComponent(tokenPortal)}`,
+    )
       .then(({ dado }) => {
         if (!ativo) return
         setDestino(
           materialId
-            ? caminhoPortalMaterial(dado.workspaceSlug, projectId, materialId)
-            : caminhoPortalProjeto(dado.workspaceSlug, projectId),
+            ? caminhoPortalMaterial(dado.workspaceSlug, projectId, materialId, tokenPortal)
+            : caminhoPortalProjeto(dado.workspaceSlug, projectId, tokenPortal),
         )
       })
       .catch((error) => {
@@ -29,7 +37,7 @@ export default function PortalLegacyRedirect() {
     return () => {
       ativo = false
     }
-  }, [projectId, materialId])
+  }, [projectId, materialId, tokenPortal])
 
   if (destino) return <Navigate to={destino} replace />
 

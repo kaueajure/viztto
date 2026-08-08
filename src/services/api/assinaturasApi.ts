@@ -49,6 +49,15 @@ export type CheckoutConfig = {
   problemaConfiguracao: string | null
 }
 
+export type AssinaturaBilling = {
+  id: string
+  status: string
+  carenciaAte: string | null
+  vigenciaAte: string | null
+  motivoStatus: string | null
+  ehPix: boolean
+}
+
 export type UsoLimitesPlano = {
   codigo: PlanoAssinatura['codigo']
   nome: string
@@ -68,6 +77,7 @@ export type UsoLimitesPlano = {
     armazenamentoGb: number
   }
   recursos: RecursosPlano
+  billing?: (AssinaturaBilling & { assinaturaId: string; codigoPlano: PlanoAssinatura['codigo'] }) | null
 }
 
 export type AtualizarPlanoEntrada = {
@@ -127,6 +137,7 @@ export const assinaturasApi = {
     const response = await requisicaoApi<{
       dados: PlanoAssinatura[]
       assinaturaAtual: PlanoAssinatura['codigo'] | null
+      assinaturaBilling: AssinaturaBilling | null
       integracao: CheckoutConfig
     }>('/api/assinaturas/planos')
     return {
@@ -169,9 +180,25 @@ export const assinaturasApi = {
       method: 'POST',
       body: json(entrada),
     }),
+  cancelarAssinatura: (id: string) =>
+    requisicaoApi<{
+      mensagem: string
+      dado: { id: string; status: string; carenciaAte: string | null }
+    }>(`/api/assinaturas/${id}/cancelar`, { method: 'POST' }),
+  reconciliarAdmin: () =>
+    requisicaoApi<{ mensagem: string; dado: { revogadas: number; processadasEm: string } }>(
+      '/api/assinaturas/admin/reconciliar',
+      { method: 'POST' },
+    ),
   statusAssinatura: (id: string) =>
     requisicaoApi<{
-      dado: { id: string; status: string; codigoPlano: PlanoAssinatura['codigo'] | null }
+      dado: {
+        id: string
+        status: string
+        codigoPlano: PlanoAssinatura['codigo'] | null
+        carenciaAte?: string | null
+        vigenciaAte?: string | null
+      }
     }>(`/api/assinaturas/${id}/status`),
   listarPlanosAdmin: async () => {
     const response = await requisicaoApi<{

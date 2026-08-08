@@ -148,6 +148,9 @@ export const assinaturas = mysqlTable(
       .notNull()
       .default('pendente'),
     ambiente: mysqlEnum('ambiente', ['teste', 'producao']).notNull().default('teste'),
+    carenciaAte: data('carencia_ate'),
+    vigenciaAte: data('vigencia_ate'),
+    motivoStatus: varchar('motivo_status', { length: 80 }),
     criadaPorUsuarioId: id('criada_por_usuario_id'),
     criadoEm: data('criado_em').notNull(),
     atualizadoEm: data('atualizado_em').notNull(),
@@ -351,6 +354,7 @@ export const projetos = mysqlTable(
       .default('rascunho'),
     prazoEm: data('prazo_em'),
     senhaAcessoHash: varchar('senha_acesso_hash', { length: 255 }),
+    tokenPortal: varchar('token_portal', { length: 64 }),
     criadoPorUsuarioId: id('criado_por_usuario_id'),
     criadoEm: data('criado_em').notNull(),
     atualizadoEm: data('atualizado_em').notNull(),
@@ -360,6 +364,7 @@ export const projetos = mysqlTable(
     index('idx_projetos_workspace').on(t.workspaceId),
     index('idx_projetos_cliente').on(t.clienteId),
     index('idx_projetos_status').on(t.workspaceId, t.status),
+    uniqueIndex('unq_projetos_token_portal').on(t.tokenPortal),
     foreignKey({
       columns: [t.workspaceId],
       foreignColumns: [workspaces.id],

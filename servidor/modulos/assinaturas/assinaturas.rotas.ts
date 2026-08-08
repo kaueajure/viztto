@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
 import { ambiente } from '../../configuracao/ambiente.js'
@@ -9,6 +9,7 @@ import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import {
   atualizarPlanoMercadoPago,
+  cancelarAssinaturaMercadoPago,
   criarAssinaturaCheckoutMercadoPago,
   criarAssinaturaMercadoPago,
   criarPagamentoPixMercadoPago,
@@ -22,6 +23,14 @@ import {
 } from '../../integracoes/mercado-pago.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 import { obterUsoELimitesDoWorkspace } from '../../servicos/limites-plano.servico.js'
+import {
+  assinaturaEhPix,
+  iniciarCarenciaAssinatura,
+  liberarPlanoDaAssinatura,
+  obterAssinaturaBillingDoWorkspace,
+  reconciliarAssinaturasVencidas,
+  supersedirAssinaturasAnteriores,
+} from '../../servicos/assinatura-plano.servico.js'
 
 async function garantirPlanoRemoto(plano: typeof planosAssinatura.$inferSelect) {
   const entrada = {
@@ -150,39 +159,65 @@ async function sincronizarPlanoComMercadoPago(
 export const assinaturasRotas = Router()
 
 assinaturasRotas.get('/limites', async (req, res) => {
-  const dado = await obterUsoELimitesDoWorkspace(req.sessao!.workspaceId)
-  res.json({ dado })
+  const workspaceId = req.sessao!.workspaceId
+  const dado = await obterUsoELimitesDoWorkspace(workspaceId)
+  let billing: Awaited<ReturnType<typeof obterAssinaturaBillingDoWorkspace>> = null
+  try {
+    billing = await obterAssinaturaBillingDoWorkspace(workspaceId)
+  } catch {
+    billing = null
+  }
+  res.json({
+    dado: {
+      ...dado,
+      billing: billing
+        ? {
+            assinaturaId: billing.id,
+            status: billing.status,
+            codigoPlano: billing.codigoPlano,
+            carenciaAte: billing.carenciaAte,
+            vigenciaAte: billing.vigenciaAte,
+            motivoStatus: billing.motivoStatus,
+            ehPix: assinaturaEhPix(billing),
+          }
+        : null,
+    },
+  })
 })
 
 assinaturasRotas.get('/planos', async (req, res) => {
   const problemaIntegracao = diagnosticarConfiguracaoMercadoPago()
-  const [dados, [assinaturaAtual], [workspace]] = await Promise.all([
+  const [dados, [workspace]] = await Promise.all([
     banco
       .select()
       .from(planosAssinatura)
       .where(eq(planosAssinatura.ativo, true))
       .orderBy(asc(planosAssinatura.valorMensal)),
     banco
-      .select({ codigoPlano: planosAssinatura.codigo })
-      .from(assinaturas)
-      .innerJoin(planosAssinatura, eq(planosAssinatura.id, assinaturas.planoAssinaturaId))
-      .where(
-        and(
-          eq(assinaturas.workspaceId, req.sessao!.workspaceId),
-          eq(assinaturas.status, 'autorizada'),
-        ),
-      )
-      .orderBy(desc(assinaturas.atualizadoEm))
-      .limit(1),
-    banco
       .select({ plano: workspaces.plano })
       .from(workspaces)
       .where(eq(workspaces.id, req.sessao!.workspaceId))
       .limit(1),
   ])
+  let billing: Awaited<ReturnType<typeof obterAssinaturaBillingDoWorkspace>> = null
+  try {
+    billing = await obterAssinaturaBillingDoWorkspace(req.sessao!.workspaceId)
+  } catch {
+    billing = null
+  }
   res.json({
     dados,
-    assinaturaAtual: assinaturaAtual?.codigoPlano ?? workspace?.plano ?? 'gratuito',
+    assinaturaAtual: billing?.codigoPlano ?? workspace?.plano ?? 'gratuito',
+    assinaturaBilling: billing
+      ? {
+          id: billing.id,
+          status: billing.status,
+          carenciaAte: billing.carenciaAte,
+          vigenciaAte: billing.vigenciaAte,
+          motivoStatus: billing.motivoStatus,
+          ehPix: assinaturaEhPix(billing),
+        }
+      : null,
     integracao: {
       ambiente: ambiente.MERCADO_PAGO_AMBIENTE,
       chavePublica: ambiente.MERCADO_PAGO_PUBLIC_KEY ?? null,
@@ -228,6 +263,7 @@ assinaturasRotas.post(
       .where(eq(planosAssinatura.codigo, req.body.codigoPlano))
       .limit(1)
     if (!plano?.ativo) throw new ErroHttp(404, 'Plano indisponivel.', 'plano_indisponivel')
+    await supersedirAssinaturasAnteriores(req.sessao!.workspaceId)
     let planoRemotoId = await garantirPlanoRemoto(plano)
 
     const id = novoId()
@@ -267,11 +303,10 @@ assinaturasRotas.post(
       criadoEm: new Date(),
       atualizadoEm: new Date(),
     })
-    if (remoto.status === 'authorized')
-      await banco
-        .update(workspaces)
-        .set({ plano: plano.codigo, atualizadoEm: new Date() })
-        .where(eq(workspaces.id, req.sessao!.workspaceId))
+    if (remoto.status === 'authorized') {
+      const [criada] = await banco.select().from(assinaturas).where(eq(assinaturas.id, id)).limit(1)
+      if (criada) await liberarPlanoDaAssinatura(criada, { pix: false })
+    }
     res.status(201).json({ dado: { id, status: remoto.status } })
   },
 )
@@ -290,6 +325,7 @@ assinaturasRotas.post(
       .where(eq(planosAssinatura.codigo, req.body.codigoPlano))
       .limit(1)
     if (!plano?.ativo) throw new ErroHttp(404, 'Plano indisponivel.', 'plano_indisponivel')
+    await supersedirAssinaturasAnteriores(req.sessao!.workspaceId)
 
     const id = novoId()
     const referenciaExterna = `viztto:${ambiente.MERCADO_PAGO_AMBIENTE}:${id}`
@@ -338,6 +374,7 @@ assinaturasRotas.post(
     if (problemaIntegracao)
       throw new ErroHttp(503, problemaIntegracao, 'mercado_pago_assinaturas_nao_configurado')
     const plano = await carregarPlanoAtivo(req.body.codigoPlano)
+    await supersedirAssinaturasAnteriores(req.sessao!.workspaceId)
     const id = novoId()
     const referenciaExterna = `viztto:${ambiente.MERCADO_PAGO_AMBIENTE}:pix:${id}`
     const emailPagador = await resolverEmailPagador(req.body.emailPagador)
@@ -367,11 +404,10 @@ assinaturasRotas.post(
       criadoEm: new Date(),
       atualizadoEm: new Date(),
     })
-    if (pagamento.status === 'approved')
-      await banco
-        .update(workspaces)
-        .set({ plano: plano.codigo, atualizadoEm: new Date() })
-        .where(eq(workspaces.id, req.sessao!.workspaceId))
+    if (pagamento.status === 'approved') {
+      const [criada] = await banco.select().from(assinaturas).where(eq(assinaturas.id, id)).limit(1)
+      if (criada) await liberarPlanoDaAssinatura(criada, { pix: true })
+    }
     res.status(201).json({
       dado: {
         id,
@@ -385,6 +421,45 @@ assinaturasRotas.post(
   },
 )
 
+assinaturasRotas.post('/admin/reconciliar', exigirAdmin, async (_req, res) => {
+  const resultado = await reconciliarAssinaturasVencidas()
+  res.json({
+    mensagem: `Reconciliacao concluida. ${resultado.revogadas} assinatura(s) revogada(s).`,
+    dado: resultado,
+  })
+})
+
+assinaturasRotas.post('/:id/cancelar', exigirFuncao('administrador'), async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id)
+  const [assinatura] = await banco
+    .select()
+    .from(assinaturas)
+    .where(and(eq(assinaturas.id, id), eq(assinaturas.workspaceId, req.sessao!.workspaceId)))
+    .limit(1)
+  if (!assinatura) throw new ErroHttp(404, 'Assinatura nao encontrada.', 'assinatura_nao_encontrada')
+  if (!['autorizada', 'pausada'].includes(assinatura.status))
+    throw new ErroHttp(422, 'Esta assinatura nao pode ser cancelada.', 'assinatura_nao_cancelavel')
+
+  if (!assinaturaEhPix(assinatura) && assinatura.mercadoPagoAssinaturaId) {
+    try {
+      await cancelarAssinaturaMercadoPago(assinatura.mercadoPagoAssinaturaId)
+    } catch {
+      /* carencia local mesmo se MP falhar */
+    }
+  }
+  await iniciarCarenciaAssinatura(assinatura, 'cancelamento_usuario')
+  const [atualizada] = await banco.select().from(assinaturas).where(eq(assinaturas.id, id)).limit(1)
+  res.json({
+    mensagem:
+      'Cancelamento iniciado. Voce mantém o plano atual por 7 dias e depois volta ao gratuito.',
+    dado: {
+      id,
+      status: atualizada?.status ?? 'pausada',
+      carenciaAte: atualizada?.carenciaAte ?? null,
+    },
+  })
+})
+
 assinaturasRotas.get('/:id/status', exigirFuncao('administrador'), async (req, res) => {
   const id = z.string().uuid().parse(req.params.id)
   const [assinatura] = await banco
@@ -396,26 +471,29 @@ assinaturasRotas.get('/:id/status', exigirFuncao('administrador'), async (req, r
     .limit(1)
   if (!assinatura) throw new ErroHttp(404, 'Assinatura nao encontrada.', 'assinatura_nao_encontrada')
 
-  if (assinatura.status === 'pendente' && assinatura.mercadoPagoAssinaturaId) {
+  if (assinatura.status === 'pendente' && assinatura.mercadoPagoAssinaturaId && assinaturaEhPix(assinatura)) {
     try {
       const pagamento = await obterPagamentoMercadoPago(assinatura.mercadoPagoAssinaturaId)
       if (pagamento.status === 'approved') {
-        await banco
-          .update(assinaturas)
-          .set({ status: 'autorizada', atualizadoEm: new Date() })
-          .where(eq(assinaturas.id, assinatura.id))
+        await liberarPlanoDaAssinatura(assinatura, { pix: true })
         const [plano] = await banco
           .select()
           .from(planosAssinatura)
           .where(eq(planosAssinatura.id, assinatura.planoAssinaturaId))
           .limit(1)
-        if (plano)
-          await banco
-            .update(workspaces)
-            .set({ plano: plano.codigo, atualizadoEm: new Date() })
-            .where(eq(workspaces.id, assinatura.workspaceId))
+        const [fresca] = await banco
+          .select()
+          .from(assinaturas)
+          .where(eq(assinaturas.id, id))
+          .limit(1)
         res.json({
-          dado: { id: assinatura.id, status: 'autorizada', codigoPlano: plano?.codigo ?? null },
+          dado: {
+            id: assinatura.id,
+            status: 'autorizada',
+            codigoPlano: plano?.codigo ?? null,
+            vigenciaAte: fresca?.vigenciaAte ?? null,
+            carenciaAte: null,
+          },
         })
         return
       }
@@ -429,11 +507,14 @@ assinaturasRotas.get('/:id/status', exigirFuncao('administrador'), async (req, r
     .from(planosAssinatura)
     .where(eq(planosAssinatura.id, assinatura.planoAssinaturaId))
     .limit(1)
+  const [fresca] = await banco.select().from(assinaturas).where(eq(assinaturas.id, id)).limit(1)
   res.json({
     dado: {
       id: assinatura.id,
-      status: assinatura.status,
+      status: fresca?.status ?? assinatura.status,
       codigoPlano: plano?.codigo ?? null,
+      carenciaAte: fresca?.carenciaAte ?? null,
+      vigenciaAte: fresca?.vigenciaAte ?? null,
     },
   })
 })

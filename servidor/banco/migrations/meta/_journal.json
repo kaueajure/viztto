@@ -78,6 +78,20 @@
       "when": 1786123000000,
       "tag": "0010_portal_personalizado",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1786124000000,
+      "tag": "0011_token_portal",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1786125000000,
+      "tag": "0012_assinatura_lifecycle",
+      "breakpoints": true
     }
   ]
 }

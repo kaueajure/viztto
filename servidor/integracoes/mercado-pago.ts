@@ -213,6 +213,13 @@ export function obterAssinaturaMercadoPago(id: string) {
   return requisitar<AssinaturaRemota>(`/preapproval/${encodeURIComponent(id)}`, { method: 'GET' })
 }
 
+export function cancelarAssinaturaMercadoPago(id: string) {
+  return requisitar<AssinaturaRemota>(`/preapproval/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: 'cancelled' }),
+  })
+}
+
 export type PagamentoPixRemoto = {
   id: number | string
   status: string

@@ -8,12 +8,12 @@ import {
   type CSSProperties,
   type FormEvent,
 } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
 import { MaterialPreview } from '@/components/review/MaterialPreview'
 import { Button, IconButton } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/FormControls'
-import { caminhoPortalProjeto, UUID_RE } from '@/lib/portalPaths'
+import { caminhoPortalProjeto, comTokenPortal, UUID_RE } from '@/lib/portalPaths'
 import { ApiError, json, requisicaoApi } from '@/services/api/clienteHttp'
 import type { ReviewComment } from '@/types/domain'
 import { cn } from '@/lib/cn'
@@ -53,6 +53,8 @@ const rotuloStatus: Record<string, string> = {
 
 export default function PortalRevisaoPage() {
   const { workspaceSlug = '', projectId = '', materialId = '' } = useParams()
+  const [searchParams] = useSearchParams()
+  const tokenPortal = searchParams.get('t')?.trim() || ''
   const [detalhe, setDetalhe] = useState<DetalhePortal | null>(null)
   const [comentarios, setComentarios] = useState<ReviewComment[]>([])
   const [erro, setErro] = useState('')
@@ -67,9 +69,18 @@ export default function PortalRevisaoPage() {
   const draftRef = useRef<HTMLTextAreaElement>(null)
 
   const slugValido = Boolean(workspaceSlug) && UUID_RE.test(projectId)
-  const voltarHref = caminhoPortalProjeto(workspaceSlug, projectId)
-  const base = `/api/portal/projetos/${projectId}/materiais/${materialId}?slug=${encodeURIComponent(workspaceSlug)}`
-  const baseMutacao = `/api/portal/projetos/${projectId}/materiais/${materialId}`
+  const voltarHref = caminhoPortalProjeto(workspaceSlug, projectId, tokenPortal)
+  const caminhoMaterialApi = `/api/portal/projetos/${projectId}/materiais/${materialId}`
+  const urlDetalhe = comTokenPortal(
+    `${caminhoMaterialApi}?slug=${encodeURIComponent(workspaceSlug)}`,
+    tokenPortal,
+  )
+  const urlComentarios = comTokenPortal(`${caminhoMaterialApi}/comentarios`, tokenPortal)
+  const urlSolicitarAlteracoes = comTokenPortal(
+    `${caminhoMaterialApi}/solicitar-alteracoes`,
+    tokenPortal,
+  )
+  const urlAprovar = comTokenPortal(`${caminhoMaterialApi}/aprovar`, tokenPortal)
 
   const carregar = useCallback(async () => {
     if (!slugValido) {
@@ -77,14 +88,25 @@ export default function PortalRevisaoPage() {
       setErro('Este link não é válido.')
       return
     }
+    if (!tokenPortal) {
+      setCarregando(false)
+      setErro('Este link está incompleto. Peça um novo link de compartilhamento à equipe.')
+      return
+    }
     setCarregando(true)
     setErro('')
     try {
       const [{ dado }, lista] = await Promise.all([
-        requisicaoApi<{ dado: DetalhePortal }>(base),
-        requisicaoApi<{ dados: ReviewComment[] }>(`${baseMutacao}/comentarios`),
+        requisicaoApi<{ dado: DetalhePortal }>(urlDetalhe),
+        requisicaoApi<{ dados: ReviewComment[] }>(urlComentarios),
       ])
-      setDetalhe(dado)
+      setDetalhe({
+        ...dado,
+        versao: {
+          ...dado.versao,
+          imagemUrl: comTokenPortal(dado.versao.imagemUrl, tokenPortal),
+        },
+      })
       setComentarios(
         lista.dados.map((item) => ({
           ...item,
@@ -102,7 +124,7 @@ export default function PortalRevisaoPage() {
     } finally {
       setCarregando(false)
     }
-  }, [base, baseMutacao, slugValido])
+  }, [urlDetalhe, urlComentarios, slugValido, tokenPortal])
 
   useEffect(() => {
     void carregar()
@@ -127,7 +149,7 @@ export default function PortalRevisaoPage() {
     setEnviando(true)
     setErro('')
     try {
-      await requisicaoApi(`${baseMutacao}/comentarios`, {
+      await requisicaoApi(urlComentarios, {
         method: 'POST',
         body: json({
           texto: draftText.trim(),
@@ -150,7 +172,7 @@ export default function PortalRevisaoPage() {
     setEnviando(true)
     setErro('')
     try {
-      await requisicaoApi(`${baseMutacao}/solicitar-alteracoes`, { method: 'POST' })
+      await requisicaoApi(urlSolicitarAlteracoes, { method: 'POST' })
       setAviso('Alterações solicitadas. A equipe foi avisada.')
       await carregar()
     } catch (error) {
@@ -164,7 +186,7 @@ export default function PortalRevisaoPage() {
     setEnviando(true)
     setErro('')
     try {
-      await requisicaoApi(`${baseMutacao}/aprovar`, {
+      await requisicaoApi(urlAprovar, {
         method: 'POST',
         body: json({ confirmarPendencias: abertos > 0 }),
       })

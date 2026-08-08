@@ -13,7 +13,6 @@ import { Input, Select, Textarea } from '@/components/ui/FormControls'
 import { Modal, Tabs } from '@/components/ui/Interactive'
 import { useAppData } from '@/contexts/AppDataContext'
 import { dadosApi } from '@/services/api/dadosApi'
-import { caminhoPortalProjeto } from '@/lib/portalPaths'
 import type { ProjectStatus } from '@/types/domain'
 
 const filters: Array<[string, ProjectStatus | 'all']> = [
@@ -203,7 +202,7 @@ export function NewProjectPage() {
 
 export function ProjectDetailPage() {
   const { projectId } = useParams()
-  const { projects, clients, materials: allMaterials, addMaterial, workspace } = useAppData()
+  const { projects, clients, materials: allMaterials, addMaterial } = useAppData()
   const [materialModal, setMaterialModal] = useState(false)
   const [materialForm, setMaterialForm] = useState({ name: '', type: 'image' })
   const [materialFile, setMaterialFile] = useState<File | null>(null)
@@ -221,23 +220,18 @@ export function ProjectDetailPage() {
     )
   const client = clients.find((item) => item.id === project.clientId)
   const materials = allMaterials.filter((item) => item.projectId === project.id)
-  const linkPortal =
-    workspace.slug && project.id
-      ? `${window.location.origin}${caminhoPortalProjeto(workspace.slug, project.id)}`
-      : ''
 
   const compartilharLink = async () => {
     setShareMessage('')
     setShareError('')
-    if (!linkPortal) {
-      setShareError('Defina o slug do workspace nas configurações para gerar o link.')
-      return
-    }
     try {
-      await navigator.clipboard.writeText(linkPortal)
-      setShareMessage('Link do portal copiado. O cliente abre sem senha.')
-    } catch {
-      setShareError(`Copie manualmente: ${linkPortal}`)
+      const { dado } = await dadosApi.linkPortal(project.id)
+      await navigator.clipboard.writeText(dado.link)
+      setShareMessage('Link seguro copiado. Só quem tiver este link acessa o portal.')
+    } catch (erro) {
+      setShareError(
+        erro instanceof Error ? erro.message : 'Não foi possível gerar o link do portal.',
+      )
     }
   }
 

@@ -11,6 +11,7 @@ type DestinoCliente = {
   projetoNome: string
   empresaNome: string
   workspaceSlug: string
+  tokenPortal: string | null
 }
 
 async function destinoDoProjeto(
@@ -25,6 +26,7 @@ async function destinoDoProjeto(
       email: clientes.email,
       empresaNome: workspaces.nome,
       workspaceSlug: workspaces.slug,
+      tokenPortal: projetos.tokenPortal,
     })
     .from(projetos)
     .innerJoin(clientes, eq(clientes.id, projetos.clienteId))
@@ -49,7 +51,13 @@ async function destinoDoProjeto(
     projetoNome: linha.projetoNome,
     empresaNome: linha.empresaNome,
     workspaceSlug: linha.workspaceSlug,
+    tokenPortal: linha.tokenPortal,
   }
+}
+
+function linkDoDestino(destino: DestinoCliente) {
+  if (!destino.tokenPortal) return null
+  return linkPortalProjeto(destino.projetoId, destino.workspaceSlug, destino.tokenPortal)
 }
 
 /** Avisa o cliente quando um projeto e criado para ele. */
@@ -57,19 +65,19 @@ export async function notificarClienteProjetoCriado(entrada: {
   projetoId: string
   workspaceId: string
   criadorNome: string
-  senhaAcesso: string
 }) {
   try {
     const destino = await destinoDoProjeto(entrada.projetoId, entrada.workspaceId)
     if (!destino) return
+    const link = linkDoDestino(destino)
+    if (!link) return
     await enviarEmailProjetoCriado({
       destino: destino.email,
       clienteNome: destino.clienteNome,
       projetoNome: destino.projetoNome,
       criadorNome: entrada.criadorNome.trim() || 'Alguem da equipe',
       empresaNome: destino.empresaNome,
-      link: linkPortalProjeto(destino.projetoId, destino.workspaceSlug),
-      senhaAcesso: entrada.senhaAcesso,
+      link,
     })
   } catch (erro) {
     console.error(
@@ -79,26 +87,29 @@ export async function notificarClienteProjetoCriado(entrada: {
   }
 }
 
-/** Envia uma nova credencial do portal e informa ao chamador se o SMTP aceitou o envio. */
-export async function reenviarSenhaPortalProjeto(entrada: {
+/** Reenvia o link do portal ao cliente. */
+export async function reenviarLinkPortalProjeto(entrada: {
   projetoId: string
   workspaceId: string
   criadorNome: string
-  senhaAcesso: string
 }) {
   const destino = await destinoDoProjeto(entrada.projetoId, entrada.workspaceId)
   if (!destino) return { enviado: false as const, motivo: 'cliente_sem_email' as const }
+  const link = linkDoDestino(destino)
+  if (!link) return { enviado: false as const, motivo: 'token_ausente' as const }
   const enviado = await enviarEmailProjetoCriado({
     destino: destino.email,
     clienteNome: destino.clienteNome,
     projetoNome: destino.projetoNome,
     criadorNome: entrada.criadorNome.trim() || 'Alguem da equipe',
     empresaNome: destino.empresaNome,
-    link: linkPortalProjeto(destino.projetoId, destino.workspaceSlug),
-    senhaAcesso: entrada.senhaAcesso,
+    link,
   })
   return { enviado, motivo: enviado ? null : ('email_falhou' as const) }
 }
+
+/** @deprecated use reenviarLinkPortalProjeto */
+export const reenviarSenhaPortalProjeto = reenviarLinkPortalProjeto
 
 /** Avisa o cliente quando ha qualquer alteracao relevante no projeto. */
 export async function notificarClienteProjetoAlterado(entrada: {
@@ -109,13 +120,15 @@ export async function notificarClienteProjetoAlterado(entrada: {
   try {
     const destino = await destinoDoProjeto(entrada.projetoId, entrada.workspaceId)
     if (!destino) return
+    const link = linkDoDestino(destino)
+    if (!link) return
     await enviarEmailProjetoAlterado({
       destino: destino.email,
       clienteNome: destino.clienteNome,
       projetoNome: destino.projetoNome,
       empresaNome: destino.empresaNome,
       resumo: entrada.resumo,
-      link: linkPortalProjeto(destino.projetoId, destino.workspaceSlug),
+      link,
     })
   } catch (erro) {
     console.error(

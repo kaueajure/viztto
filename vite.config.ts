@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
+    hmr: process.env.E2E === '1' ? false : undefined,
     proxy: {
       '/api': 'http://localhost:3001',
       '/arquivos': 'http://localhost:3001',

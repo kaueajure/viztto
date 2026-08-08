@@ -354,9 +354,14 @@ export const dadosApi = {
       }),
     }),
   reenviarSenhaPortal: (projetoId: string) =>
-    requisicaoApi<{ mensagem: string }>(`/api/projetos/${projetoId}/senha-portal`, {
-      method: 'POST',
-    }),
+    requisicaoApi<{ mensagem: string; dado?: { link: string | null; tokenPortal: string } }>(
+      `/api/projetos/${projetoId}/link-portal`,
+      { method: 'POST' },
+    ),
+  linkPortal: (projetoId: string) =>
+    requisicaoApi<{ dado: { link: string; tokenPortal: string } }>(
+      `/api/projetos/${projetoId}/link-portal`,
+    ),
   cliente: (d: {
     name: string
     company?: string
@@ -369,11 +374,11 @@ export const dadosApi = {
       method: 'POST',
       body: json({
         nome: d.name,
-        empresa: d.company,
-        email: d.email,
-        telefone: d.phone,
-        observacoes: d.notes,
-        corIdentificacao: d.color,
+        empresa: d.company || undefined,
+        email: d.email?.trim() || undefined,
+        telefone: d.phone?.trim() || undefined,
+        observacoes: d.notes || undefined,
+        corIdentificacao: d.color || undefined,
       }),
     }),
   projeto: (d: {
@@ -388,9 +393,9 @@ export const dadosApi = {
       body: json({
         nome: d.name,
         clienteId: d.clientId,
-        descricao: d.description,
+        descricao: d.description || undefined,
         tipo: d.type ?? 'Campanha',
-        prazoEm: d.dueDate,
+        prazoEm: d.dueDate?.trim() || undefined,
       }),
     }),
   material: (d: { name: string; projectId: string; type: string; file: File }) => {

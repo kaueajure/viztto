@@ -156,7 +156,7 @@ export async function enviarEmailProjetoCriado(entrada: {
   criadorNome: string
   empresaNome: string
   link: string
-  senhaAcesso: string
+  senhaAcesso?: string
 }) {
   const { assunto, texto, html } = montarEmailProjetoCriado(entrada)
   return tentarEnviarNotificacao(entrada.destino, assunto, texto, html, 'e-mail de projeto criado')

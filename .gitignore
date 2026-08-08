@@ -7,6 +7,10 @@ dist
 .env
 build-servidor
 .smoke-uploads-*
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 uploads/*
 !uploads/.gitkeep
 !uploads/imagens/.gitkeep

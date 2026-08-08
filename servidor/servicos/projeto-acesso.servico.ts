@@ -4,7 +4,7 @@ import { ambiente } from '../configuracao/ambiente.js'
 
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
-/** Senha legivel de 8 caracteres para acesso do cliente ao projeto. */
+/** Senha legivel de 8 caracteres (legado; portal atual usa token no link). */
 export function gerarSenhaAcessoProjeto() {
   const bytes = randomBytes(8)
   return Array.from(bytes, (byte) => ALFABETO[byte % ALFABETO.length]).join('')
@@ -16,6 +16,23 @@ export async function gerarHashSenhaAcesso(senha: string) {
 
 export async function senhaAcessoConfere(senha: string, hash: string) {
   return bcrypt.compare(senha, hash)
+}
+
+/** Token opaco do link de compartilhamento do portal (~32 chars URL-safe). */
+export function gerarTokenPortal() {
+  return randomBytes(24).toString('base64url')
+}
+
+export function tokenPortalConfere(recebido: string | undefined, esperado: string | null | undefined) {
+  if (!recebido || !esperado) return false
+  const a = Buffer.from(recebido)
+  const b = Buffer.from(esperado)
+  if (a.length !== b.length) return false
+  try {
+    return timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
 }
 
 export const COOKIE_PORTAL = 'viztto_portal'
@@ -59,6 +76,11 @@ export function validarAcessoPortal(token: string | undefined, projetoId: string
   }
 }
 
-export function linkPortalProjeto(projetoId: string, workspaceSlug: string) {
-  return `${ambiente.URL_APLICACAO.replace(/\/$/, '')}/${workspaceSlug}/${projetoId}`
+export function linkPortalProjeto(
+  projetoId: string,
+  workspaceSlug: string,
+  tokenPortal: string,
+) {
+  const base = ambiente.URL_APLICACAO.replace(/\/$/, '')
+  return `${base}/${workspaceSlug}/${projetoId}?t=${encodeURIComponent(tokenPortal)}`
 }

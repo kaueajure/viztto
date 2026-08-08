@@ -31,12 +31,13 @@ O seed e idempotente. Credenciais apenas para desenvolvimento: `marina@viztto.lo
 npm run lint
 npm run typecheck
 npm test
+npm run test:e2e
 npm run build
 npm run build:verificar
 npm run test:smoke
 ```
 
-`npm test` se recusa a preparar um banco sem o sufixo `_testes`. Configure um usuario que tenha acesso somente ao banco de testes.
+`npm test` e `npm run test:e2e:ci` exigem um banco com sufixo `_testes` (via `npm run test:preparar`). Em desenvolvimento local, `npm run test:e2e` sobe Vite + API com o `.env` atual (forçando `NODE_ENV=development` e URL local) e cobre cadastro → empresa → cliente → projeto → material → comentário → aprovação → portal. Para isolar o banco no E2E local: `BANCO_NOME_E2E=viztto_testes npm run test:e2e`.
 
 ## Producao
 

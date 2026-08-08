@@ -138,16 +138,22 @@ function SidebarContent({ close }: { close?: () => void }) {
   const navigate = useNavigate()
   const { workspace } = useAppData()
   const [limites, setLimites] = useState<UsoLimitesPlano | null>(null)
+  const [limitesProntos, setLimitesProntos] = useState(false)
 
   useEffect(() => {
     let ativo = true
+    setLimitesProntos(false)
     void assinaturasApi
       .limites()
       .then(({ dado }) => {
-        if (ativo) setLimites(dado)
+        if (!ativo) return
+        setLimites(dado)
+        setLimitesProntos(true)
       })
       .catch(() => {
-        if (ativo) setLimites(null)
+        if (!ativo) return
+        setLimites(null)
+        setLimitesProntos(true)
       })
     return () => {
       ativo = false
@@ -215,7 +221,9 @@ function SidebarContent({ close }: { close?: () => void }) {
             </li>
           </ul>
         ) : (
-          <p className="mt-1 text-[11px] text-muted">Carregando limites…</p>
+          <p className="mt-1 text-[11px] text-muted">
+            {limitesProntos ? 'Limites indisponíveis.' : 'Carregando limites…'}
+          </p>
         )}
       </div>
     </div>
