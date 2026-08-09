@@ -2,10 +2,7 @@ import { ArrowLeft, Check, CheckCircle2, MessageSquarePlus, Send, X } from 'luci
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
-import {
-  MaterialPreview,
-  type MaterialPreviewHandle,
-} from '@/components/review/MaterialPreview'
+import { MaterialPreview, type MaterialPreviewHandle } from '@/components/review/MaterialPreview'
 import { PortalApprovalDialog } from '@/components/portal/PortalApprovalDialog'
 import { PortalPasswordGate } from '@/components/portal/PortalPasswordGate'
 import {
@@ -19,6 +16,7 @@ import {
   PortalUnavailableState,
 } from '@/components/portal/PortalUnavailableState'
 import { Button, IconButton } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/DataDisplay'
 import { Textarea } from '@/components/ui/FormControls'
 import { caminhoPortalProjeto, comTokenPortal, UUID_RE } from '@/lib/portalPaths'
 import { formatVideoTimestamp } from '@/lib/formatVideoTimestamp'
@@ -26,7 +24,7 @@ import { ApiError, json, requisicaoApi } from '@/services/api/clienteHttp'
 import type { ReviewComment } from '@/types/domain'
 import { cn } from '@/lib/cn'
 
-type DraftPortal = {
+type DraftComment = {
   x: number
   y: number
   timestampSeconds?: number
@@ -75,7 +73,7 @@ export default function PortalRevisaoPage() {
   const [tentativa, setTentativa] = useState(0)
   const [creationMode, setCreationMode] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [draft, setDraft] = useState<DraftPortal | null>(null)
+  const [draft, setDraft] = useState<DraftComment | null>(null)
   const [draftText, setDraftText] = useState('')
   const [acaoEmAndamento, setAcaoEmAndamento] = useState<
     'comentario' | 'alteracoes' | 'aprovacao' | null
@@ -178,6 +176,17 @@ export default function PortalRevisaoPage() {
   )
   const aprovado = Boolean(detalhe?.material.status === 'aprovado' || detalhe?.versao.aprovada)
   const enviando = acaoEmAndamento !== null
+
+  const selectComment = (commentId: string) => {
+    setSelectedId(commentId)
+    const comment = comentarios.find((item) => item.id === commentId)
+    if (comment?.timestampSeconds != null) setSeekSeconds(comment.timestampSeconds)
+    if (comment?.pdfPage != null) {
+      setPdfPage(comment.pdfPage)
+      previewRef.current?.setPdfPage(comment.pdfPage)
+    }
+  }
+
   const publicarComentario = async (event: FormEvent) => {
     event.preventDefault()
     if (!draft || !draftText.trim() || enviando) return
@@ -461,7 +470,7 @@ export default function PortalRevisaoPage() {
                   setDraftText('')
                   setSelectedId(null)
                 }}
-                onSelect={setSelectedId}
+                onSelect={selectComment}
               />
             ) : (
               <div className="relative grid min-h-[32rem] place-items-center overflow-auto bg-[#090d12] p-4">
@@ -472,6 +481,9 @@ export default function PortalRevisaoPage() {
                         onClick={() => {
                           const seconds = previewRef.current?.getCurrentTime() ?? currentTime
                           setDraft({ x: 0.5, y: 0.5, timestampSeconds: seconds })
+                          setDraftText('')
+                          setSelectedId(null)
+                          setCreationMode(false)
                         }}
                       >
                         Comentar em {formatVideoTimestamp(currentTime)}
@@ -481,6 +493,9 @@ export default function PortalRevisaoPage() {
                         onClick={() => {
                           const page = previewRef.current?.getPdfPage() ?? pdfPage
                           setDraft({ x: 0.5, y: 0.5, pdfPage: page })
+                          setDraftText('')
+                          setSelectedId(null)
+                          setCreationMode(false)
                         }}
                       >
                         Comentar na página {pdfPage}
@@ -554,15 +569,7 @@ export default function PortalRevisaoPage() {
                 <button
                   key={comentario.id}
                   type="button"
-                  onClick={() => {
-                    setSelectedId(comentario.id)
-                    if (comentario.timestampSeconds != null)
-                      setSeekSeconds(comentario.timestampSeconds)
-                    if (comentario.pdfPage != null) {
-                      setPdfPage(comentario.pdfPage)
-                      previewRef.current?.setPdfPage(comentario.pdfPage)
-                    }
-                  }}
+                  onClick={() => selectComment(comentario.id)}
                   className={cn(
                     'w-full rounded-md border p-3 text-left transition-colors',
                     selectedId === comentario.id
@@ -581,14 +588,15 @@ export default function PortalRevisaoPage() {
                       {comentario.status === 'open' ? 'Aberto' : 'Resolvido'}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-muted">{comentario.authorName}</p>
                   {(comentario.timestampSeconds != null || comentario.pdfPage != null) && (
-                    <p className="mt-1 text-[11px] font-semibold text-secondary">
-                      {comentario.timestampSeconds != null
-                        ? formatVideoTimestamp(comentario.timestampSeconds)
-                        : `Pág. ${comentario.pdfPage}`}
-                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {comentario.timestampSeconds != null && (
+                        <Badge>{formatVideoTimestamp(comentario.timestampSeconds)}</Badge>
+                      )}
+                      {comentario.pdfPage != null && <Badge>Pág. {comentario.pdfPage}</Badge>}
+                    </div>
                   )}
+                  <p className="mt-1 text-xs text-muted">{comentario.authorName}</p>
                   <p className="mt-2 text-sm">{comentario.text}</p>
                 </button>
               ))}
