@@ -90,9 +90,9 @@ async function projetoPortal(projetoId: string, workspaceSlug?: string) {
     .innerJoin(clientes, eq(clientes.id, projetos.clienteId))
     .where(and(eq(projetos.id, projetoId), isNull(projetos.excluidoEm)))
     .limit(1)
-  if (!linha) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
+  if (!linha) throw new ErroHttp(404, 'Projeto não encontrado.', 'projeto_nao_encontrado')
   if (workspaceSlug && linha.workspaceSlug !== workspaceSlug)
-    throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
+    throw new ErroHttp(404, 'Projeto não encontrado.', 'projeto_nao_encontrado')
   return linha
 }
 
@@ -123,7 +123,7 @@ async function exigirAcessoPortal(
   if (!tokenPortalConfere(tokenRecebido, projeto.tokenPortal))
     throw new ErroHttp(
       401,
-      'Link de acesso invalido ou incompleto. Peca um novo link a equipe.',
+      'Link de acesso inválido ou incompleto. Peça um novo link à equipe.',
       'portal_token_invalido',
     )
   if (projeto.portalExpiraEm && projeto.portalExpiraEm.getTime() <= Date.now())
@@ -149,7 +149,7 @@ portalRotas.post(
     const projeto = await projetoPortal(projetoId)
     await garantirLinksPortalCliente(projeto.workspaceId)
     if (!tokenPortalConfere(tokenDaRequisicao(req), projeto.tokenPortal))
-      throw new ErroHttp(401, 'Link de acesso invalido.', 'portal_token_invalido')
+      throw new ErroHttp(401, 'Link de acesso inválido.', 'portal_token_invalido')
     if (projeto.portalExpiraEm && projeto.portalExpiraEm.getTime() <= Date.now())
       throw new ErroHttp(410, 'Este link de portal expirou.', 'portal_expirado')
     if (
@@ -170,7 +170,7 @@ portalRotas.get('/personalizacao-assets/:escopo/:id/:campo', async (req, res) =>
   const escopo = z.enum(['workspace', 'cliente', 'projeto']).parse(req.params.escopo)
   const campo = z.enum(camposAssetPortal).parse(req.params.campo)
   const asset = await obterAssetPortal(escopo, String(req.params.id), campo)
-  if (!asset?.caminho) throw new ErroHttp(404, 'Imagem nao encontrada.', 'arquivo_nao_encontrado')
+  if (!asset?.caminho) throw new ErroHttp(404, 'Imagem não encontrada.', 'arquivo_nao_encontrado')
   await garantirPortalPersonalizado(asset.workspaceId)
   const ext = asset.caminho.toLowerCase().split('.').pop()
   const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
@@ -190,7 +190,7 @@ async function materialDoProjeto(materialId: string, projetoId: string) {
       ),
     )
     .limit(1)
-  if (!material) throw new ErroHttp(404, 'Material nao encontrado.', 'material_nao_encontrado')
+  if (!material) throw new ErroHttp(404, 'Material não encontrado.', 'material_nao_encontrado')
   return material
 }
 
@@ -240,13 +240,13 @@ portalRotas.get('/projetos/:projetoId', async (req, res) => {
 portalRotas.get('/workspaces/:workspaceId/logo', async (req, res) => {
   const workspaceId = String(req.params.workspaceId)
   const marca = await carregarMarcaPortal(workspaceId)
-  if (!marca.logoUrl) throw new ErroHttp(404, 'Logo nao encontrado.', 'logo_nao_encontrado')
+  if (!marca.logoUrl) throw new ErroHttp(404, 'Logo não encontrado.', 'logo_nao_encontrado')
   const [workspace] = await banco
     .select({ logoUrl: workspaces.logoUrl })
     .from(workspaces)
     .where(and(eq(workspaces.id, workspaceId), isNull(workspaces.excluidoEm)))
     .limit(1)
-  if (!workspace?.logoUrl) throw new ErroHttp(404, 'Logo nao encontrado.', 'logo_nao_encontrado')
+  if (!workspace?.logoUrl) throw new ErroHttp(404, 'Logo não encontrado.', 'logo_nao_encontrado')
   const ext = workspace.logoUrl.toLowerCase().split('.').pop()
   const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
   await enviarArquivoResposta(res, workspace.logoUrl, mime)
@@ -310,7 +310,7 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) =
   )
   const material = await materialDoProjeto(String(req.params.materialId), projetoId)
   if (!material.versaoAtualId)
-    throw new ErroHttp(422, 'Este material ainda nao tem versao para revisar.', 'versao_ausente')
+    throw new ErroHttp(422, 'Este material ainda não tem versão para revisar.', 'versao_ausente')
   const [versao] = await banco
     .select({
       id: versoesMaterial.id,
@@ -322,7 +322,7 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) =
     .from(versoesMaterial)
     .where(and(eq(versoesMaterial.id, material.versaoAtualId), isNull(versoesMaterial.excluidoEm)))
     .limit(1)
-  if (!versao) throw new ErroHttp(404, 'Versao nao encontrada.', 'versao_nao_encontrada')
+  if (!versao) throw new ErroHttp(404, 'Versão não encontrada.', 'versao_nao_encontrada')
   const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
   res.json({
     dado: {
@@ -374,7 +374,7 @@ portalRotas.get('/projetos/:projetoId/arquivos/:arquivoId', async (req, res) => 
       ),
     )
     .limit(1)
-  if (!arquivo) throw new ErroHttp(404, 'Arquivo nao encontrado.', 'arquivo_nao_encontrado')
+  if (!arquivo) throw new ErroHttp(404, 'Arquivo não encontrado.', 'arquivo_nao_encontrado')
   await enviarArquivoResposta(res, arquivo.caminhoRelativo, arquivo.mimeType)
 })
 
@@ -426,11 +426,11 @@ portalRotas.post(
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     await garantirComentarioNoMaterial(material.workspaceId, material.tipo)
     if (!material.versaoAtualId)
-      throw new ErroHttp(422, 'Publique uma versao antes de comentar.', 'versao_ausente')
+      throw new ErroHttp(422, 'Publique uma versão antes de comentar.', 'versao_ausente')
     if (material.status === 'aprovado')
       throw new ErroHttp(
         409,
-        'Este material ja foi aprovado. Aguarde uma nova versao da equipe.',
+        'Este material já foi aprovado. Aguarde uma nova versão da equipe.',
         'material_aprovado',
       )
     const id = novoId()
@@ -493,7 +493,7 @@ portalRotas.post(
     const projeto = await projetoPortal(projetoId)
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)
-      throw new ErroHttp(422, 'Publique uma versao antes desta acao.', 'versao_ausente')
+      throw new ErroHttp(422, 'Publique uma versão antes desta ação.', 'versao_ausente')
     const [abertos] = await banco
       .select({ total: count() })
       .from(comentarios)
@@ -559,7 +559,7 @@ portalRotas.post(
     const projeto = await projetoPortal(projetoId)
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)
-      throw new ErroHttp(422, 'Publique uma versao antes desta acao.', 'versao_ausente')
+      throw new ErroHttp(422, 'Publique uma versão antes desta ação.', 'versao_ausente')
     const [abertos] = await banco
       .select({ total: count() })
       .from(comentarios)
@@ -573,7 +573,7 @@ portalRotas.post(
     if ((abertos?.total ?? 0) > 0 && !req.body.confirmarPendencias)
       throw new ErroHttp(
         409,
-        'Esta versao possui comentarios pendentes. Confirme para aprovar.',
+        'Esta versão possui comentários pendentes. Confirme para aprovar.',
         'pendencias_abertas',
         { total: abertos?.total },
       )
@@ -619,7 +619,7 @@ portalRotas.post(
       workspaceId: material.workspaceId,
       destinatarioId: projeto.criadoPorUsuarioId,
       atividadeId,
-      titulo: 'Cliente aprovou a versao',
+      titulo: 'Cliente aprovou a versão',
       descricao: `${projeto.clienteNome} aprovou "${material.nome}".`,
       tipo: 'versao_aprovada',
     })

@@ -9,6 +9,15 @@ export function MaterialPreview({
   title: string
   className?: string
 }) {
+  if (!url) {
+    return (
+      <div
+        className={`grid min-h-[12rem] place-items-center px-6 text-center text-sm text-muted ${className}`}
+      >
+        Sem pré-visualização
+      </div>
+    )
+  }
   if (type === 'video')
     return (
       <video className={`max-h-full w-full ${className}`} src={url} controls preload="metadata" />

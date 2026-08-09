@@ -40,7 +40,7 @@ export function ProjectsPage() {
     <div>
       <PageHeader
         title="Projetos"
-        description="Acompanhe materiais, versões, comentários e decisões."
+        description="Materiais e revisões"
         action={{ label: 'Novo projeto', to: '/app/projetos/novo' }}
       />
       <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
@@ -151,7 +151,7 @@ export function NewProjectPage() {
     <div>
       <PageHeader
         title="Novo projeto"
-        description="Defina o contexto antes de adicionar materiais e aprovadores."
+        description="Informações iniciais do projeto"
       />
       <form
         onSubmit={submit}
@@ -186,7 +186,7 @@ export function NewProjectPage() {
         </div>
         {saved && (
           <p role="status" className="mt-4 text-sm text-approval">
-            Projeto criado com sucesso.
+            Projeto criado.
           </p>
         )}
         <div className="mt-6 flex gap-3">
@@ -226,12 +226,15 @@ export function ProjectDetailPage() {
     setShareError('')
     try {
       const { dado } = await dadosApi.linkPortal(project.id)
-      await navigator.clipboard.writeText(dado.link)
-      setShareMessage('Link seguro copiado. Só quem tiver este link acessa o portal.')
+      try {
+        await navigator.clipboard.writeText(dado.link)
+        setShareMessage('Link copiado')
+      } catch {
+        setShareMessage(dado.link)
+        setShareError('Não foi possível copiar. Selecione e copie o link acima.')
+      }
     } catch (erro) {
-      setShareError(
-        erro instanceof Error ? erro.message : 'Não foi possível gerar o link do portal.',
-      )
+      setShareError(erro instanceof Error ? erro.message : 'Não foi possível gerar o link.')
     }
   }
 
@@ -240,8 +243,7 @@ export function ProjectDetailPage() {
       <div>
         <h2 className="font-semibold text-ink">Resumo</h2>
         <p className="mt-2 leading-relaxed">
-          {project.description ||
-            'Fluxo de revisão organizado por materiais, versões e responsáveis.'}
+          {project.description || 'Sem descrição.'}
         </p>
         <div className="mt-6">
           <ProjectProgress value={project.progress} />
@@ -339,7 +341,7 @@ export function ProjectDetailPage() {
             {
               label: 'Configurações',
               content: (
-                <p>As configurações do portal deste projeto ficam em Configurações → Portal.</p>
+                <p>Configure o portal em Configurações → Portal.</p>
               ),
             },
           ]}

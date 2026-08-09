@@ -31,7 +31,7 @@ export const protegerCsrf: RequestHandler = (req, _res, next) => {
   const a = Buffer.from(cookie)
   const b = Buffer.from(cabecalho)
   if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    throw new ErroHttp(403, 'Token CSRF invalido.', 'csrf_invalido')
+    throw new ErroHttp(403, 'Token CSRF inválido.', 'csrf_invalido')
   }
   next()
 }

@@ -26,7 +26,7 @@ export function ClientsPage() {
     <div>
       <PageHeader
         title="Clientes"
-        description="Organize projetos, participantes e aprovações por cliente."
+        description="Clientes do workspace"
         action={{ label: 'Novo cliente', to: '/app/clientes/novo' }}
       />
       <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
@@ -185,7 +185,7 @@ export function NewClientPage() {
     <div>
       <PageHeader
         title="Novo cliente"
-        description="Crie um espaço organizado para projetos e aprovações."
+        description="Novo cliente"
       />
       <form
         onSubmit={submit}
@@ -209,7 +209,7 @@ export function NewClientPage() {
         </div>
         {saved && (
           <p role="status" className="mt-4 text-sm text-approval">
-            Cliente salvo com sucesso.
+            Cliente salvo.
           </p>
         )}
         {erro && (

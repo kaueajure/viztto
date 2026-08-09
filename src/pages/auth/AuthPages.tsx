@@ -67,7 +67,7 @@ export function LoginPage() {
     event.preventDefault()
     const next: Record<string, string> = {}
     if (!validEmail(email)) next.email = 'Informe um e-mail válido.'
-    if (password.length < 6) next.password = 'Use pelo menos seis caracteres.'
+    if (!password) next.password = 'Informe a senha.'
     setErrors(next)
     setPrecisaVerificar(false)
     setReenviado(false)
@@ -85,10 +85,10 @@ export function LoginPage() {
         )
         setPrecisaVerificar(true)
         setErrors({
-          form: 'Seu e-mail ainda nao foi verificado. Reenvie o link ou abra a mensagem que enviamos.',
+          form: 'Seu e-mail ainda não foi verificado. Reenvie o link ou abra a mensagem que enviamos.',
         })
       } else {
-        setErrors({ form: error instanceof Error ? error.message : 'Nao foi possivel entrar.' })
+        setErrors({ form: error instanceof Error ? error.message : 'Não foi possível entrar.' })
       }
     } finally {
       setSubmitting(false)
@@ -157,7 +157,7 @@ export function LoginPage() {
                 navigate(`/verificar-email?email=${encodeURIComponent(email.trim().toLowerCase())}`)
               } catch (erro) {
                 setErrors({
-                  form: erro instanceof Error ? erro.message : 'Nao foi possivel reenviar.',
+                  form: erro instanceof Error ? erro.message : 'Não foi possível reenviar.',
                 })
               } finally {
                 setReenviando(false)
@@ -231,11 +231,11 @@ export function RegisterPage() {
         )
         setPrecisaVerificar(true)
         setErrors({
-          form: 'Este e-mail ja possui cadastro, mas ainda nao foi verificado.',
+          form: 'Este e-mail já possui cadastro, mas ainda não foi verificado.',
         })
       } else {
         setErrors({
-          form: error instanceof Error ? error.message : 'Nao foi possivel criar a conta.',
+          form: error instanceof Error ? error.message : 'Não foi possível criar a conta.',
         })
       }
     } finally {
@@ -334,7 +334,7 @@ export function RegisterPage() {
                 )
               } catch (erro) {
                 setErrors({
-                  form: erro instanceof Error ? erro.message : 'Nao foi possivel reenviar.',
+                  form: erro instanceof Error ? erro.message : 'Não foi possível reenviar.',
                 })
               } finally {
                 setReenviando(false)
@@ -380,7 +380,7 @@ export function ForgotPasswordPage() {
     <AuthCard
       eyebrow="Recuperação de acesso"
       title="Recupere seu acesso"
-      description="Informe seu e-mail para receber um link seguro de redefinição."
+      description="Informe seu e-mail para redefinir a senha."
     >
       {sent ? (
         <div role="status" className="rounded-lg border border-approval/30 bg-approval-soft p-5">
@@ -606,7 +606,7 @@ export function VerifyEmailPage() {
       .catch((erro) => {
         if (!ativo) return
         setStatus('idle')
-        setError(erro instanceof Error ? erro.message : 'Nao foi possivel verificar.')
+        setError(erro instanceof Error ? erro.message : 'Não foi possível verificar.')
       })
     return () => {
       ativo = false
@@ -618,7 +618,7 @@ export function VerifyEmailPage() {
       <AuthCard
         eyebrow="Confirme seu endereço"
         title="Verifique seu e-mail"
-        description="Abrimos um link seguro no seu e-mail para confirmar a conta."
+        description="Enviamos um link de confirmação para o seu e-mail."
       >
         <div className="text-center">
           <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-brand">
@@ -652,7 +652,7 @@ export function VerifyEmailPage() {
                   setStatus('ok')
                   if (!conviteAceito) setModalEmpresa(true)
                 } catch (erro) {
-                  setError(erro instanceof Error ? erro.message : 'Nao foi possivel verificar.')
+                  setError(erro instanceof Error ? erro.message : 'Não foi possível verificar.')
                 }
               }}
             >
@@ -686,7 +686,7 @@ export function VerifyEmailPage() {
                   setReenviado(true)
                   setCooldown(30)
                 } catch (erro) {
-                  setError(erro instanceof Error ? erro.message : 'Nao foi possivel reenviar.')
+                  setError(erro instanceof Error ? erro.message : 'Não foi possível reenviar.')
                 }
               }}
             >

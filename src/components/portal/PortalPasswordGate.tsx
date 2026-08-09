@@ -42,24 +42,22 @@ export function PortalPasswordGate({
         <LockKeyhole className="h-8 w-8 text-[#b8ff4f]" aria-hidden />
         <h1 className="mt-5 text-2xl font-semibold">Portal protegido</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/65">
-          Digite a senha enviada pela equipe para acessar este projeto.
+          Digite a senha para continuar.
         </p>
         <div className="mt-6">
           <Input
             label="Senha"
             type="password"
+            autoComplete="current-password"
             autoFocus
+            disabled={carregando}
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
+            error={erro || undefined}
           />
         </div>
-        {erro && (
-          <p className="mt-3 text-sm text-red-300" role="alert">
-            {erro}
-          </p>
-        )}
         <Button className="mt-5 w-full" type="submit" loading={carregando}>
-          Entrar no portal
+          Entrar
         </Button>
       </form>
     </main>

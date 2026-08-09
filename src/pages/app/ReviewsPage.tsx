@@ -19,7 +19,7 @@ export default function ReviewsPage() {
     <div>
       <PageHeader
         title="Revisões"
-        description="Fila central de decisões, alterações e materiais aguardando responsáveis."
+        description="Materiais aguardando decisão"
       />
       <div className="mt-6 grid gap-5 xl:grid-cols-2">
         {groups.map(([title, items]) => (

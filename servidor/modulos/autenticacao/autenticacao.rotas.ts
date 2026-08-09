@@ -129,7 +129,7 @@ autenticacaoRotas.post('/cadastro', acesso, validarCorpo(cadastro), async (req, 
   if (existente && !existente.emailVerificadoEm)
     throw new ErroHttp(
       403,
-      'Este e-mail ja possui cadastro, mas ainda nao foi verificado.',
+      'Este e-mail já possui cadastro, mas ainda não foi verificado.',
       'email_nao_verificado',
     )
   const usuarioId = novoId()
@@ -163,14 +163,14 @@ autenticacaoRotas.post('/reenviar-verificacao', acesso, validarCorpo(reenvio), a
     .limit(1)
   if (!usuario || usuario.emailVerificadoEm) {
     res.json({
-      mensagem: 'Se a conta existir e ainda nao estiver verificada, enviaremos um novo e-mail.',
+      mensagem: 'Se a conta existir e ainda não estiver verificada, enviaremos um novo e-mail.',
     })
     return
   }
   const { token, enviado } = await emitirTokenVerificacao(usuario.id, usuario.nome, usuario.email)
   res.json({
     mensagem: enviado
-      ? 'Se a conta existir e ainda nao estiver verificada, enviaremos um novo e-mail.'
+      ? 'Se a conta existir e ainda não estiver verificada, enviaremos um novo e-mail.'
       : 'Novo token de verificacao gerado para desenvolvimento.',
     ...(ambiente.NODE_ENV === 'development' ? { tokenVerificacao: token } : {}),
   })
@@ -227,7 +227,7 @@ autenticacaoRotas.post('/redefinir-senha', acesso, validarCorpo(redefinicao), as
       ),
     )
     .limit(1)
-  if (!registro) throw new ErroHttp(400, 'Link invalido ou expirado.', 'token_invalido')
+  if (!registro) throw new ErroHttp(400, 'Link inválido ou expirado.', 'token_invalido')
   await banco.transaction(async (tx) => {
     await tx
       .update(usuarios)
@@ -259,7 +259,7 @@ autenticacaoRotas.post('/aceitar-convite', acesso, validarCorpo(verificacao), as
       ),
     )
     .limit(1)
-  if (!convite) throw new ErroHttp(400, 'Convite invalido ou expirado.', 'convite_invalido')
+  if (!convite) throw new ErroHttp(400, 'Convite inválido ou expirado.', 'convite_invalido')
   const [usuario] = await banco
     .select({ id: usuarios.id, emailVerificadoEm: usuarios.emailVerificadoEm })
     .from(usuarios)
@@ -311,7 +311,7 @@ autenticacaoRotas.post('/verificar-email', acesso, validarCorpo(verificacao), as
     )
     .limit(1)
   if (!registro || registro.expiraEm <= agora)
-    throw new ErroHttp(400, 'Token invalido ou expirado.', 'token_invalido')
+    throw new ErroHttp(400, 'Token inválido ou expirado.', 'token_invalido')
   await banco.transaction(async (tx) => {
     await tx
       .update(tokensVerificacaoEmail)
@@ -383,7 +383,7 @@ autenticacaoRotas.get('/slug-disponivel', async (req, res) => {
     .trim()
     .toLowerCase()
   if (!/^[a-z0-9-]{2,120}$/.test(slug)) {
-    throw new ErroHttp(422, 'Slug invalido.', 'dados_invalidos')
+    throw new ErroHttp(422, 'Slug inválido.', 'dados_invalidos')
   }
   if (slugReservado(slug)) {
     res.json({ disponivel: false })
@@ -399,7 +399,7 @@ autenticacaoRotas.get('/slug-disponivel', async (req, res) => {
 
 autenticacaoRotas.post('/onboarding', acesso, validarCorpo(onboarding), async (req, res) => {
   const usuarioId = String(req.body.usuarioId ?? '')
-  if (!usuarioId) throw new ErroHttp(422, 'Usuario ausente.', 'dados_invalidos')
+  if (!usuarioId) throw new ErroHttp(422, 'Usuário ausente.', 'dados_invalidos')
   const [usuario] = await banco
     .select()
     .from(usuarios)
@@ -414,7 +414,7 @@ autenticacaoRotas.post('/onboarding', acesso, validarCorpo(onboarding), async (r
     .from(workspaces)
     .where(and(eq(workspaces.slug, req.body.slug), isNull(workspaces.excluidoEm)))
     .limit(1)
-  if (slugEmUso) throw new ErroHttp(409, 'Essa URL ja esta em uso.', 'slug_em_uso')
+  if (slugEmUso) throw new ErroHttp(409, 'Essa URL já está em uso.', 'slug_em_uso')
   await garantirPodeCriarWorkspace(usuarioId)
   const workspaceId = novoId()
   const agora = new Date()
@@ -500,7 +500,7 @@ autenticacaoRotas.post(
         ),
       )
       .limit(1)
-    if (!workspace) throw new ErroHttp(404, 'Workspace nao encontrado.', 'workspace_ausente')
+    if (!workspace) throw new ErroHttp(404, 'Workspace não encontrado.', 'workspace_ausente')
 
     if (!req.sessao!.admin) {
       const [membro] = await banco
@@ -515,7 +515,7 @@ autenticacaoRotas.post(
         )
         .limit(1)
       if (!membro)
-        throw new ErroHttp(403, 'Voce nao possui acesso a este workspace.', 'sem_permissao')
+        throw new ErroHttp(403, 'Você não possui acesso a este workspace.', 'sem_permissao')
     }
 
     await banco

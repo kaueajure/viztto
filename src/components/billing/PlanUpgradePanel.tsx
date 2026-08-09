@@ -84,7 +84,7 @@ export function PlanUpgradePanel({
         .then((response) => {
           if (response.dado.status !== 'autorizada') return
           const codigo = response.dado.codigoPlano
-          setSuccess('Pix confirmado. Plano liberado com sucesso.')
+          setSuccess('Pix confirmado. Plano liberado.')
           if (codigo) {
             onPurchasedRef.current(codigo)
             setActiveSubscription(codigo)
@@ -137,7 +137,7 @@ export function PlanUpgradePanel({
     const autorizada = response.dado.status === 'authorized' || response.dado.status === 'autorizada'
     setSuccess(
       autorizada
-        ? 'Plano contratado com sucesso.'
+        ? 'Plano contratado.'
         : 'Assinatura enviada e aguardando confirmação.',
     )
     if (autorizada) {
@@ -165,7 +165,7 @@ export function PlanUpgradePanel({
         emailPagador: payerEmail,
       })
       if (response.dado.status === 'approved' || response.dado.status === 'autorizada') {
-        setSuccess('Pix confirmado. Plano liberado com sucesso.')
+        setSuccess('Pix confirmado. Plano liberado.')
         onPurchasedRef.current(selected.codigo)
         setActiveSubscription(selected.codigo)
         setBilling({

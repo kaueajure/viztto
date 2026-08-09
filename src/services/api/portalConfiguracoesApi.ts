@@ -18,6 +18,7 @@ export type PortalConfiguracaoSalvaResposta = {
     protegido: boolean
     expiraEm: string | null
     linkAlterado: boolean
+    link: string | null
   } | null
 }
 

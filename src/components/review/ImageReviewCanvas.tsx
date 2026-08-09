@@ -6,6 +6,7 @@ import type { ReviewComment } from '@/types/domain'
 
 export function ImageReviewCanvas({
   imageUrl,
+  alt = 'Material em revisão',
   comments,
   selectedId,
   creationMode,
@@ -15,6 +16,7 @@ export function ImageReviewCanvas({
   onSelect,
 }: {
   imageUrl: string
+  alt?: string
   comments: ReviewComment[]
   selectedId: string | null
   creationMode: boolean
@@ -87,12 +89,13 @@ export function ImageReviewCanvas({
             : 'Material em revisão com comentários posicionados.'
         }
       >
-        <img
-          src={imageUrl}
-          alt="Peça criativa da campanha em revisão"
-          draggable={false}
-          className="block h-auto w-full"
-        />
+        {imageUrl ? (
+          <img src={imageUrl} alt={alt} draggable={false} className="block h-auto w-full" />
+        ) : (
+          <div className="grid min-h-[20rem] place-items-center px-6 text-center text-sm text-muted">
+            Sem pré-visualização
+          </div>
+        )}
         {comments.map((comment, index) => (
           <ReviewPin
             key={comment.id}

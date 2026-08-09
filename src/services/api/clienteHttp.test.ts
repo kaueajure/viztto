@@ -51,7 +51,7 @@ describe('cliente HTTP', () => {
       expect(init?.body).toBe(corpo)
       if (mutacao === 1)
         return jsonResponse(
-          { erro: { codigo: 'csrf_invalido', mensagem: 'Token CSRF invalido.' } },
+          { erro: { codigo: 'csrf_invalido', mensagem: 'Token CSRF inválido.' } },
           403,
         )
       expect(new Headers(init?.headers).get('x-csrf-token')).toBe('csrf-2')

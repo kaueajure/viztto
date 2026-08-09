@@ -11,7 +11,7 @@ async function obterCsrf() {
     cache: 'no-store',
   })
     .then(async (resposta) => {
-      if (!resposta.ok) throw new Error('Nao foi possivel iniciar uma conexao segura.')
+      if (!resposta.ok) throw new Error('Não foi possível iniciar uma conexão segura.')
       const recebido = String(((await resposta.json()) as { token: string }).token)
       tokenCsrf = recebido
       return recebido
@@ -56,13 +56,13 @@ export async function requisicaoApi<T>(caminho: string, init: RequestInit = {}):
       throw new ApiError(
         resposta.status,
         codigo,
-        conteudo.erro?.mensagem ?? 'Nao foi possivel concluir.',
+        conteudo.erro?.mensagem ?? 'Não foi possível concluir.',
         conteudo.erro?.detalhes,
       )
     return conteudo
   }
 
-  throw new ApiError(403, 'csrf_invalido', 'Nao foi possivel renovar a conexao segura.')
+  throw new ApiError(403, 'csrf_invalido', 'Não foi possível renovar a conexão segura.')
 }
 
 export const json = (dados: unknown) => JSON.stringify(dados)

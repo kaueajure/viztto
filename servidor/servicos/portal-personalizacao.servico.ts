@@ -21,31 +21,60 @@ export const camposAssetPortal = [
 export type CampoAssetPortal = (typeof camposAssetPortal)[number]
 export type EscopoPortal = 'workspace' | 'cliente' | 'projeto'
 
-const cor = z.string().regex(/^#[0-9a-f]{6}$/i)
+/** Personalizacao: nenhum campo e obrigatorio; so limita tamanho/formato quando informado. */
+const textoOpcional = (maximo: number) =>
+  z.preprocess((valor) => {
+    if (valor === null || valor === undefined) return ''
+    return typeof valor === 'string' ? valor : String(valor)
+  }, z.string().trim().max(maximo))
+
+const cor = z.preprocess((valor) => {
+  if (valor === null || valor === undefined || valor === '') return undefined
+  if (typeof valor !== 'string') return valor
+  const normalizada = valor.trim()
+  // Alguns browsers/color pickers devolvem #RRGGBBAA — usa so RGB.
+  if (/^#[0-9a-f]{8}$/i.test(normalizada)) return `#${normalizada.slice(1, 7).toLowerCase()}`
+  if (/^#[0-9a-f]{6}$/i.test(normalizada)) return normalizada.toLowerCase()
+  return undefined
+}, z.string().regex(/^#[0-9a-f]{6}$/i).optional())
+
+const opacidadeMarca = z.preprocess((valor) => {
+  if (valor === null || valor === undefined || valor === '') return undefined
+  const numero = typeof valor === 'number' ? valor : Number(valor)
+  if (!Number.isFinite(numero)) return undefined
+  return Math.min(1, Math.max(0, numero))
+}, z.number().min(0).max(1).optional())
+
+const enumOpcional = <T extends z.ZodTypeAny>(esquema: T) =>
+  z.preprocess(
+    (valor) => (valor === null || valor === undefined || valor === '' ? undefined : valor),
+    esquema.optional(),
+  )
+
 export const configuracaoPortalEntrada = z
   .object({
-    corPrincipal: cor.optional(),
-    corSecundaria: cor.optional(),
-    tema: z.enum(['escuro', 'claro']).optional(),
-    fonte: z.enum(['instrument', 'serif', 'sistema']).optional(),
-    estilo: z.enum(['suave', 'quadrado', 'pill']).optional(),
-    fundoTipo: z.enum(['cor', 'gradiente', 'imagem']).optional(),
-    fundoCor: cor.optional(),
-    fundoGradiente: z.enum(['aurora', 'oceano', 'por-do-sol', 'monocromatico']).optional(),
-    marcaDaguaOpacidade: z.number().min(0.04).max(0.5).optional(),
-    nomePortal: z.string().trim().min(2).max(80).optional(),
-    mensagemAprovacao: z.string().trim().max(500).optional(),
-    mensagemAlteracoes: z.string().trim().max(500).optional(),
-    rodapeTexto: z.string().trim().max(300).optional(),
-    suporteEmail: z.union([z.string().email(), z.literal('')]).optional(),
-    suporteTelefone: z.string().trim().max(40).optional(),
-    suporteWhatsapp: z.string().trim().max(30).optional(),
+    corPrincipal: cor,
+    corSecundaria: cor,
+    tema: enumOpcional(z.enum(['escuro', 'claro'])),
+    fonte: enumOpcional(z.enum(['instrument', 'serif', 'sistema'])),
+    estilo: enumOpcional(z.enum(['suave', 'quadrado', 'pill'])),
+    fundoTipo: enumOpcional(z.enum(['cor', 'gradiente', 'imagem'])),
+    fundoCor: cor,
+    fundoGradiente: enumOpcional(z.enum(['aurora', 'oceano', 'por-do-sol', 'monocromatico'])),
+    marcaDaguaOpacidade: opacidadeMarca,
+    nomePortal: textoOpcional(80),
+    mensagemAprovacao: textoOpcional(500),
+    mensagemAlteracoes: textoOpcional(500),
+    rodapeTexto: textoOpcional(300),
+    suporteEmail: textoOpcional(254),
+    suporteTelefone: textoOpcional(40),
+    suporteWhatsapp: textoOpcional(30),
     mostrarPrazo: z.boolean().optional(),
     mostrarStatus: z.boolean().optional(),
     mostrarCliente: z.boolean().optional(),
     mostrarTipo: z.boolean().optional(),
     mostrarVersao: z.boolean().optional(),
-    materiaisAprovados: z.enum(['mostrar', 'separar', 'ocultar']).optional(),
+    materiaisAprovados: enumOpcional(z.enum(['mostrar', 'separar', 'ocultar'])),
   })
   .strict()
 

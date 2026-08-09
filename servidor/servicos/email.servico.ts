@@ -65,7 +65,7 @@ export async function enviarEmailVerificacao(destino: string, nome: string, toke
     )
     throw new ErroHttp(
       503,
-      'Nao foi possivel enviar o e-mail de verificacao. Tente novamente em instantes.',
+      'Não foi possível enviar o e-mail de verificação. Tente novamente em instantes.',
       'email_falhou',
     )
   }
@@ -89,7 +89,7 @@ async function enviarEmailCritico(
     return true
   } catch (erro) {
     console.error(`Falha ao enviar ${contexto}.`, erro instanceof Error ? erro.message : erro)
-    throw new ErroHttp(503, 'Nao foi possivel enviar o e-mail. Tente novamente.', 'email_falhou')
+    throw new ErroHttp(503, 'Não foi possível enviar o e-mail. Tente novamente.', 'email_falhou')
   }
 }
 

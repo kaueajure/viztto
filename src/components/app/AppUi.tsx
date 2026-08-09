@@ -11,7 +11,7 @@ export function PageHeader({
   children,
 }: {
   title: string
-  description: string
+  description?: string
   action?: { label: string; to: string }
   children?: ReactNode
 }) {
@@ -19,7 +19,7 @@ export function PageHeader({
     <div className="flex flex-col gap-5 border-b border-line pb-6 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-        <p className="mt-2 text-secondary">{description}</p>
+        {description ? <p className="mt-2 text-secondary">{description}</p> : null}
         {children}
       </div>
       {action && (

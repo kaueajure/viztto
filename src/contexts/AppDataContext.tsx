@@ -86,7 +86,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       setEstado({ ...(await carregarDadosApi()), approvals: [] })
       setError('')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Nao foi possivel carregar os dados.')
+      setError(e instanceof Error ? e.message : 'Não foi possível carregar os dados.')
     } finally {
       setLoading(false)
     }
@@ -187,7 +187,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         const r = await dadosApi.versao(d.materialId, d)
         await refresh()
         const versao = (await carregarDadosApi()).materialVersions.find((v) => v.id === r.dado.id)
-        if (!versao) throw new Error('Versao publicada, mas nao foi possivel recarrega-la.')
+        if (!versao) throw new Error('Versão publicada, mas não foi possível recarregá-la.')
         return versao
       },
       setCurrentVersion() {
@@ -197,7 +197,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         const r = await dadosApi.comentario(d)
         await refresh()
         const c = (await carregarDadosApi()).comments.find((x) => x.id === r.dado.id)
-        if (!c) throw new Error('Comentario criado, mas nao foi possivel recarrega-lo.')
+        if (!c) throw new Error('Comentário criado, mas não foi possível recarregá-lo.')
         return c
       },
       async updateComment(id, t) {

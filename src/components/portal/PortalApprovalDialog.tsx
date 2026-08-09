@@ -31,8 +31,7 @@ export function PortalApprovalDialog({
             Esta versão ainda possui {pendingCount} {comentario}.
           </p>
           <p className="mt-2 text-sm leading-relaxed text-secondary">
-            Ao aprovar, você confirma o material mesmo com esses comentários em aberto. Deseja
-            continuar?
+            Aprovar mesmo com comentários abertos?
           </p>
         </div>
       </div>

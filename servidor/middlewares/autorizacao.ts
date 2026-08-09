@@ -15,7 +15,7 @@ export const exigirFuncao =
   (req, _res, next) => {
     if (req.sessao?.admin) return next()
     if (!req.sessao || pesos[req.sessao.funcao] < pesos[funcaoMinima]) {
-      throw new ErroHttp(403, 'Voce nao possui permissao para esta acao.', 'sem_permissao')
+      throw new ErroHttp(403, 'Você não possui permissão para esta ação.', 'sem_permissao')
     }
     next()
   }

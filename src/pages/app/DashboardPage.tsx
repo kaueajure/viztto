@@ -22,12 +22,12 @@ export default function DashboardPage() {
   if (!clients.length || !projects.length)
     return (
       <div>
-        <PageHeader title={titulo} description="Aqui está o que precisa da sua atenção hoje." />
+        <PageHeader title={titulo} />
         <div className="mt-10 rounded-xl border border-dashed border-line-strong bg-surface p-8 text-center">
           <FolderKanban className="mx-auto text-brand" />
-          <h2 className="mt-4 text-2xl font-semibold">Crie seu primeiro fluxo de revisão</h2>
+          <h2 className="mt-4 text-2xl font-semibold">Crie seu primeiro projeto</h2>
           <p className="mx-auto mt-2 max-w-lg text-secondary">
-            Adicione um cliente, crie um projeto e envie o primeiro material para começar.
+            Adicione um cliente e um material para começar.
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Link
@@ -75,11 +75,7 @@ export default function DashboardPage() {
   const clientName = (id: string) => clients.find((item) => item.id === id)?.name ?? 'Cliente'
   return (
     <div>
-      <PageHeader
-        title={titulo}
-        description="Aqui está o que precisa da sua atenção hoje."
-        action={{ label: 'Novo projeto', to: '/app/projetos/novo' }}
-      />
+      <PageHeader title={titulo} action={{ label: 'Novo projeto', to: '/app/projetos/novo' }} />
       <section aria-label="Resumo" className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map(([label, value, Icon, color]) => (
           <Card key={label} className="p-4">
@@ -98,7 +94,7 @@ export default function DashboardPage() {
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(20rem,.75fr)]">
         <section className="rounded-lg border border-line bg-surface">
           <div className="flex items-center justify-between border-b border-line p-5">
-            <h2 className="font-semibold">Precisa da sua atenção</h2>
+            <h2 className="font-semibold">Pendências</h2>
             <Link to="/app/projetos" className="text-sm text-brand">
               Ver projetos
             </Link>

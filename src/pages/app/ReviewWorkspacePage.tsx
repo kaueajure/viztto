@@ -170,7 +170,7 @@ export default function ReviewWorkspacePage() {
     setDecision(null)
     setNotice(
       changed
-        ? { tone: 'success', text: 'Alterações solicitadas e filas atualizadas.' }
+        ? { tone: 'success', text: 'Alterações solicitadas.' }
         : {
             tone: 'error',
             text: 'Adicione pelo menos um comentário pendente antes de solicitar alterações.',
@@ -261,7 +261,8 @@ export default function ReviewWorkspacePage() {
         <main className="relative flex min-h-0 flex-col">
           {material.type === 'image' ? (
             <ImageReviewCanvas
-              imageUrl={activeVersion.imageUrl ?? '/demo/review-campaign-v4.svg'}
+              imageUrl={activeVersion.imageUrl ?? ''}
+              alt={material.name}
               comments={activeComments}
               selectedId={selectedId}
               creationMode={creationMode}

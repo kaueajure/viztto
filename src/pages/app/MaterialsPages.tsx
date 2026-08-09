@@ -26,7 +26,7 @@ export function MaterialsPage() {
     <div>
       <PageHeader
         title="Materiais"
-        description="Biblioteca geral de arquivos, versões e estados de revisão."
+        description="Todos os materiais"
       />
       <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_13rem_13rem]">
         <SearchField value={query} onChange={setQuery} placeholder="Buscar materiais" />
@@ -133,11 +133,8 @@ export function MaterialDetailPage() {
           <div className="grid min-h-[24rem] place-items-center overflow-hidden rounded-md border border-line bg-surface-secondary surface-grid">
             <MaterialPreview
               type={material.type}
-              url={
-                versions.find((item) => item.id === material.currentVersionId)?.imageUrl ??
-                '/demo/review-campaign-v4.svg'
-              }
-              title={`Pré-visualização de ${material.name}`}
+              url={versions.find((item) => item.id === material.currentVersionId)?.imageUrl ?? ''}
+              title={material.name}
               className="max-h-[34rem]"
             />
           </div>

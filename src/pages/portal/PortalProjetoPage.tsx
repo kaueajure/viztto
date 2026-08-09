@@ -310,10 +310,9 @@ export default function PortalProjetoPage() {
           {!materiaisVisiveis.length && (
             <div className="mt-4 rounded-lg border border-dashed border-line bg-surface/70 p-7 text-center sm:p-10">
               <Inbox className="mx-auto h-7 w-7 text-muted" aria-hidden />
-              <p className="mt-3 font-semibold">Nenhum material disponível para revisão</p>
+              <p className="mt-3 font-semibold">Nenhum material</p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-secondary">
-                Ainda não há materiais disponíveis neste projeto. Quando a equipe publicar algo, ele
-                aparecerá aqui.
+                Aguarde a equipe publicar.
               </p>
             </div>
           )}

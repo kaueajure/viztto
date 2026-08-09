@@ -105,7 +105,7 @@ async function resolverEmailPagador(emailPagador: string) {
   if (!email)
     throw new ErroHttp(
       503,
-      diagnosticarConfiguracaoMercadoPago() ?? 'Pagador de teste nao configurado.',
+      diagnosticarConfiguracaoMercadoPago() ?? 'Pagador de teste não configurado.',
       'mercado_pago_teste_nao_configurado',
     )
   return email
@@ -343,7 +343,7 @@ assinaturasRotas.post(
     if (!checkoutUrl)
       throw new ErroHttp(
         502,
-        'O Mercado Pago nao retornou o link de checkout da assinatura.',
+        'O Mercado Pago não retornou o link de checkout da assinatura.',
         'mercado_pago_checkout_ausente',
       )
     await banco.insert(assinaturas).values({
@@ -388,7 +388,7 @@ assinaturasRotas.post(
     if (!pix.qrCode && !pix.qrCodeBase64)
       throw new ErroHttp(
         502,
-        'O Mercado Pago nao retornou o QR Code Pix. Confirme se a chave Pix esta ativa na conta.',
+        'O Mercado Pago não retornou o QR Code Pix. Confirme se a chave Pix está ativa na conta.',
         'mercado_pago_pix_ausente',
       )
     await banco.insert(assinaturas).values({
@@ -436,9 +436,9 @@ assinaturasRotas.post('/:id/cancelar', exigirFuncao('administrador'), async (req
     .from(assinaturas)
     .where(and(eq(assinaturas.id, id), eq(assinaturas.workspaceId, req.sessao!.workspaceId)))
     .limit(1)
-  if (!assinatura) throw new ErroHttp(404, 'Assinatura nao encontrada.', 'assinatura_nao_encontrada')
+  if (!assinatura) throw new ErroHttp(404, 'Assinatura não encontrada.', 'assinatura_nao_encontrada')
   if (!['autorizada', 'pausada'].includes(assinatura.status))
-    throw new ErroHttp(422, 'Esta assinatura nao pode ser cancelada.', 'assinatura_nao_cancelavel')
+    throw new ErroHttp(422, 'Esta assinatura não pode ser cancelada.', 'assinatura_nao_cancelavel')
 
   if (!assinaturaEhPix(assinatura) && assinatura.mercadoPagoAssinaturaId) {
     try {
@@ -451,7 +451,7 @@ assinaturasRotas.post('/:id/cancelar', exigirFuncao('administrador'), async (req
   const [atualizada] = await banco.select().from(assinaturas).where(eq(assinaturas.id, id)).limit(1)
   res.json({
     mensagem:
-      'Cancelamento iniciado. Voce mantém o plano atual por 7 dias e depois volta ao gratuito.',
+      'Cancelamento iniciado. Você mantém o plano atual por 7 dias e depois volta ao gratuito.',
     dado: {
       id,
       status: atualizada?.status ?? 'pausada',
@@ -469,7 +469,7 @@ assinaturasRotas.get('/:id/status', exigirFuncao('administrador'), async (req, r
       and(eq(assinaturas.id, id), eq(assinaturas.workspaceId, req.sessao!.workspaceId)),
     )
     .limit(1)
-  if (!assinatura) throw new ErroHttp(404, 'Assinatura nao encontrada.', 'assinatura_nao_encontrada')
+  if (!assinatura) throw new ErroHttp(404, 'Assinatura não encontrada.', 'assinatura_nao_encontrada')
 
   if (assinatura.status === 'pendente' && assinatura.mercadoPagoAssinaturaId && assinaturaEhPix(assinatura)) {
     try {
@@ -530,7 +530,7 @@ assinaturasRotas.patch(
       .from(planosAssinatura)
       .where(eq(planosAssinatura.codigo, codigo))
       .limit(1)
-    if (!plano) throw new ErroHttp(404, 'Plano nao encontrado.', 'plano_nao_encontrado')
+    if (!plano) throw new ErroHttp(404, 'Plano não encontrado.', 'plano_nao_encontrado')
     await banco
       .update(planosAssinatura)
       .set({
@@ -577,7 +577,7 @@ assinaturasRotas.patch(
       .where(eq(planosAssinatura.id, plano.id))
       .limit(1)
     if (!planoAtualizado)
-      throw new ErroHttp(404, 'Plano nao encontrado.', 'plano_nao_encontrado')
+      throw new ErroHttp(404, 'Plano não encontrado.', 'plano_nao_encontrado')
     await sincronizarPlanoComMercadoPago(planoAtualizado, req.sessao!.usuarioId)
     res.json({ mensagem: 'Plano atualizado e sincronizado com o Mercado Pago.' })
   },
@@ -593,11 +593,11 @@ assinaturasRotas.post('/admin/planos/:codigo/sincronizar', exigirAdmin, async (r
     .from(planosAssinatura)
     .where(eq(planosAssinatura.codigo, codigo))
     .limit(1)
-  if (!plano) throw new ErroHttp(404, 'Plano nao encontrado.', 'plano_nao_encontrado')
+  if (!plano) throw new ErroHttp(404, 'Plano não encontrado.', 'plano_nao_encontrado')
   if (Number(plano.valorMensal) <= 0)
     throw new ErroHttp(
       400,
-      'Planos gratuitos nao sao publicados no Mercado Pago.',
+      'Planos gratuitos não são publicados no Mercado Pago.',
       'plano_gratuito_sem_sincronizacao',
     )
   await sincronizarPlanoComMercadoPago(plano, req.sessao!.usuarioId)

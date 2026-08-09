@@ -186,10 +186,9 @@ export default function SettingsPage() {
     workspaceId && portalPersonalizado ? (
       <div className="grid gap-6">
         <div className="rounded-lg border border-line bg-surface-secondary/35 p-5">
-          <h2 className="text-lg font-semibold text-ink">Personalização do portal do cliente</h2>
+          <h2 className="text-lg font-semibold text-ink">Portal</h2>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-secondary">
-            Defina o padrão do workspace ou crie uma identidade específica para um cliente ou
-            projeto. Configurações mais específicas substituem o padrão somente no portal escolhido.
+            Personalize o portal do workspace, de um cliente ou de um projeto.
           </p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <Select

@@ -67,7 +67,7 @@ export function ReviewDecisionModal({
           <p className="text-sm text-revision">Esta versão ainda possui comentários pendentes.</p>
           <div className="mt-3">
             <Checkbox
-              label="Entendo que os comentários permanecerão registrados"
+              label="Aprovar mesmo com comentários abertos"
               checked={acknowledged}
               onChange={setAcknowledged}
             />

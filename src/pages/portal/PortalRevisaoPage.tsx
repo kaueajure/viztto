@@ -87,15 +87,17 @@ export default function PortalRevisaoPage() {
   )
   const urlAprovar = comTokenPortal(`${caminhoMaterialApi}/aprovar`, tokenPortal)
 
+  const pedidoCarregar = useRef(0)
   const carregar = useCallback(
     async (silencioso = false) => {
+      const pedido = ++pedidoCarregar.current
       if (!slugValido) {
-        if (!silencioso) setCarregando(false)
+        if (!silencioso && pedido === pedidoCarregar.current) setCarregando(false)
         setErro(PORTAL_UNAVAILABLE_MESSAGE)
         return
       }
       if (!tokenPortal) {
-        if (!silencioso) setCarregando(false)
+        if (!silencioso && pedido === pedidoCarregar.current) setCarregando(false)
         setErro(PORTAL_UNAVAILABLE_MESSAGE)
         return
       }
@@ -107,6 +109,7 @@ export default function PortalRevisaoPage() {
           requisicaoApi<{ dado: DetalhePortal }>(urlDetalhe),
           requisicaoApi<{ dados: ReviewComment[] }>(urlComentarios),
         ])
+        if (pedido !== pedidoCarregar.current) return
         setDetalhe({
           ...dado,
           versao: {
@@ -122,6 +125,7 @@ export default function PortalRevisaoPage() {
           })),
         )
       } catch (error) {
+        if (pedido !== pedidoCarregar.current) return
         if (!silencioso) setDetalhe(null)
         if (error instanceof ApiError && error.codigo === 'portal_senha_necessaria') {
           setSenhaNecessaria(true)
@@ -134,7 +138,7 @@ export default function PortalRevisaoPage() {
             : 'Não foi possível abrir este material agora.',
         )
       } finally {
-        if (!silencioso) setCarregando(false)
+        if (!silencioso && pedido === pedidoCarregar.current) setCarregando(false)
       }
     },
     [urlDetalhe, urlComentarios, slugValido, tokenPortal],
@@ -176,7 +180,7 @@ export default function PortalRevisaoPage() {
       setDraft(null)
       setDraftText('')
       setCreationMode(false)
-      setAviso('Comentário enviado. A equipe verá e poderá corrigir.')
+      setAviso('Comentário enviado')
       await carregar(true)
     } catch (error) {
       setErro(
@@ -331,8 +335,7 @@ export default function PortalRevisaoPage() {
                   <div>
                     <p className="font-semibold text-ink">Versão aprovada</p>
                     <p className="mt-1 text-sm leading-relaxed text-secondary">
-                      {detalhe.marca?.mensagemAprovacao ||
-                        'Sua aprovação foi registrada com sucesso. Nenhuma ação adicional é necessária.'}
+                      {detalhe.marca?.mensagemAprovacao || 'Material aprovado.'}
                     </p>
                   </div>
                 </div>
@@ -381,8 +384,7 @@ export default function PortalRevisaoPage() {
           )}
           {!aprovado && !creationMode && abertos === 0 && (
             <p className="mx-auto mt-3 max-w-6xl text-xs text-muted">
-              Para solicitar alterações, primeiro adicione um comentário indicando o que precisa
-              mudar.
+              Adicione um comentário para solicitar alterações.
             </p>
           )}
           {(aviso || erro) && (
@@ -533,9 +535,7 @@ export default function PortalRevisaoPage() {
               ))}
               {!comentariosDaVersao.length && (
                 <p className="text-sm text-secondary">
-                  {creationMode
-                    ? 'Clique no material para marcar o que precisa de atenção.'
-                    : 'Ainda não há comentários. Use “Comentar” quando quiser indicar um ajuste.'}
+                  {creationMode ? 'Clique no material para comentar.' : 'Nenhum comentário.'}
                 </p>
               )}
             </div>

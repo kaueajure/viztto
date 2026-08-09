@@ -1,6 +1,6 @@
 import { LoaderCircle } from 'lucide-react'
 import { motion, useReducedMotion, type HTMLMotionProps } from 'motion/react'
-import type { ReactNode } from 'react'
+import { forwardRef, type ReactNode } from 'react'
 import { Link, type LinkProps } from 'react-router'
 import { HashLink } from '@/components/navigation/HashLink'
 import { cn } from '@/lib/cn'
@@ -52,15 +52,14 @@ export function Button({
   )
 }
 
-export function IconButton({
-  label,
-  children,
-  className,
-  ...props
-}: HTMLMotionProps<'button'> & { label: string }) {
+export const IconButton = forwardRef<
+  HTMLButtonElement,
+  HTMLMotionProps<'button'> & { label: string }
+>(function IconButton({ label, children, className, ...props }, ref) {
   const reduceMotion = useReducedMotion()
   return (
     <motion.button
+      ref={ref}
       whileTap={reduceMotion ? undefined : { scale: 0.94 }}
       aria-label={label}
       className={cn(
@@ -72,7 +71,7 @@ export function IconButton({
       {children as ReactNode}
     </motion.button>
   )
-}
+})
 
 export function LinkButton({
   variant = 'primary',

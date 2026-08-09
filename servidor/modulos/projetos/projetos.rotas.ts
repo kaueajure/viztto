@@ -86,7 +86,7 @@ projetosRotas.post(
       )
       .limit(1)
     if (!cliente)
-      throw new ErroHttp(422, 'Cliente invalido para este workspace.', 'cliente_invalido')
+      throw new ErroHttp(422, 'Cliente inválido para este workspace.', 'cliente_invalido')
     await garantirPodeCriarProjeto(req.sessao!.workspaceId)
     const { plano } = await carregarPlanoDoWorkspace(req.sessao!.workspaceId)
     const agora = new Date()
@@ -135,7 +135,7 @@ projetosRotas.get('/:projetoId', async (req, res) => {
       ),
     )
     .limit(1)
-  if (!dado) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
+  if (!dado) throw new ErroHttp(404, 'Projeto não encontrado.', 'projeto_nao_encontrado')
   res.json({ dado: semSegredosPortal(dado) })
 })
 
@@ -159,7 +159,7 @@ projetosRotas.get('/:projetoId/link-portal', exigirFuncao('atendimento'), async 
       ),
     )
     .limit(1)
-  if (!projeto) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
+  if (!projeto) throw new ErroHttp(404, 'Projeto não encontrado.', 'projeto_nao_encontrado')
   let token = projeto.tokenPortal
   if (!token) {
     token = gerarTokenPortal()
@@ -191,7 +191,7 @@ projetosRotas.post('/:projetoId/link-portal', exigirFuncao('atendimento'), async
       ),
     )
     .limit(1)
-  if (!projeto) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
+  if (!projeto) throw new ErroHttp(404, 'Projeto não encontrado.', 'projeto_nao_encontrado')
   const tokenPortal = gerarTokenPortal()
   await banco
     .update(projetos)
@@ -210,10 +210,10 @@ projetosRotas.post('/:projetoId/link-portal', exigirFuncao('atendimento'), async
         'cliente_sem_email',
       )
     if (envio.motivo === 'token_ausente')
-      throw new ErroHttp(500, 'Token do portal nao foi gerado.', 'token_ausente')
+      throw new ErroHttp(500, 'Token do portal não foi gerado.', 'token_ausente')
     throw new ErroHttp(
       503,
-      'Nao foi possivel enviar o link. Tente novamente.',
+      'Não foi possível enviar o link. Tente novamente.',
       'email_falhou',
     )
   }
@@ -223,7 +223,7 @@ projetosRotas.post('/:projetoId/link-portal', exigirFuncao('atendimento'), async
     .where(eq(workspaces.id, req.sessao!.workspaceId))
     .limit(1)
   res.json({
-    mensagem: 'Novo link gerado e enviado ao cliente. Links anteriores deixaram de funcionar.',
+    mensagem: 'Novo link enviado. Links anteriores expiraram.',
     dado: {
       tokenPortal,
       link: ws ? linkPortalProjeto(projetoId, ws.slug, tokenPortal) : null,
@@ -247,7 +247,7 @@ projetosRotas.patch(
         ),
       )
     if (!r[0].affectedRows)
-      throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
+      throw new ErroHttp(404, 'Projeto não encontrado.', 'projeto_nao_encontrado')
     await notificarClienteProjetoAlterado({
       projetoId: String(req.params.projetoId),
       workspaceId: req.sessao!.workspaceId,
@@ -268,6 +268,6 @@ projetosRotas.delete('/:projetoId', exigirFuncao('gestor'), async (req, res) => 
       ),
     )
   if (!r[0].affectedRows)
-    throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
+    throw new ErroHttp(404, 'Projeto não encontrado.', 'projeto_nao_encontrado')
   res.status(204).end()
 })

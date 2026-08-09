@@ -1,5 +1,5 @@
-import { Bell, ChevronDown, Menu, Plus, Search } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { Bell, ChevronDown, Menu, Plus } from 'lucide-react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { IconButton } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/DataDisplay'
@@ -32,22 +32,44 @@ export function AppHeader({
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [userMenu, setUserMenu] = useState(false)
   const [saindo, setSaindo] = useState(false)
-  const search = useRef<HTMLInputElement>(null)
+  const notificationsRoot = useRef<HTMLDivElement>(null)
+  const userRoot = useRef<HTMLDivElement>(null)
+  const notificationsTrigger = useRef<HTMLButtonElement>(null)
+  const userTrigger = useRef<HTMLButtonElement>(null)
+  const notificationsMenuId = useId()
+  const userMenuId = useId()
   const segment = pathname.split('/').filter(Boolean).at(-1) ?? 'inicio'
+
   useEffect(() => {
-    const key = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault()
-        search.current?.focus()
-      }
-      if (event.key === 'Escape') {
+    if (!notificationsOpen && !userMenu) return
+    const onPointerDown = (event: PointerEvent) => {
+      const alvo = event.target as Node
+      if (notificationsOpen && !notificationsRoot.current?.contains(alvo)) {
         setNotificationsOpen(false)
+      }
+      if (userMenu && !userRoot.current?.contains(alvo)) {
         setUserMenu(false)
       }
     }
-    document.addEventListener('keydown', key)
-    return () => document.removeEventListener('keydown', key)
-  }, [])
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      if (notificationsOpen) {
+        setNotificationsOpen(false)
+        notificationsTrigger.current?.focus()
+      }
+      if (userMenu) {
+        setUserMenu(false)
+        userTrigger.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [notificationsOpen, userMenu])
+
   return (
     <header className="sticky top-0 z-20 flex min-h-16 items-center gap-3 border-b border-line bg-background/95 px-4 backdrop-blur-sm sm:px-6">
       <button
@@ -66,36 +88,39 @@ export function AppHeader({
         </p>
         <p className="truncate text-sm font-semibold">{labels[segment] ?? 'Viztto'}</p>
       </div>
-      <label className="relative ml-auto hidden w-full max-w-md md:block">
-        <span className="sr-only">Buscar clientes, projetos ou materiais</span>
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-        <input
-          ref={search}
-          placeholder="Buscar clientes, projetos ou materiais"
-          className="h-10 w-full rounded-md border border-line bg-surface pl-9 pr-16 text-sm outline-none focus:border-brand"
-        />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted">
-          Ctrl + K
-        </span>
-      </label>
+      <div className="ml-auto" />
       <IconButton label="Criar novo projeto" onClick={() => navigate('/app/projetos/novo')}>
         <Plus className="h-4 w-4" />
       </IconButton>
-      <div className="relative">
+      <div className="relative" ref={notificationsRoot}>
         <IconButton
+          ref={notificationsTrigger}
           label="Notificações"
+          aria-haspopup="menu"
+          aria-expanded={notificationsOpen}
+          aria-controls={notificationsOpen ? notificationsMenuId : undefined}
           onClick={() => {
-            setNotificationsOpen(!notificationsOpen)
+            setNotificationsOpen((aberto) => !aberto)
             setUserMenu(false)
           }}
         >
           <Bell className="h-4 w-4" />
         </IconButton>
         {notificationsOpen && (
-          <div className="absolute right-0 top-12 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface-elevated p-2 shadow-raised">
+          <div
+            id={notificationsMenuId}
+            role="menu"
+            aria-label="Notificações"
+            className="absolute right-0 top-12 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface-elevated p-2 shadow-raised"
+          >
             <p className="px-3 py-2 text-sm font-semibold">Notificações</p>
             {notifications.map((item) => (
-              <div className="rounded-md px-3 py-2 hover:bg-surface-secondary" key={item.id}>
+              <div
+                role="menuitem"
+                tabIndex={-1}
+                className="rounded-md px-3 py-2 hover:bg-surface-secondary"
+                key={item.id}
+              >
                 <p className="text-sm font-medium">{item.title}</p>
                 <p className="mt-1 text-xs text-secondary">{item.description}</p>
               </div>
@@ -106,13 +131,16 @@ export function AppHeader({
           </div>
         )}
       </div>
-      <div className="relative">
+      <div className="relative" ref={userRoot}>
         <button
+          ref={userTrigger}
           type="button"
           aria-label="Abrir menu do usuário"
+          aria-haspopup="menu"
           aria-expanded={userMenu}
+          aria-controls={userMenu ? userMenuId : undefined}
           onClick={() => {
-            setUserMenu(!userMenu)
+            setUserMenu((aberto) => !aberto)
             setNotificationsOpen(false)
           }}
           className="flex min-h-11 items-center gap-2 rounded-md px-1"
@@ -121,21 +149,31 @@ export function AppHeader({
           <ChevronDown className="h-4 w-4 text-muted" />
         </button>
         {userMenu && (
-          <div className="absolute right-0 top-12 w-48 rounded-md border border-line bg-surface-elevated p-1.5 shadow-raised">
+          <div
+            id={userMenuId}
+            role="menu"
+            aria-label="Menu do usuário"
+            className="absolute right-0 top-12 w-48 rounded-md border border-line bg-surface-elevated p-1.5 shadow-raised"
+          >
             <Link
+              role="menuitem"
               to="/app/configuracoes"
               className="block rounded-sm px-3 py-2 text-sm hover:bg-surface-secondary"
+              onClick={() => setUserMenu(false)}
             >
               Meu perfil
             </Link>
             <Link
+              role="menuitem"
               to="/app/configuracoes"
               className="block rounded-sm px-3 py-2 text-sm hover:bg-surface-secondary"
+              onClick={() => setUserMenu(false)}
             >
               Configurações
             </Link>
             <button
               type="button"
+              role="menuitem"
               disabled={saindo}
               className="block w-full rounded-sm px-3 py-2 text-left text-sm text-revision hover:bg-revision-soft"
               onClick={() => {

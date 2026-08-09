@@ -14,7 +14,7 @@ export class ErroHttp extends Error {
 }
 
 export const rotaNaoEncontrada: RequestHandler = (_req, _res, next) =>
-  next(new ErroHttp(404, 'Rota nao encontrada.', 'rota_nao_encontrada'))
+  next(new ErroHttp(404, 'Rota não encontrada.', 'rota_nao_encontrada'))
 
 export const tratarErros: ErrorRequestHandler = (erro, req, res, _next) => {
   void _next
@@ -35,7 +35,7 @@ export const tratarErros: ErrorRequestHandler = (erro, req, res, _next) => {
         codigo: limite ? 'arquivo_muito_grande' : 'arquivo_invalido',
         mensagem: limite
           ? 'A imagem ultrapassa o limite permitido.'
-          : 'Nao foi possivel processar o arquivo enviado.',
+          : 'Não foi possível processar o arquivo enviado.',
       },
     })
     return
@@ -45,7 +45,7 @@ export const tratarErros: ErrorRequestHandler = (erro, req, res, _next) => {
   res.status(status).json({
     erro: {
       codigo: erro instanceof ErroHttp ? erro.codigo : 'erro_interno',
-      mensagem: erro instanceof ErroHttp ? erro.message : 'Nao foi possivel concluir a operacao.',
+      mensagem: erro instanceof ErroHttp ? erro.message : 'Não foi possível concluir a operação.',
       ...(erro instanceof ErroHttp && erro.detalhes ? { detalhes: erro.detalhes } : {}),
     },
   })

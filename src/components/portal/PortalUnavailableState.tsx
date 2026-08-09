@@ -1,10 +1,9 @@
 import { Link2Off } from 'lucide-react'
 
-export const PORTAL_UNAVAILABLE_MESSAGE =
-  'O acesso pode ter sido atualizado ou revogado. Solicite um novo link para a pessoa que enviou este projeto.'
+export const PORTAL_UNAVAILABLE_MESSAGE = 'Link indisponível. Peça um novo link à equipe.'
 
 export function PortalUnavailableState({
-  title = 'Este link não está disponível',
+  title = 'Link indisponível',
   message = PORTAL_UNAVAILABLE_MESSAGE,
 }: {
   title?: string

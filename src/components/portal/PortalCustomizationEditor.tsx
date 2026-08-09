@@ -2,7 +2,91 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Checkbox, Input, Select, Switch, Textarea } from '@/components/ui/FormControls'
 import type { PortalBrand } from '@/lib/portalBrand'
+import { normalizePortalBrandColor } from '@/lib/portalBrand'
+import { ApiError } from '@/services/api/clienteHttp'
 import { portalConfiguracoesApi, type EscopoPortal } from '@/services/api/portalConfiguracoesApi'
+
+const camposConfiguracao = [
+  'corPrincipal',
+  'corSecundaria',
+  'tema',
+  'fonte',
+  'estilo',
+  'fundoTipo',
+  'fundoCor',
+  'fundoGradiente',
+  'marcaDaguaOpacidade',
+  'nomePortal',
+  'mensagemAprovacao',
+  'mensagemAlteracoes',
+  'rodapeTexto',
+  'suporteEmail',
+  'suporteTelefone',
+  'suporteWhatsapp',
+  'mostrarPrazo',
+  'mostrarStatus',
+  'mostrarCliente',
+  'mostrarTipo',
+  'mostrarVersao',
+  'materiaisAprovados',
+] as const satisfies ReadonlyArray<keyof PortalBrand>
+
+function normalizarTexto(valor: unknown) {
+  if (valor === null || valor === undefined) return ''
+  return String(valor)
+}
+
+function montarConfiguracaoParaSalvar(config: PortalBrand) {
+  const saida: Record<string, unknown> = {}
+  for (const campo of camposConfiguracao) {
+    const valor = config[campo]
+    if (campo === 'corPrincipal' || campo === 'corSecundaria' || campo === 'fundoCor') {
+      const bruta = valor == null ? '' : String(valor).trim()
+      if (!bruta) continue
+      const normalizada = /^#[0-9a-f]{8}$/i.test(bruta)
+        ? `#${bruta.slice(1, 7)}`
+        : bruta
+      if (/^#[0-9a-f]{6}$/i.test(normalizada)) saida[campo] = normalizada.toLowerCase()
+      continue
+    }
+    if (campo === 'marcaDaguaOpacidade') {
+      if (valor === null || valor === undefined || valor === '') continue
+      const numero = typeof valor === 'number' ? valor : Number(valor)
+      if (!Number.isFinite(numero)) continue
+      saida[campo] = Math.min(1, Math.max(0, numero))
+      continue
+    }
+    if (
+      campo === 'nomePortal' ||
+      campo === 'mensagemAprovacao' ||
+      campo === 'mensagemAlteracoes' ||
+      campo === 'rodapeTexto' ||
+      campo === 'suporteEmail' ||
+      campo === 'suporteTelefone' ||
+      campo === 'suporteWhatsapp'
+    ) {
+      saida[campo] = valor == null ? '' : String(valor)
+      continue
+    }
+    if (valor === null || valor === undefined || valor === '') continue
+    saida[campo] = valor
+  }
+  return saida
+}
+
+function mensagemErroSalvar(erro: unknown) {
+  if (!(erro instanceof ApiError))
+    return erro instanceof Error ? erro.message : 'Não foi possível salvar.'
+  const detalhes = erro.detalhes as
+    | { fieldErrors?: Record<string, string[] | undefined> }
+    | undefined
+  const campos = Object.entries(detalhes?.fieldErrors ?? {})
+    .flatMap(([campo, mensagens]) =>
+      (mensagens ?? []).map((mensagem) => `${campo}: ${mensagem}`),
+    )
+  if (campos.length) return `${erro.message} ${campos.slice(0, 3).join(' · ')}`
+  return erro.message
+}
 
 const assets = [
   ['logoClaroUrl', 'Logo para tema claro', 'object-contain bg-[#eef1f4]'],
@@ -25,8 +109,8 @@ const padrao: PortalBrand = {
   fundoGradiente: 'aurora',
   marcaDaguaOpacidade: 0.18,
   nomePortal: 'Portal do cliente',
-  mensagemAprovacao: 'Material aprovado com sucesso.',
-  mensagemAlteracoes: 'Solicitação de alterações enviada com sucesso.',
+  mensagemAprovacao: 'Material aprovado.',
+  mensagemAlteracoes: 'Alterações solicitadas.',
   rodapeTexto: '',
   suporteEmail: '',
   suporteTelefone: '',
@@ -40,7 +124,6 @@ const padrao: PortalBrand = {
   whiteLabel: true,
 }
 
-const camposAsset = new Set(assets.map(([campo]) => campo))
 const tiposImagemPermitidos = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const tamanhoMaximoImagem = 20 * 1024 * 1024
 
@@ -59,13 +142,31 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
   const [expiraEm, setExpiraEm] = useState('')
   const [expiracaoAtiva, setExpiracaoAtiva] = useState(false)
   const [status, setStatus] = useState('')
+  const [linkNovo, setLinkNovo] = useState('')
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [assetEmAndamento, setAssetEmAndamento] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     const { dado } = await portalConfiguracoesApi.carregar(escopo, id)
-    setConfig({ ...padrao, ...dado.configuracao })
+    const recebida = dado.configuracao ?? {}
+    setConfig({
+      ...padrao,
+      ...recebida,
+      corPrincipal: normalizePortalBrandColor(recebida.corPrincipal ?? padrao.corPrincipal),
+      corSecundaria: normalizePortalBrandColor(recebida.corSecundaria ?? padrao.corSecundaria),
+      fundoCor: normalizePortalBrandColor(recebida.fundoCor ?? padrao.fundoCor),
+      marcaDaguaOpacidade: Number.isFinite(Number(recebida.marcaDaguaOpacidade))
+        ? Math.min(1, Math.max(0, Number(recebida.marcaDaguaOpacidade)))
+        : padrao.marcaDaguaOpacidade,
+      nomePortal: normalizarTexto(recebida.nomePortal),
+      mensagemAprovacao: normalizarTexto(recebida.mensagemAprovacao),
+      mensagemAlteracoes: normalizarTexto(recebida.mensagemAlteracoes),
+      rodapeTexto: normalizarTexto(recebida.rodapeTexto),
+      suporteEmail: normalizarTexto(recebida.suporteEmail),
+      suporteTelefone: normalizarTexto(recebida.suporteTelefone),
+      suporteWhatsapp: normalizarTexto(recebida.suporteWhatsapp),
+    })
     setHerdando(dado.herdando)
     setProtegido(dado.protegido)
     setSenhaAtiva(dado.protegido)
@@ -107,18 +208,13 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
     setSalvando(true)
     setErro('')
     setStatus('')
+    setLinkNovo('')
     try {
-      const configuracao = Object.fromEntries(
-        Object.entries(config).filter(
-          ([campo]) =>
-            !camposAsset.has(campo as (typeof assets)[number][0]) &&
-            !['logoUrl', 'whiteLabel'].includes(campo),
-        ),
-      )
-      const removendoSenha = escopo === 'projeto' && !senhaAtiva && protegido
-      const alterandoSenha = escopo === 'projeto' && senhaAtiva && Boolean(senha.trim())
+      const configuracao = montarConfiguracaoParaSalvar(config)
       const resposta = await portalConfiguracoesApi.salvar(escopo, id, {
-        ...(escopo !== 'workspace' && herdando ? { herdar: true } : { configuracao }),
+        ...(escopo !== 'workspace' && herdando
+          ? { herdar: true }
+          : { configuracao: configuracao as Partial<PortalBrand> }),
         ...(escopo === 'projeto'
           ? {
               ...(!senhaAtiva && protegido
@@ -132,13 +228,20 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
       })
       setSenha('')
       await carregar()
-      setStatus(
-        resposta.dado?.linkAlterado || removendoSenha || alterandoSenha
-          ? 'Portal atualizado. A alteração da senha gerou um novo link de acesso.'
-          : 'Portal atualizado com sucesso.',
-      )
+      const link = resposta.dado?.link?.trim() || ''
+      if (resposta.dado?.linkAlterado && link) {
+        setLinkNovo(link)
+        try {
+          await navigator.clipboard.writeText(link)
+          setStatus('Portal atualizado. Novo link copiado.')
+        } catch {
+          setStatus('Portal atualizado. Novo link gerado.')
+        }
+      } else {
+        setStatus('Portal atualizado.')
+      }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Não foi possível salvar.')
+      setErro(mensagemErroSalvar(e))
     } finally {
       setSalvando(false)
     }
@@ -150,7 +253,7 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
     <div className="grid gap-6">
       {escopo !== 'workspace' && (
         <Checkbox
-          label={`Usar todas as configurações herdadas ${escopo === 'cliente' ? 'do workspace' : 'do cliente/workspace'}`}
+          label={`Usar configuração herdada ${escopo === 'cliente' ? 'do workspace' : 'do cliente/workspace'}`}
           checked={herdando}
           onChange={setHerdando}
         />
@@ -189,7 +292,7 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
               <option value="sistema">Sistema</option>
             </Select>
             <Select
-              label="Formato de botões e cards"
+              label="Estilo"
               value={config.estilo}
               onChange={(e) => definir('estilo', e.target.value as PortalBrand['estilo'])}
             >
@@ -231,11 +334,19 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
             <Input
               label="Opacidade da marca-d’água"
               type="number"
-              min="0.04"
-              max="0.5"
+              min="0"
+              max="1"
               step="0.01"
-              value={config.marcaDaguaOpacidade}
-              onChange={(e) => definir('marcaDaguaOpacidade', Number(e.target.value))}
+              value={config.marcaDaguaOpacidade ?? ''}
+              onChange={(e) => {
+                const bruto = e.target.value
+                if (bruto === '') {
+                  definir('marcaDaguaOpacidade', undefined)
+                  return
+                }
+                const numero = Number(bruto)
+                definir('marcaDaguaOpacidade', Number.isFinite(numero) ? numero : undefined)
+              }}
             />
           </div>
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -358,7 +469,6 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
             />
             <Input
               label="E-mail de suporte"
-              type="email"
               value={config.suporteEmail}
               onChange={(e) => definir('suporteEmail', e.target.value)}
             />
@@ -413,16 +523,14 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
 
       {escopo === 'projeto' && (
         <section className="rounded-lg border border-line bg-surface-secondary/30 p-5">
-          <h3 className="font-semibold">Segurança do portal</h3>
-          <p className="mt-1 text-sm text-secondary">
-            Controle quem pode abrir o projeto mesmo que tenha recebido o link.
-          </p>
+          <h3 className="font-semibold">Segurança</h3>
+          <p className="mt-1 text-sm text-secondary">Senha e expiração do link.</p>
           <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted">
-            Estado salvo: {protegido ? 'senha ativa' : 'sem senha'}
+            {protegido ? 'Senha ativa' : 'Sem senha'}
           </p>
           <div className="mt-4">
             <Switch
-              label="Exigir senha para acessar este portal"
+              label="Exigir senha"
               checked={senhaAtiva}
               onChange={(ativa) => {
                 setSenhaAtiva(ativa)
@@ -433,23 +541,17 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {senhaAtiva && (
               <Input
-                label={
-                  protegido ? 'Nova senha (deixe vazia para manter a atual)' : 'Senha de acesso'
-                }
+                label={protegido ? 'Nova senha' : 'Senha'}
                 type="password"
                 minLength={4}
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
-                hint={
-                  protegido
-                    ? 'Preencha somente se quiser trocar a senha atual.'
-                    : 'Use pelo menos 4 caracteres.'
-                }
+                hint={protegido ? 'Deixe em branco para manter.' : 'Mínimo de 4 caracteres.'}
               />
             )}
             <div className="grid content-start gap-3">
               <Switch
-                label="Definir data de expiração"
+                label="Definir expiração"
                 checked={expiracaoAtiva}
                 onChange={(ativa) => {
                   setExpiracaoAtiva(ativa)
@@ -458,18 +560,18 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
               />
               {expiracaoAtiva && (
                 <Input
-                  label="Data de expiração"
+                  label="Expira em"
                   type="datetime-local"
                   value={expiraEm}
                   onChange={(e) => setExpiraEm(e.target.value)}
-                  hint="Opcional. Depois dessa data, o link deixa de funcionar."
+                  hint="Após esta data o link expira."
                 />
               )}
             </div>
           </div>
           {protegido && !senhaAtiva && (
             <p className="mt-3 text-xs text-warning">
-              A senha será desativada quando você salvar. O link atual também será substituído.
+              Ao salvar, a senha será removida e um novo link será gerado.
             </p>
           )}
         </section>
@@ -478,6 +580,25 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
         <p role="status" className="text-sm text-approval">
           {status}
         </p>
+      )}
+      {linkNovo && (
+        <div className="rounded-md border border-line bg-surface-secondary/40 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Novo link</p>
+          <p className="mt-2 break-all text-sm text-ink">{linkNovo}</p>
+          <Button
+            className="mt-3"
+            variant="outline"
+            type="button"
+            onClick={() => {
+              void navigator.clipboard.writeText(linkNovo).then(
+                () => setStatus('Link copiado'),
+                () => setErro('Não foi possível copiar o link.'),
+              )
+            }}
+          >
+            Copiar link
+          </Button>
+        </div>
       )}
       {erro && (
         <p role="alert" className="text-sm text-revision">

@@ -34,7 +34,7 @@ export const autenticar: RequestHandler = async (req, _res, next) => {
     )
     .limit(1)
 
-  if (!base) throw new ErroHttp(401, 'Sua sessao expirou. Entre novamente.', 'sessao_expirada')
+  if (!base) throw new ErroHttp(401, 'Sua sessão expirou. Entre novamente.', 'sessao_expirada')
 
   const membros = await banco
     .select({
@@ -61,11 +61,11 @@ export const autenticar: RequestHandler = async (req, _res, next) => {
       .limit(1)
     workspaceId = primeiro?.id ?? null
   }
-  if (!workspaceId) throw new ErroHttp(401, 'Sua sessao expirou. Entre novamente.', 'sessao_expirada')
+  if (!workspaceId) throw new ErroHttp(401, 'Sua sessão expirou. Entre novamente.', 'sessao_expirada')
 
   const membro = membros.find((item) => item.workspaceId === workspaceId)
   if (!membro && !base.admin) {
-    throw new ErroHttp(401, 'Sua sessao expirou. Entre novamente.', 'sessao_expirada')
+    throw new ErroHttp(401, 'Sua sessão expirou. Entre novamente.', 'sessao_expirada')
   }
 
   const [workspace] = await banco
@@ -73,7 +73,7 @@ export const autenticar: RequestHandler = async (req, _res, next) => {
     .from(workspaces)
     .where(and(eq(workspaces.id, workspaceId), eq(workspaces.ativo, true), isNull(workspaces.excluidoEm)))
     .limit(1)
-  if (!workspace) throw new ErroHttp(401, 'Sua sessao expirou. Entre novamente.', 'sessao_expirada')
+  if (!workspace) throw new ErroHttp(401, 'Sua sessão expirou. Entre novamente.', 'sessao_expirada')
 
   if (base.workspaceAtivoId !== workspaceId) {
     await banco

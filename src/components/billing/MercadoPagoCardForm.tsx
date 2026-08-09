@@ -71,7 +71,7 @@ export function MercadoPagoCardForm({
 
   useEffect(() => {
     if (!window.MercadoPago) {
-      setError('O formulário seguro do Mercado Pago não foi carregado.')
+      setError('O formulário do Mercado Pago não foi carregado.')
       return
     }
     const mercadoPago = new window.MercadoPago(publicKey, { locale: 'pt-BR' })
@@ -142,7 +142,7 @@ export function MercadoPagoCardForm({
       return
     }
     if (readyCount < 3 || !mercadoPagoRef.current) {
-      setError('Aguarde o carregamento dos campos seguros.')
+      setError('Aguarde o carregamento dos campos.')
       return
     }
     setSubmitting(true)
