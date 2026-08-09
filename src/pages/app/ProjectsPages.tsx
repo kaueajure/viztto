@@ -12,6 +12,7 @@ import { AvatarGroup, EmptyState } from '@/components/ui/DataDisplay'
 import { Input, Select, Textarea } from '@/components/ui/FormControls'
 import { Modal, Tabs } from '@/components/ui/Interactive'
 import { useAppData } from '@/contexts/AppDataContext'
+import { PortalCustomizationEditor } from '@/components/portal/PortalCustomizationEditor'
 import { dadosApi } from '@/services/api/dadosApi'
 import type { ProjectStatus } from '@/types/domain'
 
@@ -336,7 +337,10 @@ export function ProjectDetailPage() {
               content: <p>Atividades deste projeto serão registradas aqui.</p>,
             },
             { label: 'Participantes', content: <p>{project.members.join(', ')}</p> },
-            { label: 'Configurações', content: <p>Preferências locais do projeto.</p> },
+            {
+              label: 'Configurações',
+              content: <PortalCustomizationEditor escopo="projeto" id={project.id} />,
+            },
           ]}
         />
       </div>

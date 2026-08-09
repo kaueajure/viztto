@@ -23,7 +23,10 @@ export function gerarTokenPortal() {
   return randomBytes(24).toString('base64url')
 }
 
-export function tokenPortalConfere(recebido: string | undefined, esperado: string | null | undefined) {
+export function tokenPortalConfere(
+  recebido: string | undefined,
+  esperado: string | null | undefined,
+) {
   if (!recebido || !esperado) return false
   const a = Buffer.from(recebido)
   const b = Buffer.from(esperado)
@@ -35,7 +38,9 @@ export function tokenPortalConfere(recebido: string | undefined, esperado: strin
   }
 }
 
-export const COOKIE_PORTAL = 'viztto_portal'
+export function cookiePortalProjeto(projetoId: string) {
+  return `viztto_portal_${projetoId.replace(/-/g, '')}`
+}
 const MAX_AGE_MS = 30 * 24 * 60 * 60_000
 
 export function opcoesCookiePortal() {
@@ -48,27 +53,37 @@ export function opcoesCookiePortal() {
   }
 }
 
-export function assinarAcessoPortal(projetoId: string) {
+export function assinarAcessoPortal(projetoId: string, tokenPortal: string) {
   const expiraEm = Date.now() + MAX_AGE_MS
-  const payload = `${projetoId}.${expiraEm}`
+  const payload = `${projetoId}.${tokenPortal}.${expiraEm}`
   const assinatura = createHmac('sha256', ambiente.SEGREDO_SESSAO)
     .update(payload)
     .digest('base64url')
   return `${payload}.${assinatura}`
 }
 
-export function validarAcessoPortal(token: string | undefined, projetoId: string) {
+export function validarAcessoPortal(
+  token: string | undefined,
+  projetoId: string,
+  tokenPortal: string,
+) {
   if (!token) return false
   const partes = token.split('.')
-  if (partes.length !== 3) return false
-  const [id, expiraTexto, assinatura] = partes
-  if (!id || !expiraTexto || !assinatura || id !== projetoId) return false
+  if (partes.length !== 4) return false
+  const [id, tokenAssinado, expiraTexto, assinatura] = partes
+  if (
+    !id ||
+    !tokenAssinado ||
+    !expiraTexto ||
+    !assinatura ||
+    id !== projetoId ||
+    !tokenPortalConfere(tokenAssinado, tokenPortal)
+  )
+    return false
   const expiraEm = Number(expiraTexto)
   if (!Number.isFinite(expiraEm) || expiraEm < Date.now()) return false
-  const payload = `${id}.${expiraTexto}`
-  const esperada = createHmac('sha256', ambiente.SEGREDO_SESSAO)
-    .update(payload)
-    .digest('base64url')
+  const payload = `${id}.${tokenAssinado}.${expiraTexto}`
+  const esperada = createHmac('sha256', ambiente.SEGREDO_SESSAO).update(payload).digest('base64url')
   try {
     return timingSafeEqual(Buffer.from(assinatura), Buffer.from(esperada))
   } catch {
@@ -76,11 +91,7 @@ export function validarAcessoPortal(token: string | undefined, projetoId: string
   }
 }
 
-export function linkPortalProjeto(
-  projetoId: string,
-  workspaceSlug: string,
-  tokenPortal: string,
-) {
+export function linkPortalProjeto(projetoId: string, workspaceSlug: string, tokenPortal: string) {
   const base = ambiente.URL_APLICACAO.replace(/\/$/, '')
   return `${base}/${workspaceSlug}/${projetoId}?t=${encodeURIComponent(tokenPortal)}`
 }

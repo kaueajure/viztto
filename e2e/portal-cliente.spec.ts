@@ -27,12 +27,13 @@ type MockComment = {
 async function prepararPortal(
   page: Page,
   comentariosIniciais: MockComment[] = [],
-  opcoes: { whiteLabel?: boolean; logoUrl?: string | null } = {},
+  opcoes: { whiteLabel?: boolean; logoUrl?: string | null; marca?: Record<string, unknown> } = {},
 ) {
   const marca = {
     corPrincipal: '#7c3aed',
     logoUrl: opcoes.logoUrl ?? null,
     whiteLabel: opcoes.whiteLabel ?? true,
+    ...opcoes.marca,
   }
   const estado = {
     aprovado: false,
@@ -142,6 +143,7 @@ async function prepararPortal(
               empresaNome: 'Agência Teste',
               clienteNome: 'Cliente externo',
             },
+            marca,
             materiais: [
               {
                 id: materialId,
@@ -250,6 +252,90 @@ test.describe('Portal do cliente', () => {
 
     await expect(page.getByText('Viztto', { exact: true })).toBeVisible()
     await expect(page).toHaveTitle('Campanha de lançamento · Viztto')
+  })
+
+  test('aplica tema, conteúdo e regras de visibilidade personalizados', async ({ page }) => {
+    await prepararPortal(page, [], {
+      marca: {
+        tema: 'claro',
+        corSecundaria: '#ff3366',
+        nomePortal: 'Central da campanha',
+        rodapeTexto: 'Atendimento da Agência Teste',
+        mostrarStatus: false,
+        mostrarTipo: false,
+        mostrarVersao: false,
+        materiaisAprovados: 'ocultar',
+      },
+    })
+    await page.goto(projectUrl)
+
+    await expect(page.getByText('Central da campanha')).toBeVisible()
+    await expect(page.getByText('Atendimento da Agência Teste')).toBeVisible()
+    await expect(page.getByText('Em revisão', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('v2', { exact: false })).toHaveCount(0)
+    expect(
+      await page.evaluate(() =>
+        getComputedStyle(document.querySelector('main')!).getPropertyValue('--background').trim(),
+      ),
+    ).toBe('#f4f6f8')
+  })
+
+  test('desbloqueia um portal protegido antes de carregar o projeto', async ({ page }) => {
+    let desbloqueado = false
+    await page.route('**/api/portal/**', async (route) => {
+      const request = route.request()
+      const pathname = new URL(request.url()).pathname
+      if (pathname.endsWith('/desbloquear')) {
+        desbloqueado = (request.postDataJSON() as { senha: string }).senha === '1234'
+        await route.fulfill({ json: { mensagem: 'Portal desbloqueado.' } })
+        return
+      }
+      if (!desbloqueado) {
+        await route.fulfill({
+          status: 401,
+          json: { erro: { codigo: 'portal_senha_necessaria', mensagem: 'Digite a senha.' } },
+        })
+        return
+      }
+      if (pathname.endsWith('/conteudo')) {
+        await route.fulfill({
+          json: {
+            dado: {
+              projeto: {
+                id: projectId,
+                nome: 'Projeto protegido',
+                descricao: null,
+                status: 'em_revisao',
+                tipo: 'Campanha',
+                prazoEm: null,
+                empresaNome: 'Agência Teste',
+                clienteNome: 'Cliente',
+              },
+              materiais: [],
+            },
+          },
+        })
+        return
+      }
+      await route.fulfill({
+        json: {
+          dado: {
+            id: projectId,
+            nome: 'Projeto protegido',
+            empresaNome: 'Agência Teste',
+            clienteNome: 'Cliente',
+            workspaceSlug,
+            liberado: true,
+            marca: { corPrincipal: '#b8ff4f', logoUrl: null, whiteLabel: true },
+          },
+        },
+      })
+    })
+    await page.goto(projectUrl)
+    await expect(page.getByRole('heading', { name: 'Portal protegido' })).toBeVisible()
+    await page.getByLabel('Senha').fill('1234')
+    await page.getByRole('button', { name: 'Entrar no portal' }).click()
+    await expect(page.getByRole('heading', { name: 'Projeto protegido' })).toBeVisible()
   })
 
   test('inicia em visualização e exige ativação explícita para comentar no mobile', async ({

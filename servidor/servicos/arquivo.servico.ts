@@ -30,15 +30,19 @@ let clienteS3: S3Client | null = null
 export function armazenamentoObjetoAtivo() {
   return Boolean(
     ambiente.ARMAZENAMENTO_OBJETO_ENDPOINT &&
-      ambiente.ARMAZENAMENTO_OBJETO_BUCKET &&
-      ambiente.ARMAZENAMENTO_OBJETO_ACCESS_KEY &&
-      ambiente.ARMAZENAMENTO_OBJETO_SECRET_KEY,
+    ambiente.ARMAZENAMENTO_OBJETO_BUCKET &&
+    ambiente.ARMAZENAMENTO_OBJETO_ACCESS_KEY &&
+    ambiente.ARMAZENAMENTO_OBJETO_SECRET_KEY,
   )
 }
 
 function obterClienteS3() {
   if (!armazenamentoObjetoAtivo())
-    throw new ErroHttp(503, 'Armazenamento de objetos nao configurado.', 'armazenamento_nao_configurado')
+    throw new ErroHttp(
+      503,
+      'Armazenamento de objetos nao configurado.',
+      'armazenamento_nao_configurado',
+    )
   if (!clienteS3) {
     clienteS3 = new S3Client({
       region: ambiente.ARMAZENAMENTO_OBJETO_REGIAO || 'auto',
@@ -171,6 +175,30 @@ export async function armazenarLogoWorkspace(buffer: Buffer, workspaceId: string
     throw new ErroHttp(415, 'Use JPEG, PNG ou WebP para o logo.', 'arquivo_invalido')
   const nomeArmazenado = `${randomUUID()}.${tipo.ext}`
   const caminhoRelativo = path.posix.join('workspaces', workspaceId, 'logo', nomeArmazenado)
+  await gravarBytes(caminhoRelativo, buffer, tipo.mime)
+  return { caminhoRelativo, mimeType: tipo.mime }
+}
+
+export async function armazenarAssetPortal(
+  buffer: Buffer,
+  workspaceId: string,
+  escopo: 'workspace' | 'cliente' | 'projeto',
+  entidadeId: string,
+  campo: string,
+) {
+  const tipo = await fileTypeFromBuffer(buffer)
+  if (!tipo || !logosPermitidos.has(tipo.mime))
+    throw new ErroHttp(415, 'Use JPEG, PNG ou WebP para a imagem.', 'arquivo_invalido')
+  const nomeArmazenado = `${randomUUID()}.${tipo.ext}`
+  const caminhoRelativo = path.posix.join(
+    'workspaces',
+    workspaceId,
+    'portal',
+    escopo,
+    entidadeId,
+    campo,
+    nomeArmazenado,
+  )
   await gravarBytes(caminhoRelativo, buffer, tipo.mime)
   return { caminhoRelativo, mimeType: tipo.mime }
 }

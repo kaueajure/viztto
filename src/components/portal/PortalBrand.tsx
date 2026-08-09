@@ -54,7 +54,10 @@ function usePortalDocumentBrand({
     themeColor?.setAttribute('content', color)
 
     if (brand?.whiteLabel) {
-      const iconUrl = brand.logoUrl || faviconDataUrl(companyName, color)
+      const iconUrl =
+        (brand.tema === 'claro' ? brand.logoClaroUrl : brand.logoEscuroUrl) ||
+        brand.logoUrl ||
+        faviconDataUrl(companyName, color)
       favicons.forEach((item) => {
         item.href = iconUrl
       })
@@ -87,11 +90,30 @@ export function PortalBrandShell({
 }) {
   const color = normalizePortalBrandColor(brand?.corPrincipal)
   usePortalDocumentBrand({ brand, companyName, pageTitle })
+  const gradientes = {
+    aurora: `radial-gradient(circle at 20% 0%, ${color}33, transparent 45%), radial-gradient(circle at 90% 20%, ${brand?.corSecundaria ?? '#7c8cff'}22, transparent 42%)`,
+    oceano: 'linear-gradient(145deg, #071a2c 0%, #0d3442 48%, #071018 100%)',
+    'por-do-sol': 'linear-gradient(145deg, #2a1028 0%, #6e2f3d 45%, #d16b48 100%)',
+    monocromatico: `linear-gradient(145deg, ${color}22 0%, var(--background) 65%)`,
+  }
+  const backgroundImage =
+    brand?.fundoTipo === 'imagem' && brand.fundoImagemUrl
+      ? `linear-gradient(#0008, #0008), url(${JSON.stringify(brand.fundoImagemUrl)})`
+      : brand?.fundoTipo === 'gradiente'
+        ? gradientes[brand.fundoGradiente ?? 'aurora']
+        : undefined
 
   return (
     <div
       className={cn('relative min-h-screen overflow-hidden bg-background', className)}
-      style={portalBrandStyle(color)}
+      style={{
+        ...portalBrandStyle(brand),
+        backgroundColor: brand?.fundoTipo === 'cor' ? brand.fundoCor : undefined,
+        backgroundImage,
+        backgroundAttachment: brand?.fundoTipo === 'imagem' ? 'fixed' : undefined,
+        backgroundPosition: 'center',
+        backgroundSize: 'cover',
+      }}
     >
       <div
         aria-hidden
@@ -116,9 +138,14 @@ export function PortalBrandIdentity({
 }) {
   return (
     <div className="flex min-w-0 items-center gap-3" aria-label={`Portal de ${companyName}`}>
-      {brand?.logoUrl ? (
+      {((brand?.tema === 'claro' ? brand?.logoClaroUrl : brand?.logoEscuroUrl) ??
+      brand?.logoUrl) ? (
         <img
-          src={brand.logoUrl}
+          src={
+            (brand?.tema === 'claro' ? brand?.logoClaroUrl : brand?.logoEscuroUrl) ??
+            brand?.logoUrl ??
+            ''
+          }
           alt={`Logo de ${companyName}`}
           className={cn('max-w-[12rem] object-contain object-left', compact ? 'h-8' : 'h-10')}
         />
@@ -133,7 +160,9 @@ export function PortalBrandIdentity({
           {initials(companyName)}
         </span>
       )}
-      {!brand?.logoUrl && (
+      {!(
+        (brand?.tema === 'claro' ? brand?.logoClaroUrl : brand?.logoEscuroUrl) ?? brand?.logoUrl
+      ) && (
         <span className="truncate font-semibold tracking-[-0.02em] text-ink">{companyName}</span>
       )}
     </div>

@@ -18,6 +18,37 @@ import {
 const id = (nome = 'id') => char(nome, { length: 36 }).notNull()
 const data = (nome: string) => datetime(nome, { mode: 'date', fsp: 3 })
 
+export type PortalConfiguracaoDados = {
+  corPrincipal?: string
+  corSecundaria?: string
+  tema?: 'escuro' | 'claro'
+  fonte?: 'instrument' | 'serif' | 'sistema'
+  estilo?: 'suave' | 'quadrado' | 'pill'
+  logoClaroUrl?: string | null
+  logoEscuroUrl?: string | null
+  capaUrl?: string | null
+  fundoTipo?: 'cor' | 'gradiente' | 'imagem'
+  fundoCor?: string
+  fundoGradiente?: 'aurora' | 'oceano' | 'por-do-sol' | 'monocromatico'
+  fundoImagemUrl?: string | null
+  miniaturaPadraoUrl?: string | null
+  marcaDaguaUrl?: string | null
+  marcaDaguaOpacidade?: number
+  nomePortal?: string
+  mensagemAprovacao?: string
+  mensagemAlteracoes?: string
+  rodapeTexto?: string
+  suporteEmail?: string
+  suporteTelefone?: string
+  suporteWhatsapp?: string
+  mostrarPrazo?: boolean
+  mostrarStatus?: boolean
+  mostrarCliente?: boolean
+  mostrarTipo?: boolean
+  mostrarVersao?: boolean
+  materiaisAprovados?: 'mostrar' | 'separar' | 'ocultar'
+}
+
 export const usuarios = mysqlTable(
   'usuarios',
   {
@@ -72,6 +103,7 @@ export const workspaces = mysqlTable(
       .default('gratuito'),
     logoUrl: varchar('logo_url', { length: 500 }),
     corPrincipal: char('cor_principal', { length: 7 }).notNull().default('#b8ff4f'),
+    portalConfiguracao: json('portal_configuracao').$type<PortalConfiguracaoDados>(),
     ativo: boolean('ativo').notNull().default(true),
     criadoPorUsuarioId: id('criado_por_usuario_id'),
     criadoEm: data('criado_em').notNull(),
@@ -311,6 +343,7 @@ export const clientes = mysqlTable(
     telefone: varchar('telefone', { length: 40 }),
     observacoes: text('observacoes'),
     corIdentificacao: char('cor_identificacao', { length: 7 }),
+    portalConfiguracao: json('portal_configuracao').$type<PortalConfiguracaoDados>(),
     status: mysqlEnum('status', ['ativo', 'arquivado']).notNull().default('ativo'),
     criadoPorUsuarioId: id('criado_por_usuario_id'),
     criadoEm: data('criado_em').notNull(),
@@ -355,6 +388,8 @@ export const projetos = mysqlTable(
     prazoEm: data('prazo_em'),
     senhaAcessoHash: varchar('senha_acesso_hash', { length: 255 }),
     tokenPortal: varchar('token_portal', { length: 64 }),
+    portalConfiguracao: json('portal_configuracao').$type<PortalConfiguracaoDados>(),
+    portalExpiraEm: data('portal_expira_em'),
     criadoPorUsuarioId: id('criado_por_usuario_id'),
     criadoEm: data('criado_em').notNull(),
     atualizadoEm: data('atualizado_em').notNull(),

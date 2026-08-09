@@ -10,6 +10,7 @@ import { assinaturasApi, type UsoLimitesPlano } from '@/services/api/assinaturas
 import { SubscriptionPlansAdmin } from '@/components/admin/SubscriptionPlansAdmin'
 import { PlanUpgradePanel } from '@/components/billing/PlanUpgradePanel'
 import { PortalBrandPreview } from '@/components/portal/PortalBrandPreview'
+import { PortalCustomizationEditor } from '@/components/portal/PortalCustomizationEditor'
 
 const preferenciasPadrao: Preferencias = {
   comentarios: true,
@@ -33,6 +34,7 @@ export default function SettingsPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [notifications, setNotifications] = useState(preferenciasPadrao)
   const [recursosPlano, setRecursosPlano] = useState<UsoLimitesPlano['recursos'] | null>(null)
+  const [workspaceId, setWorkspaceId] = useState('')
 
   useEffect(() => {
     let active = true
@@ -45,6 +47,7 @@ export default function SettingsPage() {
         setSlug(dado.workspace.slug)
         setColor(dado.workspace.corPrincipal)
         setLogoUrl(dado.workspace.logoUrl)
+        setWorkspaceId(dado.workspace.id)
         setNotifications(dado.preferencias)
       })
       .catch((erro) => {
@@ -294,12 +297,16 @@ export default function SettingsPage() {
             { label: 'Notificações', content: notificationPanel },
             {
               label: 'Aparência',
-              content: (
-                <div>
-                  <p className="font-semibold text-ink">Tema escuro</p>
-                  <p className="mt-2">A identidade Deep Ink é o tema atual do produto.</p>
-                </div>
-              ),
+              content:
+                workspaceId && portalPersonalizado ? (
+                  <PortalCustomizationEditor escopo="workspace" id={workspaceId} />
+                ) : (
+                  <p className="text-sm text-secondary">
+                    {portalBloqueado
+                      ? 'A personalização completa está disponível nos planos com portal próprio.'
+                      : 'Carregando personalização do portal...'}
+                  </p>
+                ),
             },
             {
               label: 'Plano',

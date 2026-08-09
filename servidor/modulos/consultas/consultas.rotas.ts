@@ -15,10 +15,7 @@ import { ErroHttp } from '../../middlewares/erros.js'
 import { z } from 'zod'
 import { receberImagem } from '../../configuracao/upload.js'
 import { garantirIdentidadePersonalizada } from '../../servicos/limites-plano.servico.js'
-import {
-  armazenarLogoWorkspace,
-  removerArquivoSalvo,
-} from '../../servicos/arquivo.servico.js'
+import { armazenarLogoWorkspace, removerArquivoSalvo } from '../../servicos/arquivo.servico.js'
 import { slugReservado } from '../../utilitarios/slugs.js'
 
 const perfilEntrada = z.object({ nome: z.string().trim().min(2).max(160) })
@@ -83,6 +80,7 @@ consultasRotas.get('/configuracoes', async (req, res) => {
       },
       workspace: workspace
         ? {
+            id: workspaceId,
             nome: workspace.nome,
             slug: workspace.slug,
             corPrincipal: workspace.corPrincipal,

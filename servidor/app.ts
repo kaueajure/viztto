@@ -10,6 +10,7 @@ import { emitirCsrf, protegerCsrf } from './middlewares/csrf.js'
 import { rotaNaoEncontrada, tratarErros } from './middlewares/erros.js'
 import { autenticacaoRotas } from './modulos/autenticacao/autenticacao.rotas.js'
 import { portalRotas } from './modulos/portal/portal.rotas.js'
+import { portalConfiguracoesRotas } from './modulos/portal/portal-configuracoes.rotas.js'
 import { clientesRotas } from './modulos/clientes/clientes.rotas.js'
 import { projetosRotas } from './modulos/projetos/projetos.rotas.js'
 import { materiaisRotas } from './modulos/materiais/materiais.rotas.js'
@@ -98,6 +99,7 @@ export function criarAplicacao(preparacao: Promise<void> = Promise.resolve()) {
   app.use('/api', protegerCsrf)
   app.use('/api/autenticacao', autenticacaoRotas)
   app.use('/api/portal', portalRotas)
+  app.use('/api/portal-configuracoes', autenticar, portalConfiguracoesRotas)
   app.use('/api/clientes', autenticar, clientesRotas)
   app.use('/api/projetos', autenticar, projetosRotas)
   app.use('/api/equipe', autenticar, equipeRotas)

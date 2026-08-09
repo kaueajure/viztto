@@ -12,7 +12,13 @@ export type Preferencias = {
 export type Configuracoes = {
   dado: {
     perfil: { nome: string; email: string; funcao: string }
-    workspace: { nome: string; slug: string; corPrincipal: string; logoUrl: string | null }
+    workspace: {
+      id: string
+      nome: string
+      slug: string
+      corPrincipal: string
+      logoUrl: string | null
+    }
     preferencias: Preferencias
   }
 }

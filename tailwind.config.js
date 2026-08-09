@@ -50,7 +50,12 @@ export default {
         overlay: 'var(--overlay)',
       },
       fontFamily: { sans: ['Instrument Sans', 'sans-serif'], serif: ['Instrument Serif', 'serif'] },
-      borderRadius: { sm: '8px', md: '12px', lg: '18px', xl: '26px' },
+      borderRadius: {
+        sm: 'max(4px, calc(var(--portal-radius, 12px) - 4px))',
+        md: 'var(--portal-radius, 12px)',
+        lg: 'calc(var(--portal-radius, 12px) + 6px)',
+        xl: 'calc(var(--portal-radius, 12px) + 14px)',
+      },
       boxShadow: {
         soft: 'var(--shadow-soft)',
         raised: 'var(--shadow-raised)',

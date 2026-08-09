@@ -16,7 +16,7 @@ export function PortalBrandPreview({
   return (
     <div
       className="overflow-hidden rounded-lg border border-line bg-background"
-      style={portalBrandStyle(color)}
+      style={portalBrandStyle({ corPrincipal: color, logoUrl, whiteLabel: true })}
     >
       <div className="flex items-center justify-between gap-3 border-b border-line bg-surface/80 px-4 py-3">
         <PortalBrandIdentity

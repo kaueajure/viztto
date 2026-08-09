@@ -4,6 +4,7 @@ import { Link, useParams, useSearchParams } from 'react-router'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
 import { MaterialPreview } from '@/components/review/MaterialPreview'
 import { PortalApprovalDialog } from '@/components/portal/PortalApprovalDialog'
+import { PortalPasswordGate } from '@/components/portal/PortalPasswordGate'
 import {
   PortalAccessBadge,
   PortalBrandIdentity,
@@ -59,6 +60,8 @@ export default function PortalRevisaoPage() {
   const [erro, setErro] = useState('')
   const [aviso, setAviso] = useState('')
   const [carregando, setCarregando] = useState(true)
+  const [senhaNecessaria, setSenhaNecessaria] = useState(false)
+  const [tentativa, setTentativa] = useState(0)
   const [creationMode, setCreationMode] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draft, setDraft] = useState<{ x: number; y: number } | null>(null)
@@ -98,6 +101,7 @@ export default function PortalRevisaoPage() {
       }
       if (!silencioso) setCarregando(true)
       setErro('')
+      setSenhaNecessaria(false)
       try {
         const [{ dado }, lista] = await Promise.all([
           requisicaoApi<{ dado: DetalhePortal }>(urlDetalhe),
@@ -119,8 +123,13 @@ export default function PortalRevisaoPage() {
         )
       } catch (error) {
         if (!silencioso) setDetalhe(null)
+        if (error instanceof ApiError && error.codigo === 'portal_senha_necessaria') {
+          setSenhaNecessaria(true)
+          setErro('')
+          return
+        }
         setErro(
-          error instanceof ApiError && [401, 403, 404].includes(error.status)
+          error instanceof ApiError && [401, 403, 404, 410].includes(error.status)
             ? PORTAL_UNAVAILABLE_MESSAGE
             : 'Não foi possível abrir este material agora.',
         )
@@ -133,7 +142,7 @@ export default function PortalRevisaoPage() {
 
   useEffect(() => {
     void carregar()
-  }, [carregar])
+  }, [carregar, tentativa])
 
   useEffect(() => {
     if (draft) draftRef.current?.focus()
@@ -186,7 +195,9 @@ export default function PortalRevisaoPage() {
     setErro('')
     try {
       await requisicaoApi(urlSolicitarAlteracoes, { method: 'POST' })
-      setAviso('Alterações solicitadas. A equipe foi avisada.')
+      setAviso(
+        detalhe?.marca?.mensagemAlteracoes || 'Alterações solicitadas. A equipe foi avisada.',
+      )
       setCreationMode(false)
       setDraft(null)
       await carregar(true)
@@ -256,6 +267,16 @@ export default function PortalRevisaoPage() {
     return <div className="px-5 py-16 text-center text-secondary">Carregando revisão...</div>
   }
 
+  if (senhaNecessaria) {
+    return (
+      <PortalPasswordGate
+        projectId={projectId}
+        token={tokenPortal}
+        onUnlocked={() => setTentativa((valor) => valor + 1)}
+      />
+    )
+  }
+
   if (!detalhe) {
     return <PortalUnavailableState message={erro || undefined} />
   }
@@ -269,11 +290,16 @@ export default function PortalRevisaoPage() {
       <div className="flex min-h-screen flex-col">
         <div className="border-b border-line bg-background/75 px-4 py-4 backdrop-blur-xl sm:px-6">
           <div className="mx-auto mb-5 flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <PortalBrandIdentity
-              compact
-              brand={detalhe.marca}
-              companyName={detalhe.projeto.empresaNome}
-            />
+            <div>
+              <PortalBrandIdentity
+                compact
+                brand={detalhe.marca}
+                companyName={detalhe.projeto.empresaNome}
+              />
+              <p className="mt-1 text-xs text-muted">
+                {detalhe.marca?.nomePortal ?? 'Portal do cliente'}
+              </p>
+            </div>
             <PortalAccessBadge />
           </div>
           <div className="mx-auto flex max-w-6xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -289,8 +315,11 @@ export default function PortalRevisaoPage() {
                 {detalhe.material.nome}
               </h1>
               <p className="mt-1 text-sm text-secondary">
-                {detalhe.projeto.nome} · v{detalhe.versao.numero} ·{' '}
-                {rotuloStatus[detalhe.material.status] ?? detalhe.material.status}
+                {detalhe.projeto.nome}
+                {detalhe.marca?.mostrarVersao !== false ? ` · v${detalhe.versao.numero}` : ''}
+                {detalhe.marca?.mostrarStatus !== false
+                  ? ` · ${rotuloStatus[detalhe.material.status] ?? detalhe.material.status}`
+                  : ''}
               </p>
               {aprovado && (
                 <div
@@ -302,7 +331,8 @@ export default function PortalRevisaoPage() {
                   <div>
                     <p className="font-semibold text-ink">Versão aprovada</p>
                     <p className="mt-1 text-sm leading-relaxed text-secondary">
-                      Sua aprovação foi registrada com sucesso. Nenhuma ação adicional é necessária.
+                      {detalhe.marca?.mensagemAprovacao ||
+                        'Sua aprovação foi registrada com sucesso. Nenhuma ação adicional é necessária.'}
                     </p>
                   </div>
                 </div>
@@ -370,6 +400,15 @@ export default function PortalRevisaoPage() {
 
         <div className="mx-auto grid w-full max-w-6xl flex-1 gap-0 lg:grid-cols-[1fr_20rem]">
           <div className="relative min-h-[28rem] border-b border-line lg:border-b-0 lg:border-r">
+            {detalhe.marca?.marcaDaguaUrl && (
+              <img
+                src={detalhe.marca.marcaDaguaUrl}
+                alt=""
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-10 m-auto max-h-1/2 max-w-1/2 object-contain"
+                style={{ opacity: detalhe.marca.marcaDaguaOpacidade ?? 0.18 }}
+              />
+            )}
             {detalhe.material.tipo === 'imagem' && (
               <div
                 className="absolute right-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] gap-1 overflow-x-auto rounded-md border border-line bg-surface-elevated p-1"
@@ -504,7 +543,13 @@ export default function PortalRevisaoPage() {
         </div>
         <p className="py-6 text-center text-xs text-muted">
           {detalhe.marca?.whiteLabel ? (
-            <span>{detalhe.projeto.empresaNome} · Portal do cliente</span>
+            <span>
+              {detalhe.marca.rodapeTexto ||
+                `${detalhe.projeto.empresaNome} · ${detalhe.marca.nomePortal ?? 'Portal do cliente'}`}
+              {detalhe.marca.suporteEmail ? ` · ${detalhe.marca.suporteEmail}` : ''}
+              {detalhe.marca.suporteTelefone ? ` · ${detalhe.marca.suporteTelefone}` : ''}
+              {detalhe.marca.suporteWhatsapp ? ` · WhatsApp ${detalhe.marca.suporteWhatsapp}` : ''}
+            </span>
           ) : (
             <span>
               Portal de revisão · <span className="font-medium text-secondary">Viztto</span>

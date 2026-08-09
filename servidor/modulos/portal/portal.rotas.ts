@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { rateLimit } from 'express-rate-limit'
 import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
@@ -23,8 +24,20 @@ import {
   carregarMarcaPortal,
   garantirComentarioNoMaterial,
   garantirLinksPortalCliente,
+  garantirPortalPersonalizado,
 } from '../../servicos/limites-plano.servico.js'
-import { tokenPortalConfere } from '../../servicos/projeto-acesso.servico.js'
+import {
+  assinarAcessoPortal,
+  cookiePortalProjeto,
+  opcoesCookiePortal,
+  senhaAcessoConfere,
+  tokenPortalConfere,
+  validarAcessoPortal,
+} from '../../servicos/projeto-acesso.servico.js'
+import {
+  camposAssetPortal,
+  obterAssetPortal,
+} from '../../servicos/portal-personalizacao.servico.js'
 
 const novoComentarioPortal = z.object({
   texto: z.string().trim().min(1).max(5000),
@@ -34,12 +47,20 @@ const novoComentarioPortal = z.object({
 const decisaoPortal = z.object({
   confirmarPendencias: z.boolean().optional(),
 })
+const desbloqueioPortal = z.object({ senha: z.string().min(1).max(80) })
+const tentativasDesbloqueio = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 
 export const portalRotas = Router()
 
-const autorNomeSql = sql<string>`coalesce(${comentarios.autorExternoNome}, ${usuarios.nome}, 'Cliente')`.as(
-  'autorNome',
-)
+const autorNomeSql =
+  sql<string>`coalesce(${comentarios.autorExternoNome}, ${usuarios.nome}, 'Cliente')`.as(
+    'autorNome',
+  )
 
 async function projetoPortal(projetoId: string, workspaceSlug?: string) {
   const [linha] = await banco
@@ -52,6 +73,9 @@ async function projetoPortal(projetoId: string, workspaceSlug?: string) {
       tipo: projetos.tipo,
       prazoEm: projetos.prazoEm,
       tokenPortal: projetos.tokenPortal,
+      senhaAcessoHash: projetos.senhaAcessoHash,
+      portalExpiraEm: projetos.portalExpiraEm,
+      clienteId: projetos.clienteId,
       criadoPorUsuarioId: projetos.criadoPorUsuarioId,
       empresaNome: workspaces.nome,
       workspaceSlug: workspaces.slug,
@@ -79,11 +103,16 @@ function tokenDaRequisicao(req: {
   return undefined
 }
 
+function cookieDaRequisicao(req: { cookies?: Record<string, string> }, projetoId: string) {
+  return req.cookies?.[cookiePortalProjeto(projetoId)]
+}
+
 /** Acesso ao portal exige o token do link compartilhado (?t=...). */
 async function exigirAcessoPortal(
   projetoId: string,
   tokenRecebido: string | undefined,
   workspaceSlug?: string,
+  cookieRecebido?: string,
 ) {
   const projeto = await projetoPortal(projetoId, workspaceSlug)
   await garantirLinksPortalCliente(projeto.workspaceId)
@@ -93,8 +122,57 @@ async function exigirAcessoPortal(
       'Link de acesso invalido ou incompleto. Peca um novo link a equipe.',
       'portal_token_invalido',
     )
+  if (projeto.portalExpiraEm && projeto.portalExpiraEm.getTime() <= Date.now())
+    throw new ErroHttp(410, 'Este link de portal expirou.', 'portal_expirado')
+  if (
+    projeto.senhaAcessoHash &&
+    !validarAcessoPortal(cookieRecebido, projeto.id, projeto.tokenPortal ?? '')
+  )
+    throw new ErroHttp(
+      401,
+      'Digite a senha deste portal para continuar.',
+      'portal_senha_necessaria',
+    )
   return projeto
 }
+
+portalRotas.post(
+  '/projetos/:projetoId/desbloquear',
+  tentativasDesbloqueio,
+  validarCorpo(desbloqueioPortal),
+  async (req, res) => {
+    const projetoId = String(req.params.projetoId)
+    const projeto = await projetoPortal(projetoId)
+    await garantirLinksPortalCliente(projeto.workspaceId)
+    if (!tokenPortalConfere(tokenDaRequisicao(req), projeto.tokenPortal))
+      throw new ErroHttp(401, 'Link de acesso invalido.', 'portal_token_invalido')
+    if (projeto.portalExpiraEm && projeto.portalExpiraEm.getTime() <= Date.now())
+      throw new ErroHttp(410, 'Este link de portal expirou.', 'portal_expirado')
+    if (
+      !projeto.senhaAcessoHash ||
+      !(await senhaAcessoConfere(req.body.senha, projeto.senhaAcessoHash))
+    )
+      throw new ErroHttp(401, 'Senha incorreta.', 'portal_senha_incorreta')
+    res.cookie(
+      cookiePortalProjeto(projeto.id),
+      assinarAcessoPortal(projeto.id, projeto.tokenPortal ?? ''),
+      opcoesCookiePortal(),
+    )
+    res.json({ mensagem: 'Portal desbloqueado.' })
+  },
+)
+
+portalRotas.get('/personalizacao-assets/:escopo/:id/:campo', async (req, res) => {
+  const escopo = z.enum(['workspace', 'cliente', 'projeto']).parse(req.params.escopo)
+  const campo = z.enum(camposAssetPortal).parse(req.params.campo)
+  const asset = await obterAssetPortal(escopo, String(req.params.id), campo)
+  if (!asset?.caminho) throw new ErroHttp(404, 'Imagem nao encontrada.', 'arquivo_nao_encontrado')
+  await garantirPortalPersonalizado(asset.workspaceId)
+  const ext = asset.caminho.toLowerCase().split('.').pop()
+  const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
+  res.setHeader('Cache-Control', 'public, max-age=300')
+  await enviarArquivoResposta(res, asset.caminho, mime)
+})
 
 async function materialDoProjeto(materialId: string, projetoId: string) {
   const [material] = await banco
@@ -139,8 +217,9 @@ portalRotas.get('/projetos/:projetoId', async (req, res) => {
     String(req.params.projetoId),
     tokenDaRequisicao(req),
     slugQuery,
+    cookieDaRequisicao(req, String(req.params.projetoId)),
   )
-  const marca = await carregarMarcaPortal(projeto.workspaceId)
+  const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
   res.json({
     dado: {
       id: projeto.id,
@@ -149,11 +228,7 @@ portalRotas.get('/projetos/:projetoId', async (req, res) => {
       clienteNome: projeto.clienteNome,
       workspaceSlug: projeto.workspaceSlug,
       liberado: true,
-      marca: {
-        corPrincipal: marca.corPrincipal,
-        logoUrl: marca.logoUrl,
-        whiteLabel: marca.whiteLabel,
-      },
+      marca,
     },
   })
 })
@@ -161,24 +236,26 @@ portalRotas.get('/projetos/:projetoId', async (req, res) => {
 portalRotas.get('/workspaces/:workspaceId/logo', async (req, res) => {
   const workspaceId = String(req.params.workspaceId)
   const marca = await carregarMarcaPortal(workspaceId)
-  if (!marca.logoUrl)
-    throw new ErroHttp(404, 'Logo nao encontrado.', 'logo_nao_encontrado')
+  if (!marca.logoUrl) throw new ErroHttp(404, 'Logo nao encontrado.', 'logo_nao_encontrado')
   const [workspace] = await banco
     .select({ logoUrl: workspaces.logoUrl })
     .from(workspaces)
     .where(and(eq(workspaces.id, workspaceId), isNull(workspaces.excluidoEm)))
     .limit(1)
-  if (!workspace?.logoUrl)
-    throw new ErroHttp(404, 'Logo nao encontrado.', 'logo_nao_encontrado')
+  if (!workspace?.logoUrl) throw new ErroHttp(404, 'Logo nao encontrado.', 'logo_nao_encontrado')
   const ext = workspace.logoUrl.toLowerCase().split('.').pop()
-  const mime =
-    ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
+  const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
   await enviarArquivoResposta(res, workspace.logoUrl, mime)
 })
 
 portalRotas.get('/projetos/:projetoId/conteudo', async (req, res) => {
   const projetoId = String(req.params.projetoId)
-  const projeto = await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
+  const projeto = await exigirAcessoPortal(
+    projetoId,
+    tokenDaRequisicao(req),
+    undefined,
+    cookieDaRequisicao(req, projetoId),
+  )
   const lista = await banco
     .select({
       id: materiais.id,
@@ -207,6 +284,7 @@ portalRotas.get('/projetos/:projetoId/conteudo', async (req, res) => {
         empresaNome: projeto.empresaNome,
         clienteNome: projeto.clienteNome,
       },
+      marca: await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id),
       materiais: lista.map((item) => ({
         ...item,
         imagemUrl: item.arquivoId
@@ -220,7 +298,12 @@ portalRotas.get('/projetos/:projetoId/conteudo', async (req, res) => {
 portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) => {
   const projetoId = String(req.params.projetoId)
   const slugQuery = typeof req.query.slug === 'string' ? req.query.slug : undefined
-  const projeto = await exigirAcessoPortal(projetoId, tokenDaRequisicao(req), slugQuery)
+  const projeto = await exigirAcessoPortal(
+    projetoId,
+    tokenDaRequisicao(req),
+    slugQuery,
+    cookieDaRequisicao(req, projetoId),
+  )
   const material = await materialDoProjeto(String(req.params.materialId), projetoId)
   if (!material.versaoAtualId)
     throw new ErroHttp(422, 'Este material ainda nao tem versao para revisar.', 'versao_ausente')
@@ -236,7 +319,7 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) =
     .where(and(eq(versoesMaterial.id, material.versaoAtualId), isNull(versoesMaterial.excluidoEm)))
     .limit(1)
   if (!versao) throw new ErroHttp(404, 'Versao nao encontrada.', 'versao_nao_encontrada')
-  const marca = await carregarMarcaPortal(projeto.workspaceId)
+  const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
   res.json({
     dado: {
       projeto: {
@@ -256,18 +339,19 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) =
         ...versao,
         imagemUrl: `/api/portal/projetos/${projetoId}/arquivos/${versao.arquivoId}`,
       },
-      marca: {
-        corPrincipal: marca.corPrincipal,
-        logoUrl: marca.logoUrl,
-        whiteLabel: marca.whiteLabel,
-      },
+      marca,
     },
   })
 })
 
 portalRotas.get('/projetos/:projetoId/arquivos/:arquivoId', async (req, res) => {
   const projetoId = String(req.params.projetoId)
-  await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
+  await exigirAcessoPortal(
+    projetoId,
+    tokenDaRequisicao(req),
+    undefined,
+    cookieDaRequisicao(req, projetoId),
+  )
   const [arquivo] = await banco
     .select({
       id: arquivos.id,
@@ -292,7 +376,12 @@ portalRotas.get('/projetos/:projetoId/arquivos/:arquivoId', async (req, res) => 
 
 portalRotas.get('/projetos/:projetoId/materiais/:materialId/comentarios', async (req, res) => {
   const projetoId = String(req.params.projetoId)
-  await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
+  await exigirAcessoPortal(
+    projetoId,
+    tokenDaRequisicao(req),
+    undefined,
+    cookieDaRequisicao(req, projetoId),
+  )
   const material = await materialDoProjeto(String(req.params.materialId), projetoId)
   const dados = await banco
     .select({ comentario: comentarios, autorNome: autorNomeSql })
@@ -323,7 +412,12 @@ portalRotas.post(
   validarCorpo(novoComentarioPortal),
   async (req, res) => {
     const projetoId = String(req.params.projetoId)
-    await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
+    await exigirAcessoPortal(
+      projetoId,
+      tokenDaRequisicao(req),
+      undefined,
+      cookieDaRequisicao(req, projetoId),
+    )
     const projeto = await projetoPortal(projetoId)
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     await garantirComentarioNoMaterial(material.workspaceId, material.tipo)
@@ -386,7 +480,12 @@ portalRotas.post(
   '/projetos/:projetoId/materiais/:materialId/solicitar-alteracoes',
   async (req, res) => {
     const projetoId = String(req.params.projetoId)
-    await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
+    await exigirAcessoPortal(
+      projetoId,
+      tokenDaRequisicao(req),
+      undefined,
+      cookieDaRequisicao(req, projetoId),
+    )
     const projeto = await projetoPortal(projetoId)
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)
@@ -447,7 +546,12 @@ portalRotas.post(
   validarCorpo(decisaoPortal),
   async (req, res) => {
     const projetoId = String(req.params.projetoId)
-    await exigirAcessoPortal(projetoId, tokenDaRequisicao(req))
+    await exigirAcessoPortal(
+      projetoId,
+      tokenDaRequisicao(req),
+      undefined,
+      cookieDaRequisicao(req, projetoId),
+    )
     const projeto = await projetoPortal(projetoId)
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)

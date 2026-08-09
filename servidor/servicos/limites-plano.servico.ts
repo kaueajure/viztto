@@ -10,6 +10,10 @@ import {
   workspaces,
 } from '../banco/esquema/index.js'
 import { ErroHttp } from '../middlewares/erros.js'
+import {
+  carregarContextoPortal,
+  configuracaoPortalPadrao,
+} from './portal-personalizacao.servico.js'
 
 export type PlanoAssinaturaLinha = typeof planosAssinatura.$inferSelect
 export type CodigoPlano = PlanoAssinaturaLinha['codigo']
@@ -340,26 +344,31 @@ export async function obterUsoELimitesDoWorkspace(workspaceId: string) {
   }
 }
 
-export async function carregarMarcaPortal(workspaceId: string) {
+export async function garantirPortalPersonalizado(workspaceId: string) {
   const { plano } = await carregarPlanoDoWorkspace(workspaceId)
-  const [workspace] = await banco
-    .select({
-      nome: workspaces.nome,
-      corPrincipal: workspaces.corPrincipal,
-      logoUrl: workspaces.logoUrl,
-    })
-    .from(workspaces)
-    .where(eq(workspaces.id, workspaceId))
-    .limit(1)
+  if (!plano.permiteIdentidadePersonalizada)
+    throw new ErroHttp(
+      403,
+      'A personalizacao completa do portal nao esta disponivel no plano atual.',
+      'recurso_indisponivel_no_plano',
+    )
+  return plano
+}
+
+export async function carregarMarcaPortal(
+  workspaceId: string,
+  clienteId?: string | null,
+  projetoId?: string | null,
+) {
+  const { plano } = await carregarPlanoDoWorkspace(workspaceId)
   const portalPersonalizado = plano.permiteIdentidadePersonalizada
+  const contexto = await carregarContextoPortal({ workspaceId, clienteId, projetoId })
+  const configuracao = portalPersonalizado ? contexto.configuracao : { ...configuracaoPortalPadrao }
   return {
-    empresaNome: workspace?.nome ?? 'Empresa',
-    corPrincipal: portalPersonalizado ? (workspace?.corPrincipal ?? COR_PADRAO) : COR_PADRAO,
-    logoUrl: portalPersonalizado && workspace?.logoUrl
-      ? `/api/portal/workspaces/${workspaceId}/logo`
-      : null,
+    empresaNome: contexto.workspace.nome ?? 'Empresa',
+    ...configuracao,
+    logoUrl: configuracao.logoClaroUrl,
     whiteLabel: portalPersonalizado,
     portalLiberado: plano.permiteLinksPortalCliente,
   }
 }
-
