@@ -57,6 +57,12 @@ function usuarioDaSessao(sessao: {
   }
 }
 
+function limparCadastroPendente() {
+  sessionStorage.removeItem('viztto_usuario_pendente')
+  sessionStorage.removeItem('viztto_token_verificacao')
+  sessionStorage.removeItem('viztto_cadastro_pendente')
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(vazio)
   const [loading, setLoading] = useState(true)
@@ -238,8 +244,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }))
       },
       async logout() {
-        await autenticacaoApi.sair()
-        setAuth(vazio)
+        try {
+          await autenticacaoApi.sair()
+        } catch {
+          /* a interface deve sair mesmo se a sessao ja expirou */
+        } finally {
+          limparCadastroPendente()
+          setAuth(vazio)
+        }
       },
       async resetAuth() {
         try {
@@ -247,6 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           /* sessao ja ausente */
         }
+        limparCadastroPendente()
         setAuth(vazio)
       },
     }),

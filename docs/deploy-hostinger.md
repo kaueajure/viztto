@@ -5,6 +5,7 @@ Este guia cobre **Node.js Web App gerenciado**, não VPS. No ambiente atual do V
 Referências oficiais:
 
 - https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/
+- https://www.hostinger.com/support/how-to-redeploy-a-node-js-application/
 - https://www.hostinger.com/tutorials/deploy-node-js-application
 
 ## Configuração no hPanel
@@ -50,7 +51,7 @@ BANCO_SENHA=valor_real
 SEGREDO_SESSAO=segredo-aleatorio-com-no-minimo-32-caracteres
 URL_APLICACAO=https://dominio-real
 
-DIRETORIO_UPLOADS=./uploads
+DIRETORIO_UPLOADS=../uploads
 TAMANHO_MAXIMO_IMAGEM_MB=15
 
 COOKIE_SEGURO=true
@@ -77,7 +78,35 @@ npm run banco:migrar:producao
 
 ## Uploads persistentes
 
-Por padrao, `DIRETORIO_UPLOADS` precisa apontar para armazenamento persistente e gravavel. A inicializacao cria e testa o diretorio e recusa caminhos dentro de `dist`, `build-servidor`, `node_modules` ou diretorio temporario do sistema. Confirme no hPanel que uma nova implantacao nao remove `./uploads`.
+No deploy gerenciado de backend, a Hostinger publica o build em
+`/home/USUARIO/domains/DOMINIO/nodejs` e recria o `.htaccess` em `public_html`.
+O diretório-alvo do deploy pode ser sobrescrito numa reimplantação ou troca de
+repositório. Por isso, arquivos enviados por usuários não podem ficar dentro de
+`nodejs`, `public_html` ou da raiz do projeto.
+
+Crie, no Gerenciador de Arquivos, a pasta irmã:
+
+```text
+/home/USUARIO/domains/DOMINIO/uploads
+```
+
+No hPanel, configure `DIRETORIO_UPLOADS=../uploads`. Se a variável não existir
+em produção, a aplicação usa automaticamente essa pasta irmã. A inicialização
+cria e testa o diretório, mas recusa caminhos dentro de `public_html`, `nodejs`,
+`dist`, `build-servidor`, `node_modules`, da raiz implantada ou do diretório
+temporário do sistema. Assim, uma configuração antiga como
+`DIRETORIO_UPLOADS=./uploads` interrompe a inicialização em vez de aceitar o
+risco de perda silenciosa.
+
+Antes do primeiro redeploy com esta configuração, mova pelo Gerenciador de
+Arquivos qualquer conteúdo real de `nodejs/uploads` para a nova pasta
+`uploads`. Não substitua arquivos com o mesmo nome sem conferir o banco. Depois,
+use `GET /api/prontidao` para confirmar que a aplicação consegue ler e escrever
+no local persistente.
+
+Esse isolamento protege contra o redeploy normal, mas não contra a remoção do
+site no hPanel: a própria Hostinger informa que remover o website apaga arquivos,
+bancos e configurações associados. Mantenha backups fora da conta de hospedagem.
 
 Para object storage S3-compativel (Cloudflare R2, MinIO, Spaces etc.), configure:
 

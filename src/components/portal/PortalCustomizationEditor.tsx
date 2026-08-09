@@ -41,6 +41,8 @@ const padrao: PortalBrand = {
 }
 
 const camposAsset = new Set(assets.map(([campo]) => campo))
+const tiposImagemPermitidos = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const tamanhoMaximoImagem = 20 * 1024 * 1024
 
 function paraDataLocal(valor: string) {
   const data = new Date(valor)
@@ -259,7 +261,11 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
                       assetEmAndamento ? 'pointer-events-none opacity-50' : 'cursor-pointer'
                     }`}
                   >
-                    {assetEmAndamento === campo ? 'Enviando...' : 'Escolher imagem'}
+                    {assetEmAndamento === campo
+                      ? 'Enviando...'
+                      : config[campo]
+                        ? 'Substituir imagem'
+                        : 'Escolher imagem'}
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
@@ -269,13 +275,26 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
                         const arquivo = e.target.files?.[0]
                         e.target.value = ''
                         if (!arquivo) return
+                        if (!tiposImagemPermitidos.has(arquivo.type)) {
+                          setErro('Use uma imagem JPEG, PNG ou WebP.')
+                          return
+                        }
+                        if (!arquivo.size) {
+                          setErro('A imagem selecionada está vazia.')
+                          return
+                        }
+                        if (arquivo.size > tamanhoMaximoImagem) {
+                          setErro('A imagem deve ter no máximo 20 MB.')
+                          return
+                        }
                         setErro('')
                         setStatus('')
                         setAssetEmAndamento(campo)
                         void portalConfiguracoesApi
                           .enviarAsset(escopo, id, campo, arquivo)
-                          .then(async () => {
-                            await carregar()
+                          .then(({ dado }) => {
+                            setConfig((atual) => ({ ...atual, [campo]: dado.url }))
+                            setHerdando(false)
                             setStatus(`${label} atualizada.`)
                           })
                           .catch((err) =>
@@ -295,8 +314,8 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
                         setAssetEmAndamento(campo)
                         void portalConfiguracoesApi
                           .removerAsset(escopo, id, campo)
-                          .then(async () => {
-                            await carregar()
+                          .then(({ dado }) => {
+                            setConfig((atual) => ({ ...atual, [campo]: dado.url }))
                             setStatus(`${label} removida.`)
                           })
                           .catch((err) =>

@@ -63,6 +63,12 @@ const opcoesCookie = {
   path: '/',
   maxAge: 30 * 24 * 60 * 60_000,
 }
+const opcoesRemocaoCookie = {
+  httpOnly: opcoesCookie.httpOnly,
+  sameSite: opcoesCookie.sameSite,
+  secure: opcoesCookie.secure,
+  path: opcoesCookie.path,
+}
 
 async function criarSessao(usuarioId: string, req: Request, workspaceAtivoId?: string | null) {
   const token = novoToken()
@@ -522,10 +528,16 @@ autenticacaoRotas.post(
 
 autenticacaoRotas.get('/sessao', autenticar, async (req, res) => res.json({ sessao: req.sessao }))
 
-autenticacaoRotas.post('/sair', autenticar, async (req, res) => {
-  await banco
-    .update(sessoes)
-    .set({ revogadoEm: new Date() })
-    .where(eq(sessoes.id, req.sessao!.sessaoId))
-  res.clearCookie(COOKIE_SESSAO, { path: '/' }).status(204).end()
+autenticacaoRotas.post('/sair', async (req, res) => {
+  const token = req.cookies?.[COOKIE_SESSAO] as string | undefined
+  try {
+    if (token)
+      await banco
+        .update(sessoes)
+        .set({ revogadoEm: new Date() })
+        .where(eq(sessoes.tokenHash, gerarHash(token)))
+  } finally {
+    res.clearCookie(COOKIE_SESSAO, opcoesRemocaoCookie)
+  }
+  res.status(204).end()
 })

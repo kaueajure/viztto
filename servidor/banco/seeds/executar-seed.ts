@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { banco, pool } from '../../configuracao/banco.js'
+import { diretorioUploads } from '../../configuracao/upload.js'
 import {
   arquivos, clientes, comentarios, materiais, membrosWorkspace, projetos, usuarios,
   versoesMaterial, workspaces,
@@ -19,7 +20,7 @@ const projetoIds = [ids.projeto, 'bbbb0002-0000-4000-8000-000000000002', 'bbbb00
 const nomesProjetos = ['Campanha de agosto','Rebranding institucional','Lancamento da nova colecao','Video de apresentacao','Landing page institucional','Calendario editorial']
 
 async function copiarDemonstracao(nome: string) {
-  const origem = path.resolve('public/demo', nome); const destinoDir = path.resolve('uploads/imagens'); const destino = path.join(destinoDir, nome)
+  const origem = path.resolve('public/demo', nome); const destinoDir = path.join(diretorioUploads, 'imagens'); const destino = path.join(destinoDir, nome)
   await mkdir(destinoDir, { recursive: true }); await copyFile(origem, destino)
   const conteudo = await readFile(destino)
   return { caminhoRelativo: `imagens/${nome}`, tamanho: conteudo.length, checksum: createHash('sha256').update(conteudo).digest('hex') }
@@ -64,4 +65,3 @@ try {
     console.log('Seed aplicado. Acesso: marina@viztto.local / Viztto@123')
   }
 } finally { await pool.end() }
-

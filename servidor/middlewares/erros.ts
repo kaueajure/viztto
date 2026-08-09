@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express'
+import { MulterError } from 'multer'
 import { ZodError } from 'zod'
 
 export class ErroHttp extends Error {
@@ -23,6 +24,18 @@ export const tratarErros: ErrorRequestHandler = (erro, req, res, _next) => {
         codigo: 'dados_invalidos',
         mensagem: 'Revise os dados informados.',
         detalhes: erro.flatten(),
+      },
+    })
+    return
+  }
+  if (erro instanceof MulterError) {
+    const limite = erro.code === 'LIMIT_FILE_SIZE'
+    res.status(limite ? 413 : 422).json({
+      erro: {
+        codigo: limite ? 'arquivo_muito_grande' : 'arquivo_invalido',
+        mensagem: limite
+          ? 'A imagem ultrapassa o limite permitido.'
+          : 'Nao foi possivel processar o arquivo enviado.',
       },
     })
     return

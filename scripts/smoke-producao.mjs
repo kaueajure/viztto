@@ -4,7 +4,7 @@ import { createServer } from 'node:net'
 import path from 'node:path'
 import { raizProjeto } from './caminhos-projeto.mjs'
 
-const uploads = await mkdtemp(path.join(raizProjeto, '.smoke-uploads-'))
+const uploads = await mkdtemp(path.join(path.dirname(raizProjeto), '.smoke-uploads-'))
 const exigirProntidao = process.env.SMOKE_EXIGIR_PRONTIDAO === 'true'
 const porta = await new Promise((resolve, reject) => {
   const servidor = createServer()
@@ -58,7 +58,8 @@ try {
   const limite = Date.now() + 30_000
   let resposta
   while (Date.now() < limite) {
-    if (processo.exitCode !== null) throw new Error(`Processo encerrou antes do health check.\n${saida}`)
+    if (processo.exitCode !== null)
+      throw new Error(`Processo encerrou antes do health check.\n${saida}`)
     try {
       resposta = await fetch(`http://127.0.0.1:${porta}/api/saude`)
       if (resposta.ok) break

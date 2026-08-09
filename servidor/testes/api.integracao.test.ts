@@ -496,4 +496,18 @@ describe('API integrada com MySQL', () => {
     expect(s?.revogadoEm ?? null).toBeNull()
     expect(s?.tokenHash).toMatch(/^[a-f0-9]{64}$/)
   })
+  it('encerra a sessao e permite repetir o logout sem manter o cookie', async () => {
+    const primeiraSaida = await agente
+      .post('/api/autenticacao/sair')
+      .set('x-csrf-token', csrf)
+      .expect(204)
+    expect(primeiraSaida.headers['set-cookie']?.join(';')).toContain('viztto_sessao=')
+    await agente.get('/api/autenticacao/sessao').expect(401)
+
+    const segundaSaida = await agente
+      .post('/api/autenticacao/sair')
+      .set('x-csrf-token', csrf)
+      .expect(204)
+    expect(segundaSaida.headers['set-cookie']?.join(';')).toContain('viztto_sessao=')
+  })
 })

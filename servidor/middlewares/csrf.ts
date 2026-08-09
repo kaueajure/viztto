@@ -9,6 +9,7 @@ const metodosSeguros = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 export const emitirCsrf: RequestHandler = (_req, res) => {
   const token = novoToken()
+  res.setHeader('Cache-Control', 'private, no-store')
   res.cookie(COOKIE_CSRF, token, {
     httpOnly: false,
     sameSite: 'strict',

@@ -39,7 +39,7 @@ const esquema = z.object({
   BANCO_SENHA: z.string().default(''),
   SEGREDO_SESSAO: z.string().min(32),
   URL_APLICACAO: z.string().url().optional(),
-  DIRETORIO_UPLOADS: z.string().default('./uploads'),
+  DIRETORIO_UPLOADS: textoOpcional,
   /** Endpoint S3-compativel (R2, MinIO, Spaces…). Se definido com bucket/chaves, uploads usam objeto em vez do disco. */
   ARMAZENAMENTO_OBJETO_ENDPOINT: urlOpcional,
   ARMAZENAMENTO_OBJETO_REGIAO: textoOpcional,

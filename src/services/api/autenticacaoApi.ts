@@ -72,7 +72,10 @@ export const autenticacaoApi = {
     }),
   listarWorkspaces: () => requisicaoApi<WorkspaceListaApi>('/api/workspaces'),
   async sair() {
-    await requisicaoApi('/api/autenticacao/sair', { method: 'POST' })
-    limparCsrf()
+    try {
+      await requisicaoApi('/api/autenticacao/sair', { method: 'POST' })
+    } finally {
+      limparCsrf()
+    }
   },
 }

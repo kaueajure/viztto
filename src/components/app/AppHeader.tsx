@@ -31,6 +31,7 @@ export function AppHeader({
   const { notifications, workspace } = useAppData()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [userMenu, setUserMenu] = useState(false)
+  const [saindo, setSaindo] = useState(false)
   const search = useRef<HTMLInputElement>(null)
   const segment = pathname.split('/').filter(Boolean).at(-1) ?? 'inicio'
   useEffect(() => {
@@ -108,6 +109,7 @@ export function AppHeader({
       <div className="relative">
         <button
           type="button"
+          aria-label="Abrir menu do usuário"
           aria-expanded={userMenu}
           onClick={() => {
             setUserMenu(!userMenu)
@@ -133,13 +135,17 @@ export function AppHeader({
               Configurações
             </Link>
             <button
+              type="button"
+              disabled={saindo}
               className="block w-full rounded-sm px-3 py-2 text-left text-sm text-revision hover:bg-revision-soft"
               onClick={() => {
-                logout()
-                navigate('/entrar')
+                if (saindo) return
+                setSaindo(true)
+                setUserMenu(false)
+                void logout().finally(() => window.location.replace('/entrar'))
               }}
             >
-              Sair
+              {saindo ? 'Saindo...' : 'Sair'}
             </button>
           </div>
         )}

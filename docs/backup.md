@@ -6,7 +6,7 @@ O backup precisa conter banco e arquivos de upload do mesmo instante logico.
 
 ```bash
 mysqldump --single-transaction --routines --triggers -u USUARIO -p BANCO > viztto-AAAA-MM-DD.sql
-tar -czf viztto-uploads-AAAA-MM-DD.tar.gz uploads/
+tar -czf viztto-uploads-AAAA-MM-DD.tar.gz -C ../ uploads/
 ```
 
 ## Object storage (`ARMAZENAMENTO_OBJETO_*`)

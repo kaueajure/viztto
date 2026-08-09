@@ -8,7 +8,7 @@ import {
   type PortalConfiguracaoDados,
 } from '../../banco/esquema/index.js'
 import { banco } from '../../configuracao/banco.js'
-import { receberImagem } from '../../configuracao/upload.js'
+import { receberImagemPortal } from '../../configuracao/upload.js'
 import { exigirFuncao } from '../../middlewares/autorizacao.js'
 import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
@@ -19,6 +19,7 @@ import {
   carregarContextoPortal,
   configuracaoPortalEntrada,
   type EscopoPortal,
+  urlAssetPortal,
 } from '../../servicos/portal-personalizacao.servico.js'
 import { gerarHashSenhaAcesso, gerarTokenPortal } from '../../servicos/projeto-acesso.servico.js'
 
@@ -196,29 +197,33 @@ portalConfiguracoesRotas.patch('/:escopo/:id', validarCorpo(atualizacao), async 
   })
 })
 
-portalConfiguracoesRotas.post('/:escopo/:id/assets/:campo', receberImagem, async (req, res) => {
-  const { escopo, id, campo } = parametrosAsset.parse(req.params)
-  garantirPermissaoEscopo(escopo, req.sessao!)
-  const workspaceId = req.sessao!.workspaceId
-  await garantirPortalPersonalizado(workspaceId)
-  const entidade = await alvo(escopo, id, workspaceId)
-  if (!entidade) throw new ErroHttp(404, 'Registro nao encontrado.', 'registro_nao_encontrado')
-  if (!req.file) throw new ErroHttp(422, 'Selecione uma imagem.', 'arquivo_ausente')
-  const salvo = await armazenarAssetPortal(req.file.buffer, workspaceId, escopo, id, campo)
-  const config = { ...(entidade.config ?? {}), [campo]: salvo.caminhoRelativo }
-  try {
-    await atualizarConfig(escopo, id, workspaceId, config)
-  } catch (erro) {
-    await removerArquivoSalvo(salvo.caminhoRelativo)
-    throw erro
-  }
-  const anterior = entidade.config?.[campo]
-  if (anterior) await removerArquivoSalvo(anterior).catch(() => undefined)
-  res.json({
-    mensagem: 'Imagem atualizada.',
-    dado: { url: `/api/portal/personalizacao-assets/${escopo}/${id}/${campo}` },
-  })
-})
+portalConfiguracoesRotas.post(
+  '/:escopo/:id/assets/:campo',
+  receberImagemPortal,
+  async (req, res) => {
+    const { escopo, id, campo } = parametrosAsset.parse(req.params)
+    garantirPermissaoEscopo(escopo, req.sessao!)
+    const workspaceId = req.sessao!.workspaceId
+    await garantirPortalPersonalizado(workspaceId)
+    const entidade = await alvo(escopo, id, workspaceId)
+    if (!entidade) throw new ErroHttp(404, 'Registro nao encontrado.', 'registro_nao_encontrado')
+    if (!req.file) throw new ErroHttp(422, 'Selecione uma imagem.', 'arquivo_ausente')
+    const salvo = await armazenarAssetPortal(req.file.buffer, workspaceId, escopo, id, campo)
+    const config = { ...(entidade.config ?? {}), [campo]: salvo.caminhoRelativo }
+    try {
+      await atualizarConfig(escopo, id, workspaceId, config)
+    } catch (erro) {
+      await removerArquivoSalvo(salvo.caminhoRelativo)
+      throw erro
+    }
+    const anterior = entidade.config?.[campo]
+    if (anterior) await removerArquivoSalvo(anterior).catch(() => undefined)
+    res.json({
+      mensagem: 'Imagem atualizada.',
+      dado: { url: urlAssetPortal(escopo, id, campo, salvo.caminhoRelativo) },
+    })
+  },
+)
 
 portalConfiguracoesRotas.delete('/:escopo/:id/assets/:campo', async (req, res) => {
   const { escopo, id, campo } = parametrosAsset.parse(req.params)
@@ -230,5 +235,5 @@ portalConfiguracoesRotas.delete('/:escopo/:id/assets/:campo', async (req, res) =
   const anterior = entidade.config?.[campo]
   await atualizarConfig(escopo, id, workspaceId, { ...(entidade.config ?? {}), [campo]: null })
   if (anterior) await removerArquivoSalvo(anterior).catch(() => undefined)
-  res.json({ mensagem: 'Imagem removida.' })
+  res.json({ mensagem: 'Imagem removida.', dado: { url: null } })
 })

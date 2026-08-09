@@ -4,7 +4,7 @@ const LOGO_MARK = '/brand/logo-mark.png'
 
 export function BrandSymbol({
   className = '',
-  variant = 'framed',
+  variant = 'bare',
 }: {
   className?: string
   variant?: 'framed' | 'bare' | 'monochrome'
@@ -26,7 +26,7 @@ export function BrandSymbol({
         width={36}
         height={36}
         decoding="async"
-        className="h-full w-full object-cover"
+        className="h-full w-full object-contain"
       />
     </span>
   )
@@ -45,7 +45,7 @@ export function Logo({
     <span className={cn('inline-flex items-center gap-2.5', className)}>
       <BrandSymbol
         className={compact ? 'h-8 w-8' : 'h-9 w-9'}
-        variant={monochrome ? 'monochrome' : 'framed'}
+        variant={monochrome ? 'monochrome' : 'bare'}
       />
       <span className="relative text-[27px] font-semibold tracking-[-0.075em]">
         viz

@@ -21,6 +21,11 @@ export type PortalConfiguracaoSalvaResposta = {
   } | null
 }
 
+export type PortalAssetResposta = {
+  mensagem: string
+  dado: { url: string | null }
+}
+
 const base = (escopo: EscopoPortal, id: string) => `/api/portal-configuracoes/${escopo}/${id}`
 
 export const portalConfiguracoesApi = {
@@ -43,8 +48,13 @@ export const portalConfiguracoesApi = {
   enviarAsset: (escopo: EscopoPortal, id: string, campo: string, arquivo: File) => {
     const corpo = new FormData()
     corpo.set('imagem', arquivo)
-    return requisicaoApi(`${base(escopo, id)}/assets/${campo}`, { method: 'POST', body: corpo })
+    return requisicaoApi<PortalAssetResposta>(`${base(escopo, id)}/assets/${campo}`, {
+      method: 'POST',
+      body: corpo,
+    })
   },
   removerAsset: (escopo: EscopoPortal, id: string, campo: string) =>
-    requisicaoApi(`${base(escopo, id)}/assets/${campo}`, { method: 'DELETE' }),
+    requisicaoApi<PortalAssetResposta>(`${base(escopo, id)}/assets/${campo}`, {
+      method: 'DELETE',
+    }),
 }

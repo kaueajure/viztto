@@ -3,17 +3,21 @@ import { access, mkdir, open, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import multer from 'multer'
-import { ambiente } from './ambiente.js'
+import { ambiente, emProducao } from './ambiente.js'
 import { diretorioDist, raizProjeto } from './caminhos.js'
 
-export const diretorioUploads = path.resolve(raizProjeto, ambiente.DIRETORIO_UPLOADS)
+const caminhoUploadsConfigurado =
+  ambiente.DIRETORIO_UPLOADS ??
+  (emProducao ? path.join(path.dirname(raizProjeto), 'uploads') : './uploads')
+
+export const diretorioUploads = path.resolve(raizProjeto, caminhoUploadsConfigurado)
 
 function armazenamentoObjetoConfigurado() {
   return Boolean(
     ambiente.ARMAZENAMENTO_OBJETO_ENDPOINT &&
-      ambiente.ARMAZENAMENTO_OBJETO_BUCKET &&
-      ambiente.ARMAZENAMENTO_OBJETO_ACCESS_KEY &&
-      ambiente.ARMAZENAMENTO_OBJETO_SECRET_KEY,
+    ambiente.ARMAZENAMENTO_OBJETO_BUCKET &&
+    ambiente.ARMAZENAMENTO_OBJETO_ACCESS_KEY &&
+    ambiente.ARMAZENAMENTO_OBJETO_SECRET_KEY,
   )
 }
 
@@ -28,11 +32,24 @@ const proibidos = [
   path.join(raizProjeto, 'node_modules'),
   os.tmpdir(),
 ]
-if (
-  !armazenamentoObjetoConfigurado() &&
-  proibidos.some((proibido) => dentroDe(diretorioUploads, proibido))
-)
-  throw new Error('DIRETORIO_UPLOADS deve apontar para um diretório persistente e isolado.')
+const segmentosUploads = diretorioUploads
+  .split(path.sep)
+  .filter(Boolean)
+  .map((segmento) => segmento.toLowerCase())
+
+if (!armazenamentoObjetoConfigurado()) {
+  if (proibidos.some((proibido) => dentroDe(diretorioUploads, proibido)))
+    throw new Error('DIRETORIO_UPLOADS deve apontar para um diretório persistente e isolado.')
+  if (
+    emProducao &&
+    (dentroDe(diretorioUploads, raizProjeto) ||
+      segmentosUploads.includes('public_html') ||
+      segmentosUploads.includes('nodejs'))
+  )
+    throw new Error(
+      'DIRETORIO_UPLOADS deve ficar fora de public_html, nodejs e da raiz implantada em produção.',
+    )
+}
 
 export async function validarDiretorioUploads() {
   if (armazenamentoObjetoConfigurado()) return
@@ -59,3 +76,8 @@ export const receberArquivo = multer({
 }).single('imagem')
 
 export const receberImagem = receberArquivo
+
+export const receberImagemPortal = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024, files: 1 },
+}).single('imagem')
