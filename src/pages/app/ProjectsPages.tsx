@@ -475,7 +475,7 @@ export function ProjectDetailPage() {
               setParticipantesErro('')
             }}
           >
-            Editar participantes
+            Gerenciar participantes
           </Button>
         </>
       ) : (
@@ -489,7 +489,24 @@ export function ProjectDetailPage() {
             onChangeApprovers={setApproverIds}
           />
           <div className="flex flex-wrap gap-3">
-            <Button loading={salvandoParticipantes} onClick={() => void salvarParticipantes()}>
+            <Button
+              loading={salvandoParticipantes}
+              onClick={() => {
+                const removidosResponsaveis = (project.memberIds ?? []).filter(
+                  (id) => !memberIds.includes(id),
+                )
+                const removidosAprovadores = (project.approverIds ?? []).filter(
+                  (id) => !approverIds.includes(id),
+                )
+                if (removidosResponsaveis.length || removidosAprovadores.length) {
+                  const ok = window.confirm(
+                    'Remover participantes desta lista? Eles deixarão de acompanhar ou aprovar este projeto.',
+                  )
+                  if (!ok) return
+                }
+                void salvarParticipantes()
+              }}
+            >
               Salvar
             </Button>
             <Button
@@ -560,7 +577,7 @@ export function ProjectDetailPage() {
               content: (
                 <ActivityPanel
                   activities={projectActivities}
-                  emptyLabel="Nenhuma atividade registrada neste projeto."
+                  emptyMessage="Nenhuma atividade registrada neste projeto."
                 />
               ),
             },

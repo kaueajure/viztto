@@ -17,6 +17,7 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return
+          if (id.includes('pdfjs-dist')) return 'pdfjs'
           if (id.includes('motion') || id.includes('framer-motion')) return 'motion'
           if (id.includes('gsap')) return 'gsap'
           if (id.includes('@tanstack')) return 'query'

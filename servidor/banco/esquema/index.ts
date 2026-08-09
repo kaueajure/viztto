@@ -455,7 +455,7 @@ export const materiais = mysqlTable(
     workspaceId: id('workspace_id'),
     projetoId: id('projeto_id'),
     nome: varchar('nome', { length: 220 }).notNull(),
-    tipo: mysqlEnum('tipo', ['imagem', 'video', 'pdf', 'apresentacao', 'pagina_web']).notNull(),
+    tipo: mysqlEnum('tipo', ['imagem', 'video', 'pdf']).notNull(),
     status: mysqlEnum('status', [
       'rascunho',
       'em_revisao',

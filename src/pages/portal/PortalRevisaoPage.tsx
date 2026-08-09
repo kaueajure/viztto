@@ -83,6 +83,7 @@ export default function PortalRevisaoPage() {
   const [currentTime, setCurrentTime] = useState(0)
   const [pdfPage, setPdfPage] = useState(1)
   const [seekSeconds, setSeekSeconds] = useState<number | null>(null)
+  const [seekToken, setSeekToken] = useState(0)
   const draftRef = useRef<HTMLTextAreaElement>(null)
   const previewRef = useRef<MaterialPreviewHandle>(null)
 
@@ -180,7 +181,10 @@ export default function PortalRevisaoPage() {
   const selectComment = (commentId: string) => {
     setSelectedId(commentId)
     const comment = comentarios.find((item) => item.id === commentId)
-    if (comment?.timestampSeconds != null) setSeekSeconds(comment.timestampSeconds)
+    if (comment?.timestampSeconds != null) {
+      setSeekSeconds(comment.timestampSeconds)
+      setSeekToken((atual) => atual + 1)
+    }
     if (comment?.pdfPage != null) {
       setPdfPage(comment.pdfPage)
       previewRef.current?.setPdfPage(comment.pdfPage)
@@ -510,6 +514,7 @@ export default function PortalRevisaoPage() {
                   title={detalhe.material.nome}
                   initialPdfPage={pdfPage}
                   seekSeconds={seekSeconds}
+                  seekToken={seekToken}
                   onTimeUpdate={setCurrentTime}
                   onPageChange={setPdfPage}
                 />

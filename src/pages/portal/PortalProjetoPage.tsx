@@ -68,8 +68,6 @@ const rotuloTipo: Record<string, string> = {
   imagem: 'Imagem',
   video: 'Vídeo',
   pdf: 'PDF',
-  apresentacao: 'Apresentação',
-  pagina_web: 'Página web',
 }
 
 export default function PortalProjetoPage() {
@@ -194,6 +192,7 @@ export default function PortalProjetoPage() {
         <div className="flex min-w-0 items-center gap-3">
           <PortalMaterialThumbnail
             type={material.tipo}
+            title={material.nome}
             imageUrl={
               material.imagemUrl
                 ? comTokenPortal(material.imagemUrl, tokenPortal)

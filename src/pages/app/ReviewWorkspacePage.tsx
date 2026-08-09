@@ -18,6 +18,7 @@ import { useAppData } from '@/contexts/AppDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/cn'
 import { formatVideoTimestamp } from '@/lib/formatVideoTimestamp'
+import { materialTypeLabel } from '@/lib/materialType'
 
 type Panel = 'comments' | 'versions' | 'activity' | 'info'
 type DraftComment = {
@@ -50,6 +51,7 @@ export default function ReviewWorkspacePage() {
   const [currentTime, setCurrentTime] = useState(0)
   const [pdfPage, setPdfPage] = useState(1)
   const [seekSeconds, setSeekSeconds] = useState<number | null>(null)
+  const [seekToken, setSeekToken] = useState(0)
   const [zoom, setZoom] = useState(100)
   const [newVersion, setNewVersion] = useState(false)
   const [decision, setDecision] = useState<'changes' | 'approve' | null>(null)
@@ -115,7 +117,10 @@ export default function ReviewWorkspacePage() {
     setSelectedId(commentId)
     setPanel('comments')
     const comment = data.comments.find((item) => item.id === commentId)
-    if (comment?.timestampSeconds != null) setSeekSeconds(comment.timestampSeconds)
+    if (comment?.timestampSeconds != null) {
+      setSeekSeconds(comment.timestampSeconds)
+      setSeekToken((atual) => atual + 1)
+    }
     if (comment?.pdfPage != null) {
       setPdfPage(comment.pdfPage)
       previewRef.current?.setPdfPage(comment.pdfPage)
@@ -170,9 +175,7 @@ export default function ReviewWorkspacePage() {
           <div>
             <dt className="text-muted">Formato</dt>
             <dd className="mt-1 font-medium">
-              {{ image: 'Imagem', video: 'Vídeo', pdf: 'PDF', presentation: 'Apresentação', web: 'Página' }[
-                material.type
-              ] ?? material.type}
+              {materialTypeLabel(material.type)}
             </dd>
           </div>
           <div>
@@ -338,6 +341,7 @@ export default function ReviewWorkspacePage() {
                 title={material.name}
                 initialPdfPage={pdfPage}
                 seekSeconds={seekSeconds}
+                seekToken={seekToken}
                 onTimeUpdate={setCurrentTime}
                 onPageChange={setPdfPage}
               />

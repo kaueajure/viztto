@@ -3,23 +3,12 @@ import {
   FileText,
   Film,
   GalleryHorizontalEnd,
-  LayoutTemplate,
-  PanelsTopLeft,
-  Presentation,
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { Container } from '@/components/layout/Container'
 import { supportedFormats } from '@/data/problemDemo'
 
-const icons = [
-  FileImage,
-  Film,
-  GalleryHorizontalEnd,
-  FileText,
-  Presentation,
-  PanelsTopLeft,
-  LayoutTemplate,
-]
+const icons = [FileImage, Film, FileText, GalleryHorizontalEnd]
 
 export function SupportedFormatsSection() {
   const reducedMotion = Boolean(useReducedMotion())

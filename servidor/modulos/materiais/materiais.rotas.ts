@@ -26,7 +26,7 @@ import { notificarClienteProjetoAlterado } from '../../servicos/notificar-client
 const novoMaterial = z.object({
   projetoId: z.string().uuid(),
   nome: z.string().trim().min(2).max(220),
-  tipo: z.enum(['imagem', 'video', 'pdf', 'apresentacao', 'pagina_web']).default('imagem'),
+  tipo: z.enum(['imagem', 'video', 'pdf']).default('imagem'),
 })
 const novaVersao = z.object({
   nome: z.string().trim().min(1).max(180),
@@ -279,6 +279,8 @@ materiaisRotas.post(
                 texto: c.texto,
                 posicaoX: c.posicaoX,
                 posicaoY: c.posicaoY,
+                timestampSegundos: c.timestampSegundos,
+                paginaPdf: c.paginaPdf,
                 status: 'aberto' as const,
                 criadoEm: agora,
                 atualizadoEm: agora,

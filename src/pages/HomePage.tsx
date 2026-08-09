@@ -2,6 +2,8 @@ import { HeroSection } from '@/sections/home/HeroSection'
 import { ProblemSection } from '@/sections/home/ProblemSection'
 import { OutcomeSection } from '@/sections/home/OutcomeSection'
 import { HowItWorksSection } from '@/sections/home/HowItWorksSection'
+import { FeaturesSection } from '@/sections/home/FeaturesSection'
+import { ClientExperienceSection } from '@/sections/home/ClientExperienceSection'
 import { useEffect } from 'react'
 import { useReducedMotion } from 'motion/react'
 import { useLocation } from 'react-router'
@@ -25,6 +27,8 @@ export default function HomePage() {
       <ProblemSection />
       <OutcomeSection />
       <HowItWorksSection />
+      <FeaturesSection />
+      <ClientExperienceSection />
       <PricingSection />
       <FaqSection />
       <FinalCtaSection />

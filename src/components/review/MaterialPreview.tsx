@@ -17,6 +17,7 @@ export const MaterialPreview = forwardRef<
     className?: string
     initialPdfPage?: number
     seekSeconds?: number | null
+    seekToken?: number
     onTimeUpdate?: (seconds: number) => void
     onPageChange?: (page: number) => void
   }
@@ -28,6 +29,7 @@ export const MaterialPreview = forwardRef<
     className = '',
     initialPdfPage = 1,
     seekSeconds = null,
+    seekToken = 0,
     onTimeUpdate,
     onPageChange,
   },
@@ -54,7 +56,7 @@ export const MaterialPreview = forwardRef<
   useEffect(() => {
     if (seekSeconds == null || !videoRef.current) return
     videoRef.current.currentTime = Math.max(0, seekSeconds)
-  }, [seekSeconds])
+  }, [seekSeconds, seekToken])
 
   useEffect(() => {
     if (initialPdfPage) setPdfPage(Math.max(1, initialPdfPage))

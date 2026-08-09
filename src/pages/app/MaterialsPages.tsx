@@ -1,11 +1,13 @@
-import { FileImage, Play } from 'lucide-react'
+import { Play } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { MaterialStatus, PageHeader, SearchField } from '@/components/app/AppUi'
+import { MaterialThumbnail } from '@/components/materials/MaterialThumbnail'
 import { LinkButton } from '@/components/ui/Button'
 import { Badge, EmptyState } from '@/components/ui/DataDisplay'
 import { useAppData } from '@/contexts/AppDataContext'
 import { MaterialPreview } from '@/components/review/MaterialPreview'
+import { materialTypeLabel } from '@/lib/materialType'
 
 export function MaterialsPage() {
   const { projects, clients, materials, materialVersions } = useAppData()
@@ -68,32 +70,7 @@ export function MaterialsPage() {
               key={material.id}
               className="overflow-hidden rounded-lg border border-line bg-surface hover:border-line-strong"
             >
-              <div className="grid min-h-36 place-items-center overflow-hidden bg-surface-secondary surface-grid">
-                {url && material.type === 'image' ? (
-                  <img
-                    src={url}
-                    alt=""
-                    className="h-36 w-full object-cover"
-                  />
-                ) : url && material.type === 'video' ? (
-                  <video src={url} className="h-36 w-full object-cover" muted preload="metadata" />
-                ) : url && material.type === 'pdf' ? (
-                  <div className="relative h-36 w-full overflow-hidden bg-white">
-                    <iframe
-                      src={`${url}#page=1&view=FitH`}
-                      title={`Prévia de ${material.name}`}
-                      className="pointer-events-none h-[220%] w-full origin-top scale-[0.55]"
-                      tabIndex={-1}
-                      aria-hidden
-                    />
-                    <span className="absolute bottom-2 left-2 rounded-sm bg-revision px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-background">
-                      PDF
-                    </span>
-                  </div>
-                ) : (
-                  <FileImage className="h-9 w-9 text-brand" />
-                )}
-              </div>
+              <MaterialThumbnail type={material.type} url={url} title={material.name} />
               <div className="p-4">
                 <div className="flex justify-between gap-3">
                   <div>
@@ -106,19 +83,7 @@ export function MaterialsPage() {
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Badge>v{material.currentVersion}</Badge>
-                  <Badge>
-                    {
-                      (
-                        {
-                          image: 'Imagem',
-                          video: 'Vídeo',
-                          pdf: 'PDF',
-                          presentation: 'Apresentação',
-                          web: 'Web',
-                        } as const
-                      )[material.type]
-                    }
-                  </Badge>
+                  <Badge>{materialTypeLabel(material.type)}</Badge>
                   <span className="ml-auto text-xs text-muted">
                     {material.unresolvedCommentCount} pendentes
                   </span>

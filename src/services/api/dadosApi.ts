@@ -119,13 +119,14 @@ const statusMaterial = {
   aguardando_aprovacao: 'waiting-approval',
   aprovado: 'approved',
 } as const
-const tipoMaterial = {
-  imagem: 'image',
-  video: 'video',
-  pdf: 'pdf',
-  apresentacao: 'presentation',
-  pagina_web: 'web',
-} as const
+
+function mapTipoMaterial(tipo: string): 'image' | 'video' | 'pdf' {
+  if (tipo === 'imagem') return 'image'
+  if (tipo === 'video') return 'video'
+  if (tipo === 'pdf') return 'pdf'
+  // Compatibilidade com dados legados ainda não migrados
+  return 'pdf'
+}
 
 export async function carregarDadosApi() {
   const [w, c, p, m, t, convites, a, n] = await Promise.all([
@@ -189,7 +190,7 @@ export async function carregarDadosApi() {
     id: item.material.id,
     projectId: item.material.projetoId,
     name: item.material.nome,
-    type: tipoMaterial[item.material.tipo as keyof typeof tipoMaterial] ?? 'image',
+    type: mapTipoMaterial(item.material.tipo),
     status: statusMaterial[item.material.status as keyof typeof statusMaterial] ?? 'draft',
     currentVersionId: item.material.versaoAtualId ?? '',
     currentVersion: Number(item.numeroVersao ?? 0),
@@ -478,8 +479,6 @@ export const dadosApi = {
           image: 'imagem',
           video: 'video',
           pdf: 'pdf',
-          presentation: 'apresentacao',
-          web: 'pagina_web',
         } as Record<string, string>
       )[d.type] ?? d.type,
     )

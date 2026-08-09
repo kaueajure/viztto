@@ -55,11 +55,13 @@ export type Project = {
 export type MaterialStatus =
   'draft' | 'in-review' | 'changes-requested' | 'waiting-approval' | 'approved'
 
+export type MaterialType = 'image' | 'video' | 'pdf'
+
 export type Material = {
   id: string
   projectId: string
   name: string
-  type: 'image' | 'video' | 'pdf' | 'presentation' | 'web'
+  type: MaterialType
   status: MaterialStatus
   currentVersionId: string
   currentVersion: number

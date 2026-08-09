@@ -459,6 +459,99 @@ describe('API integrada com MySQL', () => {
     expect(comentario?.status).toBe('resolvido')
     expect(Number(comentario?.posicaoX)).toBe(0.25)
   })
+  it('persiste timestamp de video e pagina de PDF no comentario', async () => {
+    const video = await agente
+      .post(`/api/materiais/${materialTeste}/comentarios`)
+      .set('x-csrf-token', csrf)
+      .send({
+        versaoMaterialId: versaoId,
+        texto: 'Transicao mais rapida.',
+        posicaoX: 0.5,
+        posicaoY: 0.5,
+        timestampSegundos: 13.42,
+      })
+      .expect(201)
+    const [comVideo] = await banco
+      .select()
+      .from(esquema.comentarios)
+      .where(eq(esquema.comentarios.id, video.body.dado.id as string))
+      .limit(1)
+    expect(Number(comVideo?.timestampSegundos)).toBeCloseTo(13.42, 2)
+    expect(comVideo?.paginaPdf ?? null).toBeNull()
+
+    const pdf = await agente
+      .post(`/api/materiais/${materialTeste}/comentarios`)
+      .set('x-csrf-token', csrf)
+      .send({
+        versaoMaterialId: versaoId,
+        texto: 'Ajustar titulo nesta pagina.',
+        posicaoX: 0.42,
+        posicaoY: 0.63,
+        paginaPdf: 7,
+      })
+      .expect(201)
+    const [comPdf] = await banco
+      .select()
+      .from(esquema.comentarios)
+      .where(eq(esquema.comentarios.id, pdf.body.dado.id as string))
+      .limit(1)
+    expect(comPdf?.paginaPdf).toBe(7)
+    expect(Number(comPdf?.posicaoX)).toBeCloseTo(0.42, 2)
+    expect(comPdf?.timestampSegundos ?? null).toBeNull()
+  })
+  it('atualiza responsaveis e aprovadores do projeto e rejeita membro invalido', async () => {
+    const usuarioId = '11111111-1111-4111-8111-111111111111'
+    const ok = await agente
+      .put(`/api/projetos/${projetoTeste}/participantes`)
+      .set('x-csrf-token', csrf)
+      .send({ responsavelIds: [usuarioId], aprovadorIds: [usuarioId] })
+      .expect(422)
+    expect(ok.body.erro.codigo).toBe('participante_duplicado')
+
+    await agente
+      .put(`/api/projetos/${projetoTeste}/participantes`)
+      .set('x-csrf-token', csrf)
+      .send({ responsavelIds: [usuarioId], aprovadorIds: [] })
+      .expect(200)
+    const lista = await agente.get(`/api/projetos/${projetoTeste}`).expect(200)
+    expect(lista.body.dado.participantes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ usuarioId, tipoParticipacao: 'responsavel' }),
+      ]),
+    )
+
+    const invalido = await agente
+      .put(`/api/projetos/${projetoTeste}/participantes`)
+      .set('x-csrf-token', csrf)
+      .send({
+        responsavelIds: ['99999999-9999-4999-8999-999999999999'],
+        aprovadorIds: [],
+      })
+      .expect(422)
+    expect(invalido.body.erro.codigo).toBe('participante_invalido')
+
+    await agente
+      .put(`/api/projetos/${projetoTeste}/participantes`)
+      .set('x-csrf-token', csrf)
+      .send({ responsavelIds: [], aprovadorIds: [] })
+      .expect(200)
+  })
+  it('rejeita tipo de material legado nao suportado', async () => {
+    const imagem = await sharp({
+      create: { width: 24, height: 24, channels: 4, background: '#ffffff' },
+    })
+      .png()
+      .toBuffer()
+    const resposta = await agente
+      .post('/api/materiais')
+      .set('x-csrf-token', csrf)
+      .field('projetoId', projetoTeste)
+      .field('nome', `Material legado ${Date.now()}`)
+      .field('tipo', 'apresentacao')
+      .attach('imagem', imagem, 'legado.png')
+      .expect(422)
+    expect(resposta.body.erro.codigo).toBe('dados_invalidos')
+  })
   it('exige a versao atual explicitamente ao registrar uma aprovacao', async () => {
     const imagem = await sharp({
       create: { width: 32, height: 32, channels: 4, background: '#151b23' },
