@@ -106,6 +106,20 @@
       "when": 1786237689373,
       "tag": "0014_corrigir_expiracao_portal",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "5",
+      "when": 1786300000000,
+      "tag": "0015_comentario_video_pdf",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1786400000000,
+      "tag": "0016_formatos_imagem_video_pdf",
+      "breakpoints": true
     }
   ]
 }

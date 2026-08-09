@@ -31,7 +31,7 @@ export const howItWorksSteps: HowItWorksStep[] = [
     label: 'Revise',
     title: 'Comente no lugar certo',
     description:
-      'Crie comentários diretamente sobre o ponto correspondente na imagem e mantenha o contexto na revisão.',
+      'Crie comentários sobre o ponto na imagem, o momento do vídeo ou a página do PDF.',
   },
   {
     id: 'approve',

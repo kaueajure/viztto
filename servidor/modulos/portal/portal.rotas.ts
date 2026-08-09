@@ -43,6 +43,8 @@ const novoComentarioPortal = z.object({
   texto: z.string().trim().min(1).max(5000),
   posicaoX: z.number().min(0).max(1),
   posicaoY: z.number().min(0).max(1),
+  timestampSegundos: z.number().min(0).max(86400).optional().nullable(),
+  paginaPdf: z.number().int().min(1).max(10000).optional().nullable(),
 })
 const decisaoPortal = z.object({
   confirmarPendencias: z.boolean().optional(),
@@ -403,6 +405,9 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId/comentarios', async 
       text: comentario.texto,
       x: Number(comentario.posicaoX),
       y: Number(comentario.posicaoY),
+      timestampSeconds:
+        comentario.timestampSegundos == null ? undefined : Number(comentario.timestampSegundos),
+      pdfPage: comentario.paginaPdf ?? undefined,
       status: comentario.status === 'aberto' ? 'open' : 'resolved',
       createdAt: comentario.criadoEm,
       updatedAt: comentario.atualizadoEm,
@@ -447,6 +452,9 @@ portalRotas.post(
         texto: req.body.texto,
         posicaoX: String(req.body.posicaoX),
         posicaoY: String(req.body.posicaoY),
+        timestampSegundos:
+          req.body.timestampSegundos == null ? null : String(req.body.timestampSegundos),
+        paginaPdf: req.body.paginaPdf ?? null,
         status: 'aberto',
         criadoEm: agora,
         atualizadoEm: agora,

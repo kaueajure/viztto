@@ -12,7 +12,11 @@ export const faqItems = [
   {
     title: 'É possível comentar em vídeos?',
     content:
-      'Sim. Vídeos entram no mesmo fluxo de revisão e comentários. Marcação por timestamp específico será expandida em breve.',
+      'Sim. Você pode comentar no momento atual do vídeo; o timestamp fica salvo e, ao clicar nele, a reprodução vai direto para aquele instante.',
+  },
+  {
+    title: 'É possível comentar em páginas de PDF?',
+    content: 'Sim. Cada comentário pode ser associado à página atual do PDF em revisão.',
   },
   {
     title: 'Os comentários antigos desaparecem ao enviar uma nova versão?',

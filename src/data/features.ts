@@ -1,23 +1,23 @@
 export const mainFeatures = [
   {
     id: 'documents',
-    navLabel: 'Comentários no material',
+    navLabel: 'Feedback visual',
     meta: 'Imagens · Vídeos · PDFs',
-    title: 'Comentários diretamente sobre o material.',
+    title: 'Comentários no lugar certo.',
     description:
-      'Marque a área exata de uma imagem e mantenha cada conversa relacionada ao ponto correspondente.',
+      'Marque o ponto na imagem, o instante do vídeo ou a página do PDF — cada conversa fica no contexto do material.',
   },
   {
     id: 'video',
-    navLabel: 'Feedback em vídeo',
-    meta: 'Vídeo · versões · revisão',
-    title: 'Revise vídeos no mesmo fluxo.',
+    navLabel: 'Vídeo e PDF',
+    meta: 'Timestamp · páginas',
+    title: 'Revise vídeo e PDF no mesmo fluxo.',
     description:
-      'Envie MP4, WebM ou MOV, organize versões e colete feedback sem sair do projeto.',
+      'Comente no momento do vídeo ou na página do PDF; o cliente abre o link e vê a mesma referência.',
   },
   {
     id: 'versions',
-    navLabel: 'Controle de versões',
+    navLabel: 'Versões',
     meta: 'Histórico preservado',
     title: 'Cada nova versão preserva o histórico.',
     description:
@@ -25,7 +25,7 @@ export const mainFeatures = [
   },
   {
     id: 'approval',
-    navLabel: 'Aprovação registrada',
+    navLabel: 'Aprovação',
     meta: 'Pessoa · versão · data',
     title: 'Uma decisão clara, com pessoa e data.',
     description: 'Registre quem aprovou, quando aprovou e qual versão foi escolhida.',

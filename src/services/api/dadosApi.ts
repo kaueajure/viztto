@@ -84,6 +84,8 @@ type ComentarioBanco = {
   texto: string
   posicaoX: string | number
   posicaoY: string | number
+  timestampSegundos?: string | number | null
+  paginaPdf?: number | null
   status: 'aberto' | 'resolvido'
   criadoEm: Date | string
   atualizadoEm: Date | string
@@ -117,13 +119,14 @@ const statusMaterial = {
   aguardando_aprovacao: 'waiting-approval',
   aprovado: 'approved',
 } as const
-const tipoMaterial = {
-  imagem: 'image',
-  video: 'video',
-  pdf: 'pdf',
-  apresentacao: 'presentation',
-  pagina_web: 'web',
-} as const
+
+function mapTipoMaterial(tipo: string): 'image' | 'video' | 'pdf' {
+  if (tipo === 'imagem') return 'image'
+  if (tipo === 'video') return 'video'
+  if (tipo === 'pdf') return 'pdf'
+  // Compatibilidade com dados legados ainda não migrados
+  return 'pdf'
+}
 
 export async function carregarDadosApi() {
   const [w, c, p, m, t, convites, a, n] = await Promise.all([
@@ -187,7 +190,7 @@ export async function carregarDadosApi() {
     id: item.material.id,
     projectId: item.material.projetoId,
     name: item.material.nome,
-    type: tipoMaterial[item.material.tipo as keyof typeof tipoMaterial] ?? 'image',
+    type: mapTipoMaterial(item.material.tipo),
     status: statusMaterial[item.material.status as keyof typeof statusMaterial] ?? 'draft',
     currentVersionId: item.material.versaoAtualId ?? '',
     currentVersion: Number(item.numeroVersao ?? 0),
@@ -219,6 +222,9 @@ export async function carregarDadosApi() {
       text: comentario.texto,
       x: Number(comentario.posicaoX),
       y: Number(comentario.posicaoY),
+      timestampSeconds:
+        comentario.timestampSegundos == null ? undefined : Number(comentario.timestampSegundos),
+      pdfPage: comentario.paginaPdf ?? undefined,
       status: comentario.status === 'aberto' ? 'open' : 'resolved',
       createdAt: String(comentario.criadoEm),
       updatedAt: String(comentario.atualizadoEm),
@@ -258,6 +264,8 @@ export async function carregarDadosApi() {
     })),
     projects: p.dados.map<Project>((x) => {
       const participantes = x.participantes ?? []
+      const responsaveis = participantes.filter((item) => item.tipoParticipacao === 'responsavel')
+      const aprovadores = participantes.filter((item) => item.tipoParticipacao === 'aprovador')
       return {
         id: x.id,
         clientId: x.clienteId,
@@ -271,12 +279,10 @@ export async function carregarDadosApi() {
         commentCount: materials
           .filter((y) => y.projectId === x.id)
           .reduce((s, y) => s + y.unresolvedCommentCount, 0),
-        members: participantes
-          .filter((item) => item.tipoParticipacao === 'responsavel')
-          .map((item) => item.nome),
-        approvers: participantes
-          .filter((item) => item.tipoParticipacao === 'aprovador')
-          .map((item) => item.nome),
+        members: responsaveis.map((item) => item.nome),
+        memberIds: responsaveis.map((item) => item.usuarioId),
+        approvers: aprovadores.map((item) => item.nome),
+        approverIds: aprovadores.map((item) => item.usuarioId),
         updatedAt: String(x.atualizadoEm),
       }
     }),
@@ -445,6 +451,23 @@ export const dadosApi = {
           : {}),
       }),
     }),
+  participantes: (projetoId: string, d: { memberIds: string[]; approverIds: string[] }) =>
+    requisicaoApi<{
+      mensagem: string
+      dado: {
+        participantes: Array<{
+          usuarioId: string
+          nome: string
+          tipoParticipacao: string
+        }>
+      }
+    }>(`/api/projetos/${projetoId}/participantes`, {
+      method: 'PUT',
+      body: json({
+        responsavelIds: d.memberIds,
+        aprovadorIds: d.approverIds,
+      }),
+    }),
   material: (d: { name: string; projectId: string; type: string; file: File }) => {
     const corpo = new FormData()
     corpo.set('nome', d.name)
@@ -456,8 +479,6 @@ export const dadosApi = {
           image: 'imagem',
           video: 'video',
           pdf: 'pdf',
-          presentation: 'apresentacao',
-          web: 'pagina_web',
         } as Record<string, string>
       )[d.type] ?? d.type,
     )
@@ -467,10 +488,25 @@ export const dadosApi = {
       body: corpo,
     })
   },
-  comentario: (d: { materialId: string; versionId: string; text: string; x: number; y: number }) =>
+  comentario: (d: {
+    materialId: string
+    versionId: string
+    text: string
+    x: number
+    y: number
+    timestampSeconds?: number
+    pdfPage?: number
+  }) =>
     requisicaoApi<{ dado: { id: string } }>(`/api/materiais/${d.materialId}/comentarios`, {
       method: 'POST',
-      body: json({ versaoMaterialId: d.versionId, texto: d.text, posicaoX: d.x, posicaoY: d.y }),
+      body: json({
+        versaoMaterialId: d.versionId,
+        texto: d.text,
+        posicaoX: d.x,
+        posicaoY: d.y,
+        timestampSegundos: d.timestampSeconds,
+        paginaPdf: d.pdfPage,
+      }),
     }),
   editarComentario: (id: string, texto: string) =>
     requisicaoApi(`/api/comentarios/${id}`, { method: 'PATCH', body: json({ texto }) }),

@@ -1,7 +1,18 @@
 import { Avatar } from '@/components/ui/DataDisplay'
 import type { Activity } from '@/types/domain'
 
-export function ActivityPanel({ activities }: { activities: Activity[] }) {
+export function ActivityPanel({
+  activities,
+  emptyLabel,
+  emptyMessage,
+}: {
+  activities: Activity[]
+  emptyLabel?: string
+  /** Alias de emptyLabel para chamadas mais descritivas. */
+  emptyMessage?: string
+}) {
+  const empty =
+    emptyMessage ?? emptyLabel ?? 'Nenhuma atividade registrada neste material.'
   return (
     <section aria-label="Atividade da revisão" className="p-4">
       <h2 className="font-semibold">Atividade</h2>
@@ -19,9 +30,7 @@ export function ActivityPanel({ activities }: { activities: Activity[] }) {
             </div>
           </li>
         ))}
-        {!activities.length && (
-          <li className="text-sm text-muted">Nenhuma atividade registrada neste material.</li>
-        )}
+        {!activities.length && <li className="text-sm text-muted">{empty}</li>}
       </ol>
     </section>
   )

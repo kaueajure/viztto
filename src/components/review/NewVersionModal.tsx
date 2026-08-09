@@ -13,7 +13,7 @@ export function NewVersionModal({
   open: boolean
   onClose: () => void
   nextNumber: number
-  materialType: 'image' | 'video' | 'pdf' | 'presentation' | 'web'
+  materialType: 'image' | 'video' | 'pdf'
   onPublish: (input: {
     label: string
     description?: string

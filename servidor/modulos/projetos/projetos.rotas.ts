@@ -63,6 +63,11 @@ const dadosProjetoAtualizacao = dadosProjeto
   .omit({ responsavelIds: true, aprovadorIds: true })
   .partial()
 
+const dadosParticipantes = z.object({
+  responsavelIds: idsParticipantes,
+  aprovadorIds: idsParticipantes,
+})
+
 type ParticipanteResposta = {
   usuarioId: string
   nome: string
@@ -120,6 +125,73 @@ async function validarMembrosDoWorkspace(workspaceId: string, usuarioIds: string
     )
 }
 
+async function validarListasParticipantes(
+  workspaceId: string,
+  responsavelIds: string[],
+  aprovadorIds: string[],
+  permiteVariosAprovadores: boolean,
+) {
+  if (!permiteVariosAprovadores && aprovadorIds.length > 1)
+    throw new ErroHttp(
+      422,
+      'Seu plano permite apenas um aprovador por projeto.',
+      'limite_aprovadores',
+    )
+  if (responsavelIds.some((id) => aprovadorIds.includes(id)))
+    throw new ErroHttp(
+      422,
+      'O mesmo usuario nao pode ser responsavel e aprovador no mesmo projeto.',
+      'participante_duplicado',
+    )
+  await validarMembrosDoWorkspace(workspaceId, [...responsavelIds, ...aprovadorIds])
+}
+
+async function sincronizarParticipantes(
+  tx: Parameters<Parameters<typeof banco.transaction>[0]>[0],
+  projetoId: string,
+  responsavelIds: string[],
+  aprovadorIds: string[],
+  agora: Date,
+) {
+  const desejados = new Map<string, 'responsavel' | 'aprovador'>()
+  for (const id of responsavelIds) desejados.set(id, 'responsavel')
+  for (const id of aprovadorIds) desejados.set(id, 'aprovador')
+
+  const existentes = await tx
+    .select()
+    .from(participantesProjeto)
+    .where(eq(participantesProjeto.projetoId, projetoId))
+
+  for (const atual of existentes) {
+    const tipo = desejados.get(atual.usuarioId)
+    if (!tipo) {
+      if (!atual.removidoEm)
+        await tx
+          .update(participantesProjeto)
+          .set({ removidoEm: agora })
+          .where(eq(participantesProjeto.id, atual.id))
+      continue
+    }
+    desejados.delete(atual.usuarioId)
+    await tx
+      .update(participantesProjeto)
+      .set({
+        tipoParticipacao: tipo,
+        removidoEm: null,
+      })
+      .where(eq(participantesProjeto.id, atual.id))
+  }
+
+  const novos = [...desejados.entries()].map(([usuarioId, tipoParticipacao]) => ({
+    id: novoId(),
+    projetoId,
+    usuarioId,
+    tipoParticipacao,
+    criadoEm: agora,
+  }))
+  if (novos.length) await tx.insert(participantesProjeto).values(novos)
+}
+
 export const projetosRotas = Router()
 
 projetosRotas.get('/', async (req, res) => {
@@ -175,23 +247,12 @@ projetosRotas.post(
       throw new ErroHttp(422, 'Cliente inválido para este workspace.', 'cliente_invalido')
     await garantirPodeCriarProjeto(req.sessao!.workspaceId)
     const { plano } = await carregarPlanoDoWorkspace(req.sessao!.workspaceId)
-    if (!plano.permiteVariosAprovadores && aprovadorIds.length > 1)
-      throw new ErroHttp(
-        422,
-        'Seu plano permite apenas um aprovador por projeto.',
-        'limite_aprovadores',
-      )
-    const sobrepostos = responsavelIds.filter((id: string) => aprovadorIds.includes(id))
-    if (sobrepostos.length)
-      throw new ErroHttp(
-        422,
-        'O mesmo usuario nao pode ser responsavel e aprovador no mesmo projeto.',
-        'participante_duplicado',
-      )
-    await validarMembrosDoWorkspace(req.sessao!.workspaceId, [
-      ...responsavelIds,
-      ...aprovadorIds,
-    ])
+    await validarListasParticipantes(
+      req.sessao!.workspaceId,
+      responsavelIds,
+      aprovadorIds,
+      plano.permiteVariosAprovadores,
+    )
     const agora = new Date()
     const id = novoId()
     const portalLiberado = plano.permiteLinksPortalCliente
@@ -206,23 +267,7 @@ projetosRotas.post(
         ...dados,
         tokenPortal,
       })
-      const participantes = [
-        ...responsavelIds.map((usuarioId: string) => ({
-          id: novoId(),
-          projetoId: id,
-          usuarioId,
-          tipoParticipacao: 'responsavel' as const,
-          criadoEm: agora,
-        })),
-        ...aprovadorIds.map((usuarioId: string) => ({
-          id: novoId(),
-          projetoId: id,
-          usuarioId,
-          tipoParticipacao: 'aprovador' as const,
-          criadoEm: agora,
-        })),
-      ]
-      if (participantes.length) await tx.insert(participantesProjeto).values(participantes)
+      await sincronizarParticipantes(tx, id, responsavelIds, aprovadorIds, agora)
       await tx.insert(atividades).values({
         id: novoId(),
         workspaceId: req.sessao!.workspaceId,
@@ -259,6 +304,45 @@ projetosRotas.get('/:projetoId', async (req, res) => {
   const participantes = (await carregarParticipantes([dado.id])).get(dado.id) ?? []
   res.json({ dado: { ...semSegredosPortal(dado), participantes } })
 })
+
+projetosRotas.put(
+  '/:projetoId/participantes',
+  exigirFuncao('atendimento'),
+  validarCorpo(dadosParticipantes),
+  async (req, res) => {
+    const projetoId = String(req.params.projetoId)
+    const [projeto] = await banco
+      .select({ id: projetos.id })
+      .from(projetos)
+      .where(
+        and(
+          eq(projetos.id, projetoId),
+          eq(projetos.workspaceId, req.sessao!.workspaceId),
+          isNull(projetos.excluidoEm),
+        ),
+      )
+      .limit(1)
+    if (!projeto) throw new ErroHttp(404, 'Projeto não encontrado.', 'projeto_nao_encontrado')
+    const { responsavelIds, aprovadorIds } = req.body as z.infer<typeof dadosParticipantes>
+    const { plano } = await carregarPlanoDoWorkspace(req.sessao!.workspaceId)
+    await validarListasParticipantes(
+      req.sessao!.workspaceId,
+      responsavelIds,
+      aprovadorIds,
+      plano.permiteVariosAprovadores,
+    )
+    const agora = new Date()
+    await banco.transaction(async (tx) => {
+      await sincronizarParticipantes(tx, projetoId, responsavelIds, aprovadorIds, agora)
+      await tx
+        .update(projetos)
+        .set({ atualizadoEm: agora })
+        .where(eq(projetos.id, projetoId))
+    })
+    const participantes = (await carregarParticipantes([projetoId])).get(projetoId) ?? []
+    res.json({ mensagem: 'Participantes atualizados.', dado: { participantes } })
+  },
+)
 
 /** Retorna (e cria se preciso) o link do portal com token. */
 projetosRotas.get('/:projetoId/link-portal', exigirFuncao('atendimento'), async (req, res) => {

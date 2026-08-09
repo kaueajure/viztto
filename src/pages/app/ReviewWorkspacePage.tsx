@@ -4,7 +4,8 @@ import { useParams } from 'react-router'
 import { ActivityPanel } from '@/components/review/ActivityPanel'
 import { CommentsPanel } from '@/components/review/CommentsPanel'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
-import { MaterialPreview } from '@/components/review/MaterialPreview'
+import { MaterialPreview, type MaterialPreviewHandle } from '@/components/review/MaterialPreview'
+import { PdfReviewCanvas } from '@/components/review/PdfReviewCanvas'
 import { NewVersionModal } from '@/components/review/NewVersionModal'
 import { ReviewDecisionModal } from '@/components/review/ReviewDecisionModal'
 import { ReviewToolbar } from '@/components/review/ReviewToolbar'
@@ -17,8 +18,16 @@ import { Modal } from '@/components/ui/Interactive'
 import { useAppData } from '@/contexts/AppDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/cn'
+import { formatVideoTimestamp } from '@/lib/formatVideoTimestamp'
+import { materialTypeLabel } from '@/lib/materialType'
 
 type Panel = 'comments' | 'versions' | 'activity' | 'info'
+type DraftComment = {
+  x: number
+  y: number
+  timestampSeconds?: number
+  pdfPage?: number
+}
 
 export default function ReviewWorkspacePage() {
   const { materialId } = useParams()
@@ -36,9 +45,14 @@ export default function ReviewWorkspacePage() {
   const [panel, setPanel] = useState<Panel>('comments')
   const [mobilePanel, setMobilePanel] = useState(false)
   const [creationMode, setCreationMode] = useState(false)
-  const [draft, setDraft] = useState<{ x: number; y: number } | null>(null)
+  const [draft, setDraft] = useState<DraftComment | null>(null)
   const [draftText, setDraftText] = useState('')
   const draftRef = useRef<HTMLTextAreaElement>(null)
+  const previewRef = useRef<MaterialPreviewHandle>(null)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [pdfPage, setPdfPage] = useState(1)
+  const [seekSeconds, setSeekSeconds] = useState<number | null>(null)
+  const [seekToken, setSeekToken] = useState(0)
   const [zoom, setZoom] = useState(100)
   const [newVersion, setNewVersion] = useState(false)
   const [decision, setDecision] = useState<'changes' | 'approve' | null>(null)
@@ -103,6 +117,14 @@ export default function ReviewWorkspacePage() {
   const selectComment = (commentId: string) => {
     setSelectedId(commentId)
     setPanel('comments')
+    const comment = data.comments.find((item) => item.id === commentId)
+    if (comment?.timestampSeconds != null) {
+      setSeekSeconds(comment.timestampSeconds)
+      setSeekToken((atual) => atual + 1)
+    }
+    if (comment?.pdfPage != null) {
+      setPdfPage(comment.pdfPage)
+    }
   }
   const panelContent =
     panel === 'comments' ? (
@@ -153,9 +175,7 @@ export default function ReviewWorkspacePage() {
           <div>
             <dt className="text-muted">Formato</dt>
             <dd className="mt-1 font-medium">
-              {{ image: 'Imagem', video: 'Vídeo', pdf: 'PDF', presentation: 'Apresentação', web: 'Página' }[
-                material.type
-              ] ?? material.type}
+              {materialTypeLabel(material.type)}
             </dd>
           </div>
           <div>
@@ -278,23 +298,46 @@ export default function ReviewWorkspacePage() {
               }}
               onSelect={selectComment}
             />
+          ) : material.type === 'pdf' ? (
+            <PdfReviewCanvas
+              url={activeVersion.imageUrl ?? ''}
+              page={pdfPage}
+              comments={activeComments}
+              selectedId={selectedId}
+              creationMode={creationMode}
+              zoom={zoom}
+              draftPosition={draft}
+              onPageChange={setPdfPage}
+              onPoint={(position) => {
+                setDraft(position)
+                setPdfPage(position.pdfPage)
+                setCreationMode(false)
+              }}
+              onSelect={selectComment}
+            />
           ) : (
             <div className="relative grid min-h-[32rem] flex-1 place-items-center overflow-auto bg-[#090d12] p-4">
               {creationMode && (
-                <Button
-                  className="absolute left-4 top-4 z-10"
-                  onClick={() => {
-                    setDraft({ x: 0.5, y: 0.5 })
-                    setCreationMode(false)
-                  }}
-                >
-                  Adicionar comentário geral
-                </Button>
+                <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => {
+                      const seconds = previewRef.current?.getCurrentTime() ?? currentTime
+                      setDraft({ x: 0.5, y: 0.5, timestampSeconds: seconds })
+                      setCreationMode(false)
+                    }}
+                  >
+                    Comentar em {formatVideoTimestamp(currentTime)}
+                  </Button>
+                </div>
               )}
               <MaterialPreview
+                ref={previewRef}
                 type={material.type}
                 url={activeVersion.imageUrl ?? ''}
                 title={material.name}
+                seekSeconds={seekSeconds}
+                seekToken={seekToken}
+                onTimeUpdate={setCurrentTime}
               />
             </div>
           )}
@@ -307,16 +350,34 @@ export default function ReviewWorkspacePage() {
                   materialId: material.id,
                   versionId: activeVersion.id,
                   text: draftText,
-                  ...draft,
+                  x: draft.x,
+                  y: draft.y,
+                  timestampSeconds: draft.timestampSeconds,
+                  pdfPage: draft.pdfPage,
                 })
                 setDraft(null)
                 setDraftText('')
                 setSelectedId(comment.id)
                 setPanel('comments')
-                setNotice({ tone: 'success', text: 'Comentário adicionado ao ponto selecionado.' })
+                setNotice({
+                  tone: 'success',
+                  text:
+                    draft.timestampSeconds != null
+                      ? `Comentário adicionado em ${formatVideoTimestamp(draft.timestampSeconds)}.`
+                      : draft.pdfPage != null
+                        ? `Comentário adicionado na página ${draft.pdfPage}.`
+                        : 'Comentário adicionado ao ponto selecionado.',
+                })
               }}
               className="absolute bottom-16 right-3 z-20 w-[min(24rem,calc(100%-1.5rem))] rounded-lg border border-brand/40 bg-surface-elevated p-4 shadow-raised"
             >
+              {(draft.timestampSeconds != null || draft.pdfPage != null) && (
+                <p className="mb-2 text-xs text-secondary">
+                  {draft.timestampSeconds != null
+                    ? `Timestamp: ${formatVideoTimestamp(draft.timestampSeconds)}`
+                    : `Página ${draft.pdfPage} · ponto marcado`}
+                </p>
+              )}
               <Textarea
                 ref={draftRef}
                 label="Novo comentário"

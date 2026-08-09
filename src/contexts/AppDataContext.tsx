@@ -23,7 +23,8 @@ type NewProject = Pick<Project, 'name' | 'clientId'> &
     approverIds?: string[]
   }
 type NewMaterial = Pick<Material, 'name' | 'projectId' | 'type'> & { file: File }
-type NewComment = Pick<ReviewComment, 'materialId' | 'versionId' | 'text' | 'x' | 'y'>
+type NewComment = Pick<ReviewComment, 'materialId' | 'versionId' | 'text' | 'x' | 'y'> &
+  Partial<Pick<ReviewComment, 'timestampSeconds' | 'pdfPage'>>
 type NewVersion = Pick<MaterialVersion, 'materialId' | 'label'> &
   Partial<Pick<MaterialVersion, 'description'>> & { copyPending?: boolean; file: File }
 type Estado = {
@@ -49,6 +50,10 @@ type Valor = Estado & {
   updateClient: (id: string, d: NewClient & Partial<Pick<Client, 'status'>>) => Promise<Client>
   archiveClient: (id: string, archived?: boolean) => Promise<void>
   addProject: (d: NewProject) => Promise<Project>
+  updateProjectParticipants: (
+    projectId: string,
+    d: { memberIds: string[]; approverIds: string[] },
+  ) => Promise<void>
   addTeamMember: (d: Pick<TeamMember, 'email' | 'role'>) => Promise<void>
   addMaterial: (d: NewMaterial) => Promise<Material>
   updateMaterial: (id: string, p: Partial<Material>) => Promise<void>
@@ -207,7 +212,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           materialCount: 0,
           commentCount: 0,
           members: d.members ?? [],
+          memberIds: d.memberIds ?? [],
           approvers: d.approvers ?? [],
+          approverIds: d.approverIds ?? [],
           updatedAt: new Date().toISOString(),
         }
         setEstado((atual) => ({
@@ -220,6 +227,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           /* mantém o projeto otimista se o reload falhar */
         }
         return project
+      },
+      async updateProjectParticipants(projectId, d) {
+        await dadosApi.participantes(projectId, d)
+        await refresh()
       },
       async addTeamMember(d) {
         await dadosApi.convidarMembro(d)
