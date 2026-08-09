@@ -102,7 +102,7 @@ export default function PortalProjetoPage() {
     setSenhaNecessaria(false)
     void (async () => {
       try {
-        const qs = `slug=${encodeURIComponent(workspaceSlug)}&t=${encodeURIComponent(tokenPortal)}`
+        const qs = `slug=${encodeURIComponent(workspaceSlug)}&t=${encodeURIComponent(tokenPortal)}&v=${encodeURIComponent(tokenPortal.slice(0, 12))}`
         const { dado } = await requisicaoApi<{ dado: ResumoPortal }>(
           `/api/portal/projetos/${projectId}?${qs}`,
         )

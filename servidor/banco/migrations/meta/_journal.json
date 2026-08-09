@@ -99,6 +99,13 @@
       "when": 1786234970155,
       "tag": "0013_married_jazinda",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1786237689373,
+      "tag": "0014_corrigir_expiracao_portal",
+      "breakpoints": true
     }
   ]
 }

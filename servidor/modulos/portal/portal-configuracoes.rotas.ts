@@ -31,7 +31,7 @@ const atualizacao = z.object({
   herdar: z.boolean().optional(),
   configuracao: configuracaoPortalEntrada.optional(),
   senha: z.union([z.string().min(4).max(80), z.null()]).optional(),
-  expiraEm: z.union([z.coerce.date(), z.null()]).optional(),
+  expiraEm: z.union([z.null(), z.coerce.date()]).optional(),
 })
 
 export const portalConfiguracoesRotas = Router()

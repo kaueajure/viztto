@@ -18,7 +18,7 @@ export default function PortalLegacyRedirect() {
     }
     let ativo = true
     void requisicaoApi<{ dado: { workspaceSlug: string } }>(
-      `/api/portal/projetos/${projectId}?t=${encodeURIComponent(tokenPortal)}`,
+      `/api/portal/projetos/${projectId}?t=${encodeURIComponent(tokenPortal)}&v=${encodeURIComponent(tokenPortal.slice(0, 12))}`,
     )
       .then(({ dado }) => {
         if (!ativo) return
@@ -30,9 +30,7 @@ export default function PortalLegacyRedirect() {
       })
       .catch((error) => {
         if (!ativo) return
-        setErro(
-          error instanceof ApiError ? error.message : 'Não foi possível abrir este projeto.',
-        )
+        setErro(error instanceof ApiError ? error.message : 'Não foi possível abrir este projeto.')
       })
     return () => {
       ativo = false
@@ -51,8 +49,6 @@ export default function PortalLegacyRedirect() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-5 py-16 text-center text-secondary">
-      Redirecionando...
-    </div>
+    <div className="mx-auto max-w-lg px-5 py-16 text-center text-secondary">Redirecionando...</div>
   )
 }

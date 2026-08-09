@@ -93,5 +93,5 @@ export function validarAcessoPortal(
 
 export function linkPortalProjeto(projetoId: string, workspaceSlug: string, tokenPortal: string) {
   const base = ambiente.URL_APLICACAO.replace(/\/$/, '')
-  return `${base}/${workspaceSlug}/${projetoId}?t=${encodeURIComponent(tokenPortal)}`
+  return `${base}/${workspaceSlug}/${projetoId}?t=${encodeURIComponent(tokenPortal)}&v=${encodeURIComponent(tokenPortal.slice(0, 12))}`
 }

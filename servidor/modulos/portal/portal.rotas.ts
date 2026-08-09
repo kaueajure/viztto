@@ -56,6 +56,10 @@ const tentativasDesbloqueio = rateLimit({
 })
 
 export const portalRotas = Router()
+portalRotas.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'private, no-store')
+  next()
+})
 
 const autorNomeSql =
   sql<string>`coalesce(${comentarios.autorExternoNome}, ${usuarios.nome}, 'Cliente')`.as(
