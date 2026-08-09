@@ -263,6 +263,109 @@ describe('API integrada com MySQL', () => {
       .onDuplicateKeyUpdate({ set: { atualizadoEm: agora } })
     await agente.get(`/api/clientes/${cliente}`).expect(404)
   })
+  it('salva, altera e remove a senha do portal com expiracao opcional', async () => {
+    const workspaceId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    const [workspaceOriginal] = await banco
+      .select({ plano: esquema.workspaces.plano })
+      .from(esquema.workspaces)
+      .where(eq(esquema.workspaces.id, workspaceId))
+      .limit(1)
+    const [projetoOriginal] = await banco
+      .select({
+        senhaAcessoHash: esquema.projetos.senhaAcessoHash,
+        tokenPortal: esquema.projetos.tokenPortal,
+        portalExpiraEm: esquema.projetos.portalExpiraEm,
+      })
+      .from(esquema.projetos)
+      .where(eq(esquema.projetos.id, projetoTeste))
+      .limit(1)
+
+    expect(workspaceOriginal).toBeDefined()
+    expect(projetoOriginal).toBeDefined()
+
+    await banco
+      .update(esquema.workspaces)
+      .set({ plano: 'agency', atualizadoEm: new Date() })
+      .where(eq(esquema.workspaces.id, workspaceId))
+
+    try {
+      const primeiraSenha = await agente
+        .patch(`/api/portal-configuracoes/projeto/${projetoTeste}`)
+        .set('x-csrf-token', csrf)
+        .send({ senha: 'Portal@123' })
+        .expect(200)
+      expect(primeiraSenha.headers['cache-control']).toContain('no-store')
+      expect(primeiraSenha.body.dado).toEqual(
+        expect.objectContaining({ protegido: true, expiraEm: null, linkAlterado: true }),
+      )
+
+      const [protegido] = await banco
+        .select({
+          senhaAcessoHash: esquema.projetos.senhaAcessoHash,
+          tokenPortal: esquema.projetos.tokenPortal,
+          portalExpiraEm: esquema.projetos.portalExpiraEm,
+        })
+        .from(esquema.projetos)
+        .where(eq(esquema.projetos.id, projetoTeste))
+        .limit(1)
+      expect(await bcrypt.compare('Portal@123', protegido!.senhaAcessoHash!)).toBe(true)
+      expect(protegido!.portalExpiraEm).toBeNull()
+
+      await agente
+        .patch(`/api/portal-configuracoes/projeto/${projetoTeste}`)
+        .set('x-csrf-token', csrf)
+        .send({ senha: 'NovaSenha@456', expiraEm: null })
+        .expect(200)
+      const [alterado] = await banco
+        .select({
+          senhaAcessoHash: esquema.projetos.senhaAcessoHash,
+          tokenPortal: esquema.projetos.tokenPortal,
+        })
+        .from(esquema.projetos)
+        .where(eq(esquema.projetos.id, projetoTeste))
+        .limit(1)
+      expect(await bcrypt.compare('NovaSenha@456', alterado!.senhaAcessoHash!)).toBe(true)
+      expect(alterado!.tokenPortal).not.toBe(protegido!.tokenPortal)
+
+      const removida = await agente
+        .patch(`/api/portal-configuracoes/projeto/${projetoTeste}`)
+        .set('x-csrf-token', csrf)
+        .send({ senha: null, expiraEm: null })
+        .expect(200)
+      expect(removida.body.dado).toEqual(
+        expect.objectContaining({ protegido: false, expiraEm: null, linkAlterado: true }),
+      )
+
+      const [semSenha] = await banco
+        .select({
+          senhaAcessoHash: esquema.projetos.senhaAcessoHash,
+          tokenPortal: esquema.projetos.tokenPortal,
+          portalExpiraEm: esquema.projetos.portalExpiraEm,
+        })
+        .from(esquema.projetos)
+        .where(eq(esquema.projetos.id, projetoTeste))
+        .limit(1)
+      expect(semSenha!.senhaAcessoHash).toBeNull()
+      expect(semSenha!.portalExpiraEm).toBeNull()
+      expect(semSenha!.tokenPortal).not.toBe(alterado!.tokenPortal)
+
+      const dataInvalida = await agente
+        .patch(`/api/portal-configuracoes/projeto/${projetoTeste}`)
+        .set('x-csrf-token', csrf)
+        .send({ expiraEm: '2000-01-01T00:00:00.000Z' })
+        .expect(422)
+      expect(dataInvalida.body.erro.codigo).toBe('portal_expiracao_invalida')
+    } finally {
+      await banco
+        .update(esquema.projetos)
+        .set({ ...projetoOriginal, atualizadoEm: new Date() })
+        .where(eq(esquema.projetos.id, projetoTeste))
+      await banco
+        .update(esquema.workspaces)
+        .set({ plano: workspaceOriginal!.plano, atualizadoEm: new Date() })
+        .where(eq(esquema.workspaces.id, workspaceId))
+    }
+  })
   it('valida coordenadas normalizadas na API', async () => {
     const r = await agente
       .post('/api/materiais/00000000-0000-4000-8000-000000000000/comentarios')

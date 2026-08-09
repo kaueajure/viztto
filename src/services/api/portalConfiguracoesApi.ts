@@ -12,11 +12,20 @@ export type PortalConfiguracaoResposta = {
   }
 }
 
+export type PortalConfiguracaoSalvaResposta = {
+  mensagem: string
+  dado: {
+    protegido: boolean
+    expiraEm: string | null
+    linkAlterado: boolean
+  } | null
+}
+
 const base = (escopo: EscopoPortal, id: string) => `/api/portal-configuracoes/${escopo}/${id}`
 
 export const portalConfiguracoesApi = {
   carregar: (escopo: EscopoPortal, id: string) =>
-    requisicaoApi<PortalConfiguracaoResposta>(base(escopo, id)),
+    requisicaoApi<PortalConfiguracaoResposta>(base(escopo, id), { cache: 'no-store' }),
   salvar: (
     escopo: EscopoPortal,
     id: string,
@@ -26,7 +35,11 @@ export const portalConfiguracoesApi = {
       senha?: string | null
       expiraEm?: string | null
     },
-  ) => requisicaoApi(base(escopo, id), { method: 'PATCH', body: json(entrada) }),
+  ) =>
+    requisicaoApi<PortalConfiguracaoSalvaResposta>(base(escopo, id), {
+      method: 'PATCH',
+      body: json(entrada),
+    }),
   enviarAsset: (escopo: EscopoPortal, id: string, campo: string, arquivo: File) => {
     const corpo = new FormData()
     corpo.set('imagem', arquivo)

@@ -42,6 +42,12 @@ const padrao: PortalBrand = {
 
 const camposAsset = new Set(assets.map(([campo]) => campo))
 
+function paraDataLocal(valor: string) {
+  const data = new Date(valor)
+  if (!Number.isFinite(data.getTime())) return ''
+  return new Date(data.getTime() - data.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+}
+
 export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal; id: string }) {
   const [config, setConfig] = useState<PortalBrand>(padrao)
   const [herdando, setHerdando] = useState(false)
@@ -49,6 +55,7 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
   const [senhaAtiva, setSenhaAtiva] = useState(false)
   const [senha, setSenha] = useState('')
   const [expiraEm, setExpiraEm] = useState('')
+  const [expiracaoAtiva, setExpiracaoAtiva] = useState(false)
   const [status, setStatus] = useState('')
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -60,7 +67,8 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
     setHerdando(dado.herdando)
     setProtegido(dado.protegido)
     setSenhaAtiva(dado.protegido)
-    setExpiraEm(dado.expiraEm ? String(dado.expiraEm).slice(0, 16) : '')
+    setExpiraEm(dado.expiraEm ? paraDataLocal(String(dado.expiraEm)) : '')
+    setExpiracaoAtiva(Boolean(dado.expiraEm))
   }, [escopo, id])
 
   useEffect(() => {
@@ -83,6 +91,17 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
       setErro('Defina uma senha com pelo menos 4 caracteres para ativar a proteção.')
       return
     }
+    if (escopo === 'projeto' && expiracaoAtiva) {
+      const dataExpiracao = new Date(expiraEm)
+      if (!expiraEm || !Number.isFinite(dataExpiracao.getTime())) {
+        setErro('Escolha uma data de expiração válida ou desative a expiração do link.')
+        return
+      }
+      if (dataExpiracao.getTime() <= Date.now()) {
+        setErro('A data de expiração precisa estar no futuro.')
+        return
+      }
+    }
     setSalvando(true)
     setErro('')
     setStatus('')
@@ -94,7 +113,9 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
             !['logoUrl', 'whiteLabel'].includes(campo),
         ),
       )
-      await portalConfiguracoesApi.salvar(escopo, id, {
+      const removendoSenha = escopo === 'projeto' && !senhaAtiva && protegido
+      const alterandoSenha = escopo === 'projeto' && senhaAtiva && Boolean(senha.trim())
+      const resposta = await portalConfiguracoesApi.salvar(escopo, id, {
         ...(escopo !== 'workspace' && herdando ? { herdar: true } : { configuracao }),
         ...(escopo === 'projeto'
           ? {
@@ -103,14 +124,14 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
                 : senhaAtiva && senha.trim()
                   ? { senha: senha.trim() }
                   : {}),
-              expiraEm: expiraEm ? new Date(expiraEm).toISOString() : null,
+              expiraEm: expiracaoAtiva ? new Date(expiraEm).toISOString() : null,
             }
           : {}),
       })
       setSenha('')
       await carregar()
       setStatus(
-        escopo === 'projeto' && (senha.trim() || (!senhaAtiva && protegido))
+        resposta.dado?.linkAlterado || removendoSenha || alterandoSenha
           ? 'Portal atualizado. A alteração da senha gerou um novo link de acesso.'
           : 'Portal atualizado com sucesso.',
       )
@@ -377,6 +398,9 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
           <p className="mt-1 text-sm text-secondary">
             Controle quem pode abrir o projeto mesmo que tenha recebido o link.
           </p>
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted">
+            Estado salvo: {protegido ? 'senha ativa' : 'sem senha'}
+          </p>
           <div className="mt-4">
             <Switch
               label="Exigir senha para acessar este portal"
@@ -404,12 +428,25 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
                 }
               />
             )}
-            <Input
-              label="Expiração do link"
-              type="datetime-local"
-              value={expiraEm}
-              onChange={(e) => setExpiraEm(e.target.value)}
-            />
+            <div className="grid content-start gap-3">
+              <Switch
+                label="Definir data de expiração"
+                checked={expiracaoAtiva}
+                onChange={(ativa) => {
+                  setExpiracaoAtiva(ativa)
+                  if (!ativa) setExpiraEm('')
+                }}
+              />
+              {expiracaoAtiva && (
+                <Input
+                  label="Data de expiração"
+                  type="datetime-local"
+                  value={expiraEm}
+                  onChange={(e) => setExpiraEm(e.target.value)}
+                  hint="Opcional. Depois dessa data, o link deixa de funcionar."
+                />
+              )}
+            </div>
           </div>
           {protegido && !senhaAtiva && (
             <p className="mt-3 text-xs text-warning">

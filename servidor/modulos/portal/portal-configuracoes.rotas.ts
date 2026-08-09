@@ -36,6 +36,10 @@ const atualizacao = z.object({
 
 export const portalConfiguracoesRotas = Router()
 portalConfiguracoesRotas.use(exigirFuncao('atendimento'))
+portalConfiguracoesRotas.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'private, no-store')
+  next()
+})
 
 function garantirPermissaoEscopo(escopo: EscopoPortal, sessao: { funcao: string; admin: boolean }) {
   if (
@@ -147,6 +151,12 @@ portalConfiguracoesRotas.patch('/:escopo/:id', validarCorpo(atualizacao), async 
   if (!entidade) throw new ErroHttp(404, 'Registro nao encontrado.', 'registro_nao_encontrado')
   if (escopo !== 'projeto' && (req.body.senha !== undefined || req.body.expiraEm !== undefined))
     throw new ErroHttp(422, 'Seguranca so pode ser configurada por projeto.', 'dados_invalidos')
+  if (req.body.expiraEm instanceof Date && req.body.expiraEm.getTime() <= Date.now())
+    throw new ErroHttp(
+      422,
+      'A data de expiracao precisa estar no futuro.',
+      'portal_expiracao_invalida',
+    )
 
   if (req.body.herdar) await atualizarConfig(escopo, id, workspaceId, null)
   else if (req.body.configuracao) {
@@ -173,7 +183,17 @@ portalConfiguracoesRotas.patch('/:escopo/:id', validarCorpo(atualizacao), async 
       })
       .where(and(eq(projetos.id, id), eq(projetos.workspaceId, workspaceId)))
   }
-  res.json({ mensagem: 'Personalizacao do portal atualizada.' })
+  const atualizado = await alvo(escopo, id, workspaceId)
+  res.json({
+    mensagem: 'Personalizacao do portal atualizada.',
+    dado: atualizado
+      ? {
+          protegido: atualizado.protegido,
+          expiraEm: atualizado.expiraEm,
+          linkAlterado: escopo === 'projeto' && req.body.senha !== undefined,
+        }
+      : null,
+  })
 })
 
 portalConfiguracoesRotas.post('/:escopo/:id/assets/:campo', receberImagem, async (req, res) => {
