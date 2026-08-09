@@ -1,6 +1,7 @@
 import { cn } from '@/lib/cn'
 
-const LOGO_MARK = '/brand/logo-mark.png'
+// A versao na URL evita que navegadores e CDNs reutilizem a antiga marca emoldurada.
+const LOGO_MARK = '/brand/logo-mark.png?v=transparent-20260808'
 
 export function BrandSymbol({
   className = '',
@@ -13,8 +14,8 @@ export function BrandSymbol({
     <span
       aria-hidden="true"
       className={cn(
-        'relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden',
-        variant === 'framed' && 'rounded-md border border-line bg-ink',
+        'relative inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden border-0 bg-transparent shadow-none',
+        variant === 'framed' && 'rounded-md',
         variant === 'bare' && 'rounded-md',
         variant === 'monochrome' && 'rounded-md opacity-90 grayscale',
         className,
@@ -26,7 +27,7 @@ export function BrandSymbol({
         width={36}
         height={36}
         decoding="async"
-        className="h-full w-full object-contain"
+        className="h-full w-full bg-transparent object-contain"
       />
     </span>
   )

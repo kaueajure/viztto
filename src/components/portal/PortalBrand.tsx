@@ -147,7 +147,10 @@ export function PortalBrandIdentity({
             ''
           }
           alt={`Logo de ${companyName}`}
-          className={cn('max-w-[12rem] object-contain object-left', compact ? 'h-8' : 'h-10')}
+          className={cn(
+            'max-w-[12rem] bg-transparent object-contain object-left',
+            compact ? 'h-8' : 'h-10',
+          )}
         />
       ) : (
         <span

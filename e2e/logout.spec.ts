@@ -94,7 +94,7 @@ test('remove o fundo da logo e encerra completamente a sessao', async ({ page })
   await page.goto('/app/inicio')
   await expect(page.getByRole('heading', { level: 1, name: /usuário/i })).toBeVisible()
 
-  const simbolo = page.locator('img[src="/brand/logo-mark.png"]').first().locator('..')
+  const simbolo = page.locator('img[src^="/brand/logo-mark.png"]').first().locator('..')
   await expect(simbolo).toBeVisible()
   await expect
     .poll(() => simbolo.evaluate((elemento) => getComputedStyle(elemento).backgroundColor))
