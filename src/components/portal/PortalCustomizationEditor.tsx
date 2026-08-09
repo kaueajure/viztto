@@ -5,12 +5,12 @@ import type { PortalBrand } from '@/lib/portalBrand'
 import { portalConfiguracoesApi, type EscopoPortal } from '@/services/api/portalConfiguracoesApi'
 
 const assets = [
-  ['logoClaroUrl', 'Logo para tema claro'],
-  ['logoEscuroUrl', 'Logo para tema escuro'],
-  ['capaUrl', 'Imagem de capa'],
-  ['fundoImagemUrl', 'Imagem de fundo'],
-  ['miniaturaPadraoUrl', 'Miniatura padrão'],
-  ['marcaDaguaUrl', 'Marca-d’água'],
+  ['logoClaroUrl', 'Logo para tema claro', 'object-contain bg-[#eef1f4]'],
+  ['logoEscuroUrl', 'Logo para tema escuro', 'object-contain bg-[#10151f]'],
+  ['capaUrl', 'Imagem de capa', 'object-cover'],
+  ['fundoImagemUrl', 'Imagem de fundo', 'object-cover'],
+  ['miniaturaPadraoUrl', 'Miniatura padrão', 'object-cover'],
+  ['marcaDaguaUrl', 'Marca-d’água', 'object-contain bg-surface-secondary'],
 ] as const
 
 const padrao: PortalBrand = {
@@ -46,17 +46,20 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
   const [config, setConfig] = useState<PortalBrand>(padrao)
   const [herdando, setHerdando] = useState(false)
   const [protegido, setProtegido] = useState(false)
+  const [senhaAtiva, setSenhaAtiva] = useState(false)
   const [senha, setSenha] = useState('')
   const [expiraEm, setExpiraEm] = useState('')
   const [status, setStatus] = useState('')
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [assetEmAndamento, setAssetEmAndamento] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     const { dado } = await portalConfiguracoesApi.carregar(escopo, id)
     setConfig({ ...padrao, ...dado.configuracao })
     setHerdando(dado.herdando)
     setProtegido(dado.protegido)
+    setSenhaAtiva(dado.protegido)
     setExpiraEm(dado.expiraEm ? String(dado.expiraEm).slice(0, 16) : '')
   }, [escopo, id])
 
@@ -71,6 +74,15 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
     setConfig((atual) => ({ ...atual, [campo]: valor }))
 
   const salvar = async () => {
+    if (
+      escopo === 'projeto' &&
+      senhaAtiva &&
+      ((!protegido && senha.trim().length < 4) ||
+        (senha.trim().length > 0 && senha.trim().length < 4))
+    ) {
+      setErro('Defina uma senha com pelo menos 4 caracteres para ativar a proteção.')
+      return
+    }
     setSalvando(true)
     setErro('')
     setStatus('')
@@ -86,14 +98,22 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
         ...(escopo !== 'workspace' && herdando ? { herdar: true } : { configuracao }),
         ...(escopo === 'projeto'
           ? {
-              ...(senha ? { senha } : {}),
+              ...(!senhaAtiva && protegido
+                ? { senha: null }
+                : senhaAtiva && senha.trim()
+                  ? { senha: senha.trim() }
+                  : {}),
               expiraEm: expiraEm ? new Date(expiraEm).toISOString() : null,
             }
           : {}),
       })
       setSenha('')
       await carregar()
-      setStatus('Portal atualizado com sucesso.')
+      setStatus(
+        escopo === 'projeto' && (senha.trim() || (!senhaAtiva && protegido))
+          ? 'Portal atualizado. A alteração da senha gerou um novo link de acesso.'
+          : 'Portal atualizado com sucesso.',
+      )
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível salvar.')
     } finally {
@@ -107,7 +127,7 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
     <div className="grid gap-6">
       {escopo !== 'workspace' && (
         <Checkbox
-          label={`Usar a identidade herdada ${escopo === 'cliente' ? 'do workspace' : 'do cliente/workspace'}`}
+          label={`Usar todas as configurações herdadas ${escopo === 'cliente' ? 'do workspace' : 'do cliente/workspace'}`}
           checked={herdando}
           onChange={setHerdando}
         />
@@ -196,42 +216,73 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
             />
           </div>
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {assets.map(([campo, label]) => (
+            {assets.map(([campo, label, ajusteImagem]) => (
               <div key={campo} className="rounded-md border border-line bg-surface p-3">
                 <p className="text-sm font-medium">{label}</p>
                 {config[campo] && (
                   <img
+                    key={config[campo]}
                     src={config[campo] ?? ''}
-                    alt=""
-                    className="mt-2 h-20 w-full rounded-sm object-cover"
+                    alt={`Prévia de ${label.toLowerCase()}`}
+                    className={`mt-2 h-28 w-full rounded-sm border border-line ${ajusteImagem}`}
                   />
                 )}
+                {!config[campo] && (
+                  <div className="mt-2 grid h-28 place-items-center rounded-sm border border-dashed border-line bg-surface-secondary px-3 text-center text-xs text-muted">
+                    Nenhuma imagem definida
+                  </div>
+                )}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <label className="cursor-pointer rounded-md border border-line px-3 py-2 text-xs font-semibold">
-                    Enviar
+                  <label
+                    className={`rounded-md border border-line px-3 py-2 text-xs font-semibold ${
+                      assetEmAndamento ? 'pointer-events-none opacity-50' : 'cursor-pointer'
+                    }`}
+                  >
+                    {assetEmAndamento === campo ? 'Enviando...' : 'Escolher imagem'}
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       className="sr-only"
+                      disabled={Boolean(assetEmAndamento)}
                       onChange={(e) => {
                         const arquivo = e.target.files?.[0]
                         e.target.value = ''
                         if (!arquivo) return
+                        setErro('')
+                        setStatus('')
+                        setAssetEmAndamento(campo)
                         void portalConfiguracoesApi
                           .enviarAsset(escopo, id, campo, arquivo)
-                          .then(carregar)
+                          .then(async () => {
+                            await carregar()
+                            setStatus(`${label} atualizada.`)
+                          })
                           .catch((err) =>
                             setErro(err instanceof Error ? err.message : 'Falha no envio.'),
                           )
+                          .finally(() => setAssetEmAndamento(null))
                       }}
                     />
                   </label>
                   {config[campo] && (
                     <Button
                       variant="ghost"
-                      onClick={() =>
-                        void portalConfiguracoesApi.removerAsset(escopo, id, campo).then(carregar)
-                      }
+                      disabled={Boolean(assetEmAndamento)}
+                      onClick={() => {
+                        setErro('')
+                        setStatus('')
+                        setAssetEmAndamento(campo)
+                        void portalConfiguracoesApi
+                          .removerAsset(escopo, id, campo)
+                          .then(async () => {
+                            await carregar()
+                            setStatus(`${label} removida.`)
+                          })
+                          .catch((err) =>
+                            setErro(err instanceof Error ? err.message : 'Falha ao remover.'),
+                          )
+                          .finally(() => setAssetEmAndamento(null))
+                      }}
                     >
                       Remover
                     </Button>
@@ -323,15 +374,36 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
       {escopo === 'projeto' && (
         <section className="rounded-lg border border-line bg-surface-secondary/30 p-5">
           <h3 className="font-semibold">Segurança do portal</h3>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Input
-              label={
-                protegido ? 'Nova senha (deixe vazia para manter)' : 'Senha do portal (opcional)'
-              }
-              type="password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
+          <p className="mt-1 text-sm text-secondary">
+            Controle quem pode abrir o projeto mesmo que tenha recebido o link.
+          </p>
+          <div className="mt-4">
+            <Switch
+              label="Exigir senha para acessar este portal"
+              checked={senhaAtiva}
+              onChange={(ativa) => {
+                setSenhaAtiva(ativa)
+                if (!ativa) setSenha('')
+              }}
             />
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {senhaAtiva && (
+              <Input
+                label={
+                  protegido ? 'Nova senha (deixe vazia para manter a atual)' : 'Senha de acesso'
+                }
+                type="password"
+                minLength={4}
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                hint={
+                  protegido
+                    ? 'Preencha somente se quiser trocar a senha atual.'
+                    : 'Use pelo menos 4 caracteres.'
+                }
+              />
+            )}
             <Input
               label="Expiração do link"
               type="datetime-local"
@@ -339,16 +411,10 @@ export function PortalCustomizationEditor({ escopo, id }: { escopo: EscopoPortal
               onChange={(e) => setExpiraEm(e.target.value)}
             />
           </div>
-          {protegido && (
-            <Button
-              className="mt-3"
-              variant="ghost"
-              onClick={() =>
-                void portalConfiguracoesApi.salvar(escopo, id, { senha: null }).then(carregar)
-              }
-            >
-              Remover senha
-            </Button>
+          {protegido && !senhaAtiva && (
+            <p className="mt-3 text-xs text-warning">
+              A senha será desativada quando você salvar. O link atual também será substituído.
+            </p>
           )}
         </section>
       )}

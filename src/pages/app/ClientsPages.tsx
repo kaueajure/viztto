@@ -6,7 +6,6 @@ import { Button, IconButton } from '@/components/ui/Button'
 import { Avatar, EmptyState } from '@/components/ui/DataDisplay'
 import { Input, Textarea } from '@/components/ui/FormControls'
 import { useAppData } from '@/contexts/AppDataContext'
-import { PortalCustomizationEditor } from '@/components/portal/PortalCustomizationEditor'
 
 export function ClientsPage() {
   const { clients } = useAppData()
@@ -303,10 +302,6 @@ export function ClientDetailPage() {
           </div>
         </aside>
       </div>
-      <section className="mt-6 rounded-lg border border-line bg-surface p-5">
-        <h2 className="mb-5 text-lg font-semibold">Portal personalizado deste cliente</h2>
-        <PortalCustomizationEditor escopo="cliente" id={client.id} />
-      </section>
     </div>
   )
 }

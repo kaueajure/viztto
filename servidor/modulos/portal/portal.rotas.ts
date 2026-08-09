@@ -170,7 +170,7 @@ portalRotas.get('/personalizacao-assets/:escopo/:id/:campo', async (req, res) =>
   await garantirPortalPersonalizado(asset.workspaceId)
   const ext = asset.caminho.toLowerCase().split('.').pop()
   const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
-  res.setHeader('Cache-Control', 'public, max-age=300')
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   await enviarArquivoResposta(res, asset.caminho, mime)
 })
 

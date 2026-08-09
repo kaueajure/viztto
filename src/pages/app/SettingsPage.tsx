@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { PageHeader } from '@/components/app/AppUi'
 import { Button } from '@/components/ui/Button'
-import { Checkbox, Input } from '@/components/ui/FormControls'
+import { Checkbox, Input, Select } from '@/components/ui/FormControls'
 import { Tabs } from '@/components/ui/Interactive'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppData } from '@/contexts/AppDataContext'
@@ -9,7 +9,6 @@ import { configuracoesApi, type Preferencias } from '@/services/api/configuracoe
 import { assinaturasApi, type UsoLimitesPlano } from '@/services/api/assinaturasApi'
 import { SubscriptionPlansAdmin } from '@/components/admin/SubscriptionPlansAdmin'
 import { PlanUpgradePanel } from '@/components/billing/PlanUpgradePanel'
-import { PortalBrandPreview } from '@/components/portal/PortalBrandPreview'
 import { PortalCustomizationEditor } from '@/components/portal/PortalCustomizationEditor'
 
 const preferenciasPadrao: Preferencias = {
@@ -23,7 +22,7 @@ const preferenciasPadrao: Preferencias = {
 
 export default function SettingsPage() {
   const { user, updateProfile } = useAuth()
-  const { workspace, updateWorkspace } = useAppData()
+  const { workspace, updateWorkspace, clients, projects } = useAppData()
   const [saved, setSaved] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState('')
@@ -31,10 +30,12 @@ export default function SettingsPage() {
   const [name, setName] = useState(workspace.name)
   const [slug, setSlug] = useState(workspace.slug)
   const [color, setColor] = useState('#b8ff4f')
-  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [notifications, setNotifications] = useState(preferenciasPadrao)
   const [recursosPlano, setRecursosPlano] = useState<UsoLimitesPlano['recursos'] | null>(null)
   const [workspaceId, setWorkspaceId] = useState('')
+  const [portalScope, setPortalScope] = useState<'workspace' | 'cliente' | 'projeto'>('workspace')
+  const [portalClientId, setPortalClientId] = useState('')
+  const [portalProjectId, setPortalProjectId] = useState('')
 
   useEffect(() => {
     let active = true
@@ -46,7 +47,6 @@ export default function SettingsPage() {
         setName(dado.workspace.nome)
         setSlug(dado.workspace.slug)
         setColor(dado.workspace.corPrincipal)
-        setLogoUrl(dado.workspace.logoUrl)
         setWorkspaceId(dado.workspace.id)
         setNotifications(dado.preferencias)
       })
@@ -121,98 +121,6 @@ export default function SettingsPage() {
         onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
         hint={`Portal do cliente: viztto.site/${slug || 'sua-empresa'}/{id-do-projeto}`}
       />
-      <section className="mt-2 rounded-lg border border-line bg-surface-secondary/35 p-4 sm:p-5">
-        <div>
-          <p className="font-semibold text-ink">Identidade do portal próprio</p>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-secondary">
-            A marca escolhida aqui assume todo o portal enviado ao cliente: cabeçalho, botões,
-            destaques e identificação da página. Nos planos elegíveis, nenhum elemento visual da
-            Viztto é exibido.
-          </p>
-        </div>
-        <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,1fr)] lg:items-start">
-          <div className="grid gap-4">
-            <Input
-              label="Cor principal do portal"
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="h-11 p-1"
-              disabled={portalBloqueado}
-              hint={
-                portalBloqueado
-                  ? 'Seu plano não libera configurar o portal próprio. Faça upgrade para liberar.'
-                  : 'Aplicada em todas as ações e destaques do portal.'
-              }
-            />
-            <div className="grid gap-2">
-              <p className="text-sm font-medium text-ink">Logo do portal</p>
-              {logoUrl ? (
-                <img
-                  src={logoUrl}
-                  alt={`Logo atual de ${name || 'sua empresa'}`}
-                  className="h-12 w-auto max-w-xs object-contain object-left"
-                />
-              ) : (
-                <p className="text-sm text-muted">
-                  Sem logo, o portal usa as iniciais e o nome do workspace.
-                </p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <label
-                  className={`inline-flex cursor-pointer items-center rounded-md border border-line px-3 py-2 text-sm ${
-                    portalBloqueado || saving === 'logo' ? 'pointer-events-none opacity-50' : ''
-                  }`}
-                >
-                  Enviar logo
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="sr-only"
-                    disabled={portalBloqueado || saving === 'logo'}
-                    onChange={(event) => {
-                      const arquivo = event.target.files?.[0]
-                      event.target.value = ''
-                      if (!arquivo) return
-                      void execute(
-                        'logo',
-                        async () => {
-                          const resposta = await configuracoesApi.enviarLogo(arquivo)
-                          setLogoUrl(resposta.dado.logoUrl)
-                        },
-                        'Logo atualizado.',
-                      )
-                    }}
-                  />
-                </label>
-                {logoUrl && (
-                  <Button
-                    variant="ghost"
-                    loading={saving === 'logo-remove'}
-                    disabled={portalBloqueado}
-                    onClick={() =>
-                      void execute(
-                        'logo-remove',
-                        async () => {
-                          await configuracoesApi.removerLogo()
-                          setLogoUrl(null)
-                        },
-                        'Logo removido.',
-                      )
-                    }
-                  >
-                    Remover
-                  </Button>
-                )}
-              </div>
-              {portalBloqueado && (
-                <p className="text-xs text-muted">Disponível nos planos com portal próprio.</p>
-              )}
-            </div>
-          </div>
-          <PortalBrandPreview companyName={name} color={color} logoUrl={logoUrl} />
-        </div>
-      </section>
       <Button
         loading={saving === 'workspace'}
         onClick={() =>
@@ -267,11 +175,94 @@ export default function SettingsPage() {
       </Button>
     </div>
   )
+  const portalTargetId =
+    portalScope === 'workspace'
+      ? workspaceId
+      : portalScope === 'cliente'
+        ? portalClientId || clients[0]?.id || ''
+        : portalProjectId || projects[0]?.id || ''
+  const nomesClientes = new Map(clients.map((client) => [client.id, client.name]))
+  const portalPanel =
+    workspaceId && portalPersonalizado ? (
+      <div className="grid gap-6">
+        <div className="rounded-lg border border-line bg-surface-secondary/35 p-5">
+          <h2 className="text-lg font-semibold text-ink">Personalização do portal do cliente</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-secondary">
+            Defina o padrão do workspace ou crie uma identidade específica para um cliente ou
+            projeto. Configurações mais específicas substituem o padrão somente no portal escolhido.
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <Select
+              label="Personalizar"
+              value={portalScope}
+              onChange={(event) =>
+                setPortalScope(event.target.value as 'workspace' | 'cliente' | 'projeto')
+              }
+            >
+              <option value="workspace">Portal padrão do workspace</option>
+              <option value="cliente">Portal de um cliente</option>
+              <option value="projeto">Portal de um projeto</option>
+            </Select>
+            {portalScope === 'cliente' && (
+              <Select
+                label="Cliente"
+                value={portalClientId || clients[0]?.id || ''}
+                onChange={(event) => setPortalClientId(event.target.value)}
+                disabled={!clients.length}
+              >
+                {!clients.length && <option value="">Nenhum cliente disponível</option>}
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+            {portalScope === 'projeto' && (
+              <Select
+                label="Projeto"
+                value={portalProjectId || projects[0]?.id || ''}
+                onChange={(event) => setPortalProjectId(event.target.value)}
+                disabled={!projects.length}
+              >
+                {!projects.length && <option value="">Nenhum projeto disponível</option>}
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {nomesClientes.get(project.clientId)
+                      ? `${nomesClientes.get(project.clientId)} · `
+                      : ''}
+                    {project.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
+        </div>
+        {portalTargetId ? (
+          <PortalCustomizationEditor
+            key={`${portalScope}:${portalTargetId}`}
+            escopo={portalScope}
+            id={portalTargetId}
+          />
+        ) : (
+          <p className="text-sm text-muted">
+            Crie {portalScope === 'cliente' ? 'um cliente' : 'um projeto'} para personalizar este
+            nível.
+          </p>
+        )}
+      </div>
+    ) : (
+      <p className="text-sm text-secondary">
+        {portalBloqueado
+          ? 'A personalização completa está disponível nos planos com portal próprio.'
+          : 'Carregando configurações do portal...'}
+      </p>
+    )
   return (
     <div>
       <PageHeader
         title="Configurações"
-        description="Perfil, workspace, notificações, aparência e plano."
+        description="Perfil, workspace, notificações, portal e plano."
       />
       {saved && (
         <p
@@ -296,17 +287,8 @@ export default function SettingsPage() {
             { label: 'Workspace', content: workspacePanel },
             { label: 'Notificações', content: notificationPanel },
             {
-              label: 'Aparência',
-              content:
-                workspaceId && portalPersonalizado ? (
-                  <PortalCustomizationEditor escopo="workspace" id={workspaceId} />
-                ) : (
-                  <p className="text-sm text-secondary">
-                    {portalBloqueado
-                      ? 'A personalização completa está disponível nos planos com portal próprio.'
-                      : 'Carregando personalização do portal...'}
-                  </p>
-                ),
+              label: 'Portal',
+              content: portalPanel,
             },
             {
               label: 'Plano',

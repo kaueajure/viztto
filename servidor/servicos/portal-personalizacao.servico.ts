@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import {
@@ -80,8 +81,9 @@ export const configuracaoPortalPadrao: Required<Omit<PortalConfiguracaoDados, Ca
   materiaisAprovados: 'mostrar',
 }
 
-function urlAsset(escopo: EscopoPortal, id: string, campo: CampoAssetPortal) {
-  return `/api/portal/personalizacao-assets/${escopo}/${id}/${campo}`
+function urlAsset(escopo: EscopoPortal, id: string, campo: CampoAssetPortal, caminho: string) {
+  const versao = createHash('sha256').update(caminho).digest('hex').slice(0, 12)
+  return `/api/portal/personalizacao-assets/${escopo}/${id}/${campo}?v=${versao}`
 }
 
 function prepararConfig(
@@ -92,7 +94,7 @@ function prepararConfig(
   if (!config) return null
   const saida: PortalConfiguracaoDados = { ...config }
   for (const campo of camposAssetPortal) {
-    if (config[campo]) saida[campo] = urlAsset(escopo, id, campo)
+    if (config[campo]) saida[campo] = urlAsset(escopo, id, campo, config[campo])
   }
   return saida
 }
