@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import bcrypt from 'bcryptjs'
-import { and, eq, gt, isNull } from 'drizzle-orm'
+import { and, eq, gt, isNull, asc } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
 import { ambiente } from '../../configuracao/ambiente.js'
@@ -24,6 +24,7 @@ import {
 import { garantirPodeCriarWorkspace } from '../../servicos/limites-plano.servico.js'
 import { gerarHash, normalizarEmail, novoId, novoToken } from '../../utilitarios/seguranca.js'
 import { slugReservado } from '../../utilitarios/slugs.js'
+import { naoEhWorkspaceDeTeste } from '../../utilitarios/workspace-teste.js'
 
 const acesso = rateLimit({
   windowMs: 15 * 60_000,
@@ -469,7 +470,10 @@ autenticacaoRotas.post('/entrar', acesso, validarCorpo(credenciais), async (req,
     const [primeiro] = await banco
       .select({ id: workspaces.id })
       .from(workspaces)
-      .where(and(eq(workspaces.ativo, true), isNull(workspaces.excluidoEm)))
+      .where(
+        and(eq(workspaces.ativo, true), isNull(workspaces.excluidoEm), naoEhWorkspaceDeTeste()),
+      )
+      .orderBy(asc(workspaces.nome))
       .limit(1)
     workspaceAtivoId = primeiro?.id ?? null
   }
