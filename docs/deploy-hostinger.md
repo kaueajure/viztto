@@ -51,7 +51,7 @@ BANCO_SENHA=valor_real
 SEGREDO_SESSAO=segredo-aleatorio-com-no-minimo-32-caracteres
 URL_APLICACAO=https://dominio-real
 
-DIRETORIO_UPLOADS=../uploads
+DIRETORIO_UPLOADS=uploads
 TAMANHO_MAXIMO_IMAGEM_MB=15
 
 COOKIE_SEGURO=true
@@ -90,13 +90,15 @@ Crie, no Gerenciador de Arquivos, a pasta irmã:
 /home/USUARIO/domains/DOMINIO/uploads
 ```
 
-No hPanel, configure `DIRETORIO_UPLOADS=../uploads`. Se a variável não existir
-em produção, a aplicação usa automaticamente essa pasta irmã. A inicialização
+No hPanel, configure `DIRETORIO_UPLOADS=uploads`. Nomes relativos simples são
+resolvidos no nível do domínio, como pasta irmã de `nodejs` e `public_html`.
+O valor histórico `../uploads` continua aceito. Se a variável não existir em
+produção, a aplicação usa automaticamente a pasta irmã `uploads`. A inicialização
 cria e testa o diretório, mas recusa caminhos dentro de `public_html`, `nodejs`,
 `dist`, `build-servidor`, `node_modules`, da raiz implantada ou do diretório
-temporário do sistema. Assim, uma configuração antiga como
-`DIRETORIO_UPLOADS=./uploads` interrompe a inicialização em vez de aceitar o
-risco de perda silenciosa.
+temporário do sistema. Um nome diferente também funciona: para a pasta mostrada
+como `DIRETORIO_UPLOADS` no Gerenciador de Arquivos, use
+`DIRETORIO_UPLOADS=DIRETORIO_UPLOADS` no hPanel.
 
 Antes do primeiro redeploy com esta configuração, mova pelo Gerenciador de
 Arquivos qualquer conteúdo real de `nodejs/uploads` para a nova pasta

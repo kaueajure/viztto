@@ -4,13 +4,14 @@ import os from 'node:os'
 import path from 'node:path'
 import multer from 'multer'
 import { ambiente, emProducao } from './ambiente.js'
+import { resolverDiretorioUploads } from './caminho-upload.js'
 import { diretorioDist, raizProjeto } from './caminhos.js'
 
-const caminhoUploadsConfigurado =
-  ambiente.DIRETORIO_UPLOADS ??
-  (emProducao ? path.join(path.dirname(raizProjeto), 'uploads') : './uploads')
-
-export const diretorioUploads = path.resolve(raizProjeto, caminhoUploadsConfigurado)
+export const diretorioUploads = resolverDiretorioUploads(
+  raizProjeto,
+  ambiente.DIRETORIO_UPLOADS,
+  emProducao,
+)
 
 function armazenamentoObjetoConfigurado() {
   return Boolean(

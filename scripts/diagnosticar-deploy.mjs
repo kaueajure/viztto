@@ -21,8 +21,14 @@ const npm = process.env.npm_config_user_agent?.match(/npm\/([^\s]+)/)?.[1] ?? 'n
 
 const uploadsConfigurado =
   process.env.DIRETORIO_UPLOADS ||
-  (process.env.NODE_ENV === 'production' ? path.join('..', 'uploads') : path.join('.', 'uploads'))
-const uploadsResolvido = path.resolve(raizProjeto, uploadsConfigurado)
+  (process.env.NODE_ENV === 'production' ? 'uploads' : path.join('.', 'uploads'))
+const uploadsResolvido = path.isAbsolute(uploadsConfigurado)
+  ? path.normalize(uploadsConfigurado)
+  : process.env.NODE_ENV === 'production' &&
+      uploadsConfigurado !== '..' &&
+      !uploadsConfigurado.startsWith(`..${path.sep}`)
+    ? path.resolve(path.dirname(raizProjeto), uploadsConfigurado)
+    : path.resolve(raizProjeto, uploadsConfigurado)
 const uploadsForaDaRaiz = path.relative(raizProjeto, uploadsResolvido).startsWith('..')
 
 console.log(`Node.js: ${process.version}`)
