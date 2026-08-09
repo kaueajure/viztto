@@ -65,7 +65,7 @@ const RECURSOS_ADMIN: Array<{
   {
     campo: 'permiteVariosAprovadores',
     titulo: 'Vários aprovadores no projeto',
-    explicacao: 'Permite configurar mais de um aprovador por projeto (quando a tela existir).',
+    explicacao: 'Permite configurar mais de um aprovador por projeto.',
   },
   {
     campo: 'permiteHistoricoAvancado',

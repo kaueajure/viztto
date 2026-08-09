@@ -18,7 +18,10 @@ import type {
 type NewClient = Pick<Client, 'name'> &
   Partial<Pick<Client, 'company' | 'email' | 'phone' | 'notes' | 'color'>>
 type NewProject = Pick<Project, 'name' | 'clientId'> &
-  Partial<Pick<Project, 'description' | 'type' | 'dueDate' | 'members'>>
+  Partial<Pick<Project, 'description' | 'type' | 'dueDate' | 'members' | 'approvers'>> & {
+    memberIds?: string[]
+    approverIds?: string[]
+  }
 type NewMaterial = Pick<Material, 'name' | 'projectId' | 'type'> & { file: File }
 type NewComment = Pick<ReviewComment, 'materialId' | 'versionId' | 'text' | 'x' | 'y'>
 type NewVersion = Pick<MaterialVersion, 'materialId' | 'label'> &
@@ -43,6 +46,8 @@ type Valor = Estado & {
   updateOnboarding: (p: Partial<OnboardingState>) => void
   updateWorkspace: (p: Partial<Workspace>) => void
   addClient: (d: NewClient) => Promise<Client>
+  updateClient: (id: string, d: NewClient & Partial<Pick<Client, 'status'>>) => Promise<Client>
+  archiveClient: (id: string, archived?: boolean) => Promise<void>
   addProject: (d: NewProject) => Promise<Project>
   addTeamMember: (d: Pick<TeamMember, 'email' | 'role'>) => Promise<void>
   addMaterial: (d: NewMaterial) => Promise<Material>
@@ -134,8 +139,62 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         }
         return client
       },
+      async updateClient(id, d) {
+        await dadosApi.atualizarCliente(id, d)
+        const atualizado: Client = {
+          ...(estado.clients.find((item) => item.id === id) ?? {
+            id,
+            workspaceId: estado.workspace.id,
+            projectCount: 0,
+            pendingApprovals: 0,
+            createdAt: new Date().toISOString(),
+            status: 'active' as const,
+          }),
+          ...d,
+          name: d.name,
+          updatedAt: new Date().toISOString(),
+        }
+        setEstado((atual) => ({
+          ...atual,
+          clients: atual.clients.map((item) => (item.id === id ? { ...item, ...atualizado } : item)),
+        }))
+        try {
+          await refresh()
+        } catch {
+          /* mantém atualização otimista */
+        }
+        return atualizado
+      },
+      async archiveClient(id, archived = true) {
+        await dadosApi.atualizarCliente(id, { status: archived ? 'archived' : 'active' })
+        setEstado((atual) => ({
+          ...atual,
+          clients: atual.clients.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  status: archived ? 'archived' : 'active',
+                  updatedAt: new Date().toISOString(),
+                }
+              : item,
+          ),
+        }))
+        try {
+          await refresh()
+        } catch {
+          /* mantém atualização otimista */
+        }
+      },
       async addProject(d) {
-        const r = await dadosApi.projeto(d)
+        const r = await dadosApi.projeto({
+          name: d.name,
+          clientId: d.clientId,
+          description: d.description,
+          type: d.type,
+          dueDate: d.dueDate,
+          memberIds: d.memberIds,
+          approverIds: d.approverIds,
+        })
         const project: Project = {
           id: r.dado.id,
           clientId: d.clientId,
@@ -148,6 +207,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           materialCount: 0,
           commentCount: 0,
           members: d.members ?? [],
+          approvers: d.approvers ?? [],
           updatedAt: new Date().toISOString(),
         }
         setEstado((atual) => ({

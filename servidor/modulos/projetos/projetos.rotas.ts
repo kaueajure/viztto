@@ -1,8 +1,16 @@
 import { Router } from 'express'
-import { and, count, desc, eq, isNull, like } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, isNull, like } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
-import { atividades, clientes, projetos, workspaces } from '../../banco/esquema/index.js'
+import {
+  atividades,
+  clientes,
+  membrosWorkspace,
+  participantesProjeto,
+  projetos,
+  usuarios,
+  workspaces,
+} from '../../banco/esquema/index.js'
 import { exigirFuncao } from '../../middlewares/autorizacao.js'
 import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
@@ -29,6 +37,8 @@ function semSegredosPortal<T extends { senhaAcessoHash?: string | null }>(projet
   return resto
 }
 
+const idsParticipantes = z.array(z.string().uuid()).max(50).default([])
+
 const dadosProjeto = z.object({
   clienteId: z.string().uuid(),
   nome: z.string().trim().min(2).max(200),
@@ -45,7 +55,71 @@ const dadosProjeto = z.object({
     ])
     .optional(),
   prazoEm: z.coerce.date().optional().nullable(),
+  responsavelIds: idsParticipantes,
+  aprovadorIds: idsParticipantes,
 })
+
+const dadosProjetoAtualizacao = dadosProjeto
+  .omit({ responsavelIds: true, aprovadorIds: true })
+  .partial()
+
+type ParticipanteResposta = {
+  usuarioId: string
+  nome: string
+  tipoParticipacao: 'responsavel' | 'colaborador' | 'aprovador' | 'visualizador'
+}
+
+async function carregarParticipantes(projetoIds: string[]): Promise<Map<string, ParticipanteResposta[]>> {
+  const mapa = new Map<string, ParticipanteResposta[]>()
+  if (!projetoIds.length) return mapa
+  const linhas = await banco
+    .select({
+      projetoId: participantesProjeto.projetoId,
+      usuarioId: participantesProjeto.usuarioId,
+      tipoParticipacao: participantesProjeto.tipoParticipacao,
+      nome: usuarios.nome,
+    })
+    .from(participantesProjeto)
+    .innerJoin(usuarios, eq(usuarios.id, participantesProjeto.usuarioId))
+    .where(
+      and(
+        inArray(participantesProjeto.projetoId, projetoIds),
+        isNull(participantesProjeto.removidoEm),
+      ),
+    )
+  for (const linha of linhas) {
+    const lista = mapa.get(linha.projetoId) ?? []
+    lista.push({
+      usuarioId: linha.usuarioId,
+      nome: linha.nome,
+      tipoParticipacao: linha.tipoParticipacao,
+    })
+    mapa.set(linha.projetoId, lista)
+  }
+  return mapa
+}
+
+async function validarMembrosDoWorkspace(workspaceId: string, usuarioIds: string[]) {
+  if (!usuarioIds.length) return
+  const unicos = [...new Set(usuarioIds)]
+  const membros = await banco
+    .select({ usuarioId: membrosWorkspace.usuarioId })
+    .from(membrosWorkspace)
+    .where(
+      and(
+        eq(membrosWorkspace.workspaceId, workspaceId),
+        eq(membrosWorkspace.status, 'ativo'),
+        inArray(membrosWorkspace.usuarioId, unicos),
+      ),
+    )
+  if (membros.length !== unicos.length)
+    throw new ErroHttp(
+      422,
+      'Um ou mais participantes nao pertencem a este workspace.',
+      'participante_invalido',
+    )
+}
+
 export const projetosRotas = Router()
 
 projetosRotas.get('/', async (req, res) => {
@@ -66,7 +140,18 @@ projetosRotas.get('/', async (req, res) => {
       .limit(q.porPagina)
       .offset((q.pagina - 1) * q.porPagina),
   ])
-  res.json(paginar(q.pagina, q.porPagina, c?.total ?? 0, dados.map(semSegredosPortal)))
+  const participantesPorProjeto = await carregarParticipantes(dados.map((item) => item.id))
+  res.json(
+    paginar(
+      q.pagina,
+      q.porPagina,
+      c?.total ?? 0,
+      dados.map((projeto) => ({
+        ...semSegredosPortal(projeto),
+        participantes: participantesPorProjeto.get(projeto.id) ?? [],
+      })),
+    ),
+  )
 })
 
 projetosRotas.post(
@@ -74,12 +159,13 @@ projetosRotas.post(
   exigirFuncao('atendimento'),
   validarCorpo(dadosProjeto),
   async (req, res) => {
+    const { responsavelIds, aprovadorIds, ...dados } = req.body as z.infer<typeof dadosProjeto>
     const [cliente] = await banco
       .select({ id: clientes.id })
       .from(clientes)
       .where(
         and(
-          eq(clientes.id, req.body.clienteId),
+          eq(clientes.id, dados.clienteId),
           eq(clientes.workspaceId, req.sessao!.workspaceId),
           isNull(clientes.excluidoEm),
         ),
@@ -89,6 +175,23 @@ projetosRotas.post(
       throw new ErroHttp(422, 'Cliente inválido para este workspace.', 'cliente_invalido')
     await garantirPodeCriarProjeto(req.sessao!.workspaceId)
     const { plano } = await carregarPlanoDoWorkspace(req.sessao!.workspaceId)
+    if (!plano.permiteVariosAprovadores && aprovadorIds.length > 1)
+      throw new ErroHttp(
+        422,
+        'Seu plano permite apenas um aprovador por projeto.',
+        'limite_aprovadores',
+      )
+    const sobrepostos = responsavelIds.filter((id: string) => aprovadorIds.includes(id))
+    if (sobrepostos.length)
+      throw new ErroHttp(
+        422,
+        'O mesmo usuario nao pode ser responsavel e aprovador no mesmo projeto.',
+        'participante_duplicado',
+      )
+    await validarMembrosDoWorkspace(req.sessao!.workspaceId, [
+      ...responsavelIds,
+      ...aprovadorIds,
+    ])
     const agora = new Date()
     const id = novoId()
     const portalLiberado = plano.permiteLinksPortalCliente
@@ -100,16 +203,33 @@ projetosRotas.post(
         criadoPorUsuarioId: req.sessao!.usuarioId,
         criadoEm: agora,
         atualizadoEm: agora,
-        ...req.body,
+        ...dados,
         tokenPortal,
       })
+      const participantes = [
+        ...responsavelIds.map((usuarioId: string) => ({
+          id: novoId(),
+          projetoId: id,
+          usuarioId,
+          tipoParticipacao: 'responsavel' as const,
+          criadoEm: agora,
+        })),
+        ...aprovadorIds.map((usuarioId: string) => ({
+          id: novoId(),
+          projetoId: id,
+          usuarioId,
+          tipoParticipacao: 'aprovador' as const,
+          criadoEm: agora,
+        })),
+      ]
+      if (participantes.length) await tx.insert(participantesProjeto).values(participantes)
       await tx.insert(atividades).values({
         id: novoId(),
         workspaceId: req.sessao!.workspaceId,
         usuarioId: req.sessao!.usuarioId,
         projetoId: id,
         tipo: 'projeto_criado',
-        descricao: `Projeto ${req.body.nome} criado`,
+        descricao: `Projeto ${dados.nome} criado`,
         criadoEm: agora,
       })
     })
@@ -136,7 +256,8 @@ projetosRotas.get('/:projetoId', async (req, res) => {
     )
     .limit(1)
   if (!dado) throw new ErroHttp(404, 'Projeto não encontrado.', 'projeto_nao_encontrado')
-  res.json({ dado: semSegredosPortal(dado) })
+  const participantes = (await carregarParticipantes([dado.id])).get(dado.id) ?? []
+  res.json({ dado: { ...semSegredosPortal(dado), participantes } })
 })
 
 /** Retorna (e cria se preciso) o link do portal com token. */
@@ -234,7 +355,7 @@ projetosRotas.post('/:projetoId/link-portal', exigirFuncao('atendimento'), async
 projetosRotas.patch(
   '/:projetoId',
   exigirFuncao('atendimento'),
-  validarCorpo(dadosProjeto.partial()),
+  validarCorpo(dadosProjetoAtualizacao),
   async (req, res) => {
     const r = await banco
       .update(projetos)

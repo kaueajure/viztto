@@ -25,6 +25,11 @@ type ClienteBanco = {
   criadoEm: Date | string
   atualizadoEm: Date | string
 }
+type ParticipanteBanco = {
+  usuarioId: string
+  nome: string
+  tipoParticipacao: 'responsavel' | 'colaborador' | 'aprovador' | 'visualizador'
+}
 type ProjetoBanco = {
   id: string
   clienteId: string
@@ -34,6 +39,7 @@ type ProjetoBanco = {
   status: string
   prazoEm?: Date | string | null
   atualizadoEm: Date | string
+  participantes?: ParticipanteBanco[]
 }
 type MaterialBanco = {
   id: string
@@ -147,6 +153,7 @@ export async function carregarDadosApi() {
           id: string
           workspaceId: string
           usuarioId: string
+          projetoId?: string | null
           materialId?: string | null
           versaoMaterialId?: string | null
           tipo: string
@@ -249,22 +256,30 @@ export async function carregarDadosApi() {
       createdAt: String(x.criadoEm),
       updatedAt: String(x.atualizadoEm),
     })),
-    projects: p.dados.map<Project>((x) => ({
-      id: x.id,
-      clientId: x.clienteId,
-      name: x.nome,
-      description: x.descricao ?? undefined,
-      type: x.tipo,
-      status: statusProjeto[x.status as keyof typeof statusProjeto] ?? 'draft',
-      dueDate: x.prazoEm ? String(x.prazoEm) : undefined,
-      progress: 0,
-      materialCount: materials.filter((y) => y.projectId === x.id).length,
-      commentCount: materials
-        .filter((y) => y.projectId === x.id)
-        .reduce((s, y) => s + y.unresolvedCommentCount, 0),
-      members: [],
-      updatedAt: String(x.atualizadoEm),
-    })),
+    projects: p.dados.map<Project>((x) => {
+      const participantes = x.participantes ?? []
+      return {
+        id: x.id,
+        clientId: x.clienteId,
+        name: x.nome,
+        description: x.descricao ?? undefined,
+        type: x.tipo,
+        status: statusProjeto[x.status as keyof typeof statusProjeto] ?? 'draft',
+        dueDate: x.prazoEm ? String(x.prazoEm) : undefined,
+        progress: 0,
+        materialCount: materials.filter((y) => y.projectId === x.id).length,
+        commentCount: materials
+          .filter((y) => y.projectId === x.id)
+          .reduce((s, y) => s + y.unresolvedCommentCount, 0),
+        members: participantes
+          .filter((item) => item.tipoParticipacao === 'responsavel')
+          .map((item) => item.nome),
+        approvers: participantes
+          .filter((item) => item.tipoParticipacao === 'aprovador')
+          .map((item) => item.nome),
+        updatedAt: String(x.atualizadoEm),
+      }
+    }),
     materials,
     materialVersions,
     comments,
@@ -321,6 +336,8 @@ export async function carregarDadosApi() {
           ? 'revision'
           : 'neutral',
       createdAt: String(x.atividade.criadoEm),
+      tipo: x.atividade.tipo,
+      projectId: x.atividade.projetoId ?? undefined,
       materialId: x.atividade.materialId ?? undefined,
       versionId: x.atividade.versaoMaterialId ?? undefined,
     })),
@@ -387,6 +404,8 @@ export const dadosApi = {
     description?: string
     type?: string
     dueDate?: string
+    memberIds?: string[]
+    approverIds?: string[]
   }) =>
     requisicaoApi<{ dado: { id: string } }>('/api/projetos', {
       method: 'POST',
@@ -396,6 +415,34 @@ export const dadosApi = {
         descricao: d.description || undefined,
         tipo: d.type ?? 'Campanha',
         prazoEm: d.dueDate?.trim() || undefined,
+        responsavelIds: d.memberIds ?? [],
+        aprovadorIds: d.approverIds ?? [],
+      }),
+    }),
+  atualizarCliente: (
+    id: string,
+    d: Partial<{
+      name: string
+      company: string
+      email: string
+      phone: string
+      notes: string
+      color: string
+      status: 'active' | 'archived'
+    }>,
+  ) =>
+    requisicaoApi<{ mensagem: string }>(`/api/clientes/${id}`, {
+      method: 'PATCH',
+      body: json({
+        ...(d.name !== undefined ? { nome: d.name } : {}),
+        ...(d.company !== undefined ? { empresa: d.company || null } : {}),
+        ...(d.email !== undefined ? { email: d.email.trim() || null } : {}),
+        ...(d.phone !== undefined ? { telefone: d.phone.trim() || null } : {}),
+        ...(d.notes !== undefined ? { observacoes: d.notes || null } : {}),
+        ...(d.color !== undefined ? { corIdentificacao: d.color || null } : {}),
+        ...(d.status !== undefined
+          ? { status: d.status === 'active' ? 'ativo' : 'arquivado' }
+          : {}),
       }),
     }),
   material: (d: { name: string; projectId: string; type: string; file: File }) => {

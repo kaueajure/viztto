@@ -118,7 +118,7 @@ export function HeroSection() {
                 transition={{ duration: prefersReducedMotion ? 0 : 0.36 }}
                 className="mt-7 max-w-xl text-base leading-relaxed text-secondary sm:text-lg"
               >
-                Revise artes, vídeos, PDFs e páginas com comentários diretamente sobre o material.
+                Revise imagens, vídeos e PDFs com comentários diretamente sobre o material.
                 Organize versões e receba aprovações sem depender de mensagens espalhadas.
               </motion.p>
 

@@ -4,16 +4,26 @@ import { Badge } from '@/components/ui/DataDisplay'
 import { useAppData } from '@/contexts/AppDataContext'
 
 export default function ReviewsPage() {
-  const { projects, clients, materials } = useAppData()
+  const { projects, clients, materials, activities } = useAppData()
   const context = (projectId: string) => {
     const project = projects.find((item) => item.id === projectId)
     return { project, client: clients.find((item) => item.id === project?.clientId) }
   }
+  const seteDiasAtras = Date.now() - 7 * 24 * 60 * 60 * 1000
+  const materiaisAprovadosRecentemente = materials.filter((item) => {
+    if (item.status !== 'approved') return false
+    const aprovacao = activities.find(
+      (activity) =>
+        activity.tipo === 'versao_aprovada' && activity.materialId === item.id,
+    )
+    if (aprovacao) return new Date(aprovacao.createdAt).getTime() >= seteDiasAtras
+    return new Date(item.updatedAt).getTime() >= seteDiasAtras
+  })
   const groups = [
     ['Aguardando aprovação', materials.filter((item) => item.status === 'waiting-approval')],
     ['Alterações solicitadas', materials.filter((item) => item.status === 'changes-requested')],
     ['Em revisão', materials.filter((item) => item.status === 'in-review')],
-    ['Aprovadas recentemente', materials.filter((item) => item.status === 'approved')],
+    ['Aprovadas recentemente', materiaisAprovadosRecentemente],
   ] as const
   return (
     <div>

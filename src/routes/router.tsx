@@ -100,6 +100,9 @@ const NewClientPage = lazy(() =>
 const ClientDetailPage = lazy(() =>
   import('@/pages/app/ClientsPages').then((module) => ({ default: module.ClientDetailPage })),
 )
+const EditClientPage = lazy(() =>
+  import('@/pages/app/ClientsPages').then((module) => ({ default: module.EditClientPage })),
+)
 const ProjectsPage = lazy(() =>
   import('@/pages/app/ProjectsPages').then((module) => ({ default: module.ProjectsPage })),
 )
@@ -184,6 +187,7 @@ export const router = createBrowserRouter([
           { path: 'inicio', element: page(<DashboardPage />) },
           { path: 'clientes', element: page(<ClientsPage />) },
           { path: 'clientes/novo', element: page(<NewClientPage />) },
+          { path: 'clientes/:clientId/editar', element: page(<EditClientPage />) },
           { path: 'clientes/:clientId', element: page(<ClientDetailPage />) },
           { path: 'projetos', element: page(<ProjectsPage />) },
           { path: 'projetos/novo', element: page(<NewProjectPage />) },

@@ -152,7 +152,11 @@ export default function ReviewWorkspacePage() {
           </div>
           <div>
             <dt className="text-muted">Formato</dt>
-            <dd className="mt-1 font-medium">Imagem</dd>
+            <dd className="mt-1 font-medium">
+              {{ image: 'Imagem', video: 'Vídeo', pdf: 'PDF', presentation: 'Apresentação', web: 'Página' }[
+                material.type
+              ] ?? material.type}
+            </dd>
           </div>
           <div>
             <dt className="text-muted">Criado em</dt>

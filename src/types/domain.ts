@@ -46,6 +46,7 @@ export type Project = {
   materialCount: number
   commentCount: number
   members: string[]
+  approvers: string[]
   updatedAt: string
 }
 
@@ -121,6 +122,8 @@ export type Activity = {
   target: string
   tone: 'neutral' | 'approval' | 'revision' | 'brand'
   createdAt: string
+  tipo?: string
+  projectId?: string
   materialId?: string
   versionId?: string
 }

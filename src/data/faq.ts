@@ -7,11 +7,12 @@ export const faqItems = [
   {
     title: 'Quais arquivos podem ser revisados?',
     content:
-      'Imagens, vídeos, PDFs, apresentações e páginas. Novos formatos poderão ser adicionados posteriormente.',
+      'Imagens (JPEG, PNG, WebP), vídeos (MP4, WebM, MOV) e PDFs. Novos formatos poderão ser adicionados posteriormente.',
   },
   {
     title: 'É possível comentar em vídeos?',
-    content: 'Sim. Os comentários podem ser relacionados a momentos específicos do vídeo.',
+    content:
+      'Sim. Vídeos entram no mesmo fluxo de revisão e comentários. Marcação por timestamp específico será expandida em breve.',
   },
   {
     title: 'Os comentários antigos desaparecem ao enviar uma nova versão?',

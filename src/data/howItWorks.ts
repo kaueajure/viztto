@@ -15,7 +15,7 @@ export const howItWorksSteps: HowItWorksStep[] = [
     label: 'Envie',
     title: 'Envie o material',
     description:
-      'Organize imagens, vídeos, PDFs, apresentações e páginas por cliente, projeto ou campanha.',
+      'Organize imagens, vídeos e PDFs por cliente, projeto ou campanha.',
   },
   {
     id: 'share',
@@ -31,7 +31,7 @@ export const howItWorksSteps: HowItWorksStep[] = [
     label: 'Revise',
     title: 'Comente no lugar certo',
     description:
-      'Crie comentários diretamente sobre imagens, páginas ou momentos específicos de um vídeo.',
+      'Crie comentários diretamente sobre o ponto correspondente na imagem e mantenha o contexto na revisão.',
   },
   {
     id: 'approve',

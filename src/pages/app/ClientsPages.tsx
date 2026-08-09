@@ -182,13 +182,109 @@ export function NewClientPage() {
     }
   }
   return (
-    <div>
-      <PageHeader
-        title="Novo cliente"
-        description="Novo cliente"
+    <ClientForm
+      title="Novo cliente"
+      description="Novo cliente"
+      form={form}
+      set={set}
+      saved={saved}
+      erro={erro}
+      submitLabel="Salvar cliente"
+      onSubmit={submit}
+      onCancel={() => navigate('/app/clientes')}
+    />
+  )
+}
+
+export function EditClientPage() {
+  const navigate = useNavigate()
+  const { clientId } = useParams()
+  const { clients, updateClient } = useAppData()
+  const client = clients.find((item) => item.id === clientId)
+  const [saved, setSaved] = useState(false)
+  const [erro, setErro] = useState('')
+  const [form, setForm] = useState({
+    name: client?.name ?? '',
+    company: client?.company ?? '',
+    email: client?.email ?? '',
+    phone: client?.phone ?? '',
+    notes: client?.notes ?? '',
+    color: client?.color ?? '#b8ff4f',
+  })
+  if (!client)
+    return (
+      <EmptyState
+        title="Cliente não encontrado"
+        description="Este registro não está disponível no workspace atual."
       />
+    )
+  const set =
+    (key: keyof typeof form) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm({ ...form, [key]: event.target.value })
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!form.name.trim()) return
+    setErro('')
+    try {
+      await updateClient(client.id, form)
+      setSaved(true)
+      window.setTimeout(() => navigate(`/app/clientes/${client.id}`), 350)
+    } catch (falha) {
+      setSaved(false)
+      setErro(falha instanceof Error ? falha.message : 'Não foi possível atualizar o cliente.')
+    }
+  }
+  return (
+    <ClientForm
+      title="Editar cliente"
+      description={client.company || 'Atualize os dados do cliente'}
+      form={form}
+      set={set}
+      saved={saved}
+      erro={erro}
+      submitLabel="Salvar alterações"
+      onSubmit={submit}
+      onCancel={() => navigate(`/app/clientes/${client.id}`)}
+    />
+  )
+}
+
+function ClientForm({
+  title,
+  description,
+  form,
+  set,
+  saved,
+  erro,
+  submitLabel,
+  onSubmit,
+  onCancel,
+}: {
+  title: string
+  description: string
+  form: {
+    name: string
+    company: string
+    email: string
+    phone: string
+    notes: string
+    color: string
+  }
+  set: (
+    key: keyof typeof form,
+  ) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
+  saved: boolean
+  erro: string
+  submitLabel: string
+  onSubmit: (event: FormEvent) => Promise<void>
+  onCancel: () => void
+}) {
+  return (
+    <div>
+      <PageHeader title={title} description={description} />
       <form
-        onSubmit={submit}
+        onSubmit={onSubmit}
         className="mt-7 max-w-3xl rounded-lg border border-line bg-surface p-5 sm:p-7"
       >
         <div className="grid gap-4 sm:grid-cols-2">
@@ -218,8 +314,8 @@ export function NewClientPage() {
           </p>
         )}
         <div className="mt-6 flex gap-3">
-          <Button type="submit">Salvar cliente</Button>
-          <Button type="button" variant="ghost" onClick={() => navigate('/app/clientes')}>
+          <Button type="submit">{submitLabel}</Button>
+          <Button type="button" variant="ghost" onClick={onCancel}>
             Cancelar
           </Button>
         </div>
@@ -229,8 +325,12 @@ export function NewClientPage() {
 }
 
 export function ClientDetailPage() {
+  const navigate = useNavigate()
   const { clientId } = useParams()
-  const { clients, projects } = useAppData()
+  const { clients, projects, archiveClient } = useAppData()
+  const [acaoMsg, setAcaoMsg] = useState('')
+  const [acaoErro, setAcaoErro] = useState('')
+  const [arquivando, setArquivando] = useState(false)
   const client = clients.find((item) => item.id === clientId)
   if (!client)
     return (
@@ -240,6 +340,20 @@ export function ClientDetailPage() {
       />
     )
   const related = projects.filter((item) => item.clientId === client.id)
+  const alternarArquivo = async () => {
+    setAcaoMsg('')
+    setAcaoErro('')
+    setArquivando(true)
+    try {
+      const arquivar = client.status === 'active'
+      await archiveClient(client.id, arquivar)
+      setAcaoMsg(arquivar ? 'Cliente arquivado.' : 'Cliente restaurado.')
+    } catch (falha) {
+      setAcaoErro(falha instanceof Error ? falha.message : 'Não foi possível atualizar o status.')
+    } finally {
+      setArquivando(false)
+    }
+  }
   return (
     <div>
       <PageHeader
@@ -289,16 +403,37 @@ export function ClientDetailPage() {
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted">Status</dt>
-                <dd>Ativo</dd>
+                <dd>{client.status === 'active' ? 'Ativo' : 'Arquivado'}</dd>
               </div>
             </dl>
           </div>
           <div className="rounded-lg border border-line bg-surface p-5">
             <h2 className="font-semibold">Ações</h2>
-            <button className="mt-4 block text-sm text-secondary hover:text-ink">
+            <button
+              type="button"
+              className="mt-4 block text-sm text-secondary hover:text-ink"
+              onClick={() => navigate(`/app/clientes/${client.id}/editar`)}
+            >
               Editar cliente
             </button>
-            <button className="mt-3 block text-sm text-warning">Arquivar cliente</button>
+            <button
+              type="button"
+              className="mt-3 block text-sm text-warning disabled:opacity-60"
+              disabled={arquivando}
+              onClick={() => void alternarArquivo()}
+            >
+              {client.status === 'active' ? 'Arquivar cliente' : 'Restaurar cliente'}
+            </button>
+            {acaoMsg && (
+              <p role="status" className="mt-3 text-sm text-approval">
+                {acaoMsg}
+              </p>
+            )}
+            {acaoErro && (
+              <p role="alert" className="mt-3 text-sm text-revision">
+                {acaoErro}
+              </p>
+            )}
           </div>
         </aside>
       </div>

@@ -2,18 +2,18 @@ export const mainFeatures = [
   {
     id: 'documents',
     navLabel: 'Comentários no material',
-    meta: 'Imagens · PDFs · apresentações',
+    meta: 'Imagens · Vídeos · PDFs',
     title: 'Comentários diretamente sobre o material.',
     description:
-      'Marque a área exata de uma imagem, página ou apresentação e mantenha cada conversa relacionada ao ponto correspondente.',
+      'Marque a área exata de uma imagem e mantenha cada conversa relacionada ao ponto correspondente.',
   },
   {
     id: 'video',
     navLabel: 'Feedback em vídeo',
-    meta: 'Timestamp · cenas · versões de vídeo',
-    title: 'Feedback no segundo exato do vídeo.',
+    meta: 'Vídeo · versões · revisão',
+    title: 'Revise vídeos no mesmo fluxo.',
     description:
-      'Relacione cada comentário ao momento correto e evite orientações como “altera aquela parte do meio”.',
+      'Envie MP4, WebM ou MOV, organize versões e colete feedback sem sair do projeto.',
   },
   {
     id: 'versions',

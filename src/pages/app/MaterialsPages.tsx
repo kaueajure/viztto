@@ -8,7 +8,7 @@ import { useAppData } from '@/contexts/AppDataContext'
 import { MaterialPreview } from '@/components/review/MaterialPreview'
 
 export function MaterialsPage() {
-  const { projects, clients, materials } = useAppData()
+  const { projects, clients, materials, materialVersions } = useAppData()
   const [query, setQuery] = useState('')
   const [type, setType] = useState('all')
   const [status, setStatus] = useState('all')
@@ -22,6 +22,10 @@ export function MaterialsPage() {
     const project = projects.find((item) => item.id === projectId)
     return { project, client: clients.find((item) => item.id === project?.clientId) }
   }
+  const thumbUrl = (material: (typeof materials)[number]) =>
+    materialVersions.find((item) => item.id === material.currentVersionId)?.imageUrl ??
+    materialVersions.find((item) => item.materialId === material.id)?.imageUrl ??
+    ''
   return (
     <div>
       <PageHeader
@@ -37,9 +41,9 @@ export function MaterialsPage() {
           className="min-h-11 rounded-md border border-line bg-surface px-3 text-sm"
         >
           <option value="all">Todos os formatos</option>
-          {['image', 'video', 'pdf', 'presentation', 'web'].map((item) => (
-            <option key={item}>{item}</option>
-          ))}
+          <option value="image">Imagem</option>
+          <option value="video">Vídeo</option>
+          <option value="pdf">PDF</option>
         </select>
         <select
           aria-label="Filtrar por status"
@@ -57,14 +61,30 @@ export function MaterialsPage() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {filtered.map((material) => {
           const itemContext = context(material.projectId)
+          const url = thumbUrl(material)
           return (
             <Link
               to={`/app/materiais/${material.id}`}
               key={material.id}
               className="overflow-hidden rounded-lg border border-line bg-surface hover:border-line-strong"
             >
-              <div className="grid min-h-36 place-items-center bg-surface-secondary surface-grid">
-                <FileImage className="h-9 w-9 text-brand" />
+              <div className="grid min-h-36 place-items-center overflow-hidden bg-surface-secondary surface-grid">
+                {url && material.type === 'image' ? (
+                  <img
+                    src={url}
+                    alt=""
+                    className="h-36 w-full object-cover"
+                  />
+                ) : url && material.type === 'video' ? (
+                  <video src={url} className="h-36 w-full object-cover" muted preload="metadata" />
+                ) : url && material.type === 'pdf' ? (
+                  <div className="flex h-36 w-full flex-col items-center justify-center gap-2 text-brand">
+                    <FileImage className="h-9 w-9" />
+                    <span className="text-xs font-semibold uppercase tracking-wide">PDF</span>
+                  </div>
+                ) : (
+                  <FileImage className="h-9 w-9 text-brand" />
+                )}
               </div>
               <div className="p-4">
                 <div className="flex justify-between gap-3">
@@ -78,7 +98,19 @@ export function MaterialsPage() {
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Badge>v{material.currentVersion}</Badge>
-                  <Badge>{material.type}</Badge>
+                  <Badge>
+                    {
+                      (
+                        {
+                          image: 'Imagem',
+                          video: 'Vídeo',
+                          pdf: 'PDF',
+                          presentation: 'Apresentação',
+                          web: 'Web',
+                        } as const
+                      )[material.type]
+                    }
+                  </Badge>
                   <span className="ml-auto text-xs text-muted">
                     {material.unresolvedCommentCount} pendentes
                   </span>

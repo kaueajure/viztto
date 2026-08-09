@@ -1,10 +1,7 @@
 export const supportedFormats = [
-  'Artes',
+  'Imagens',
   'Vídeos',
-  'Reels',
   'PDFs',
-  'Apresentações',
-  'Sites',
   'Campanhas',
 ] as const
 
@@ -22,7 +19,7 @@ export const looseComments = [
   'Não gostei daquela cor.',
   'Usar a imagem anterior.',
   'Acho que já aprovei essa versão.',
-  'Trocar o texto da página 3.',
+  'Trocar o texto do rodapé.',
 ] as const
 
 export const organizedVersions = [
@@ -35,7 +32,7 @@ export const organizedVersions = [
 export const outcomes = [
   {
     title: 'Comentários contextualizados',
-    description: 'O feedback aparece exatamente sobre a imagem, página ou momento correspondente.',
+    description: 'O feedback aparece exatamente sobre o ponto correspondente na imagem.',
   },
   {
     title: 'Versões organizadas',

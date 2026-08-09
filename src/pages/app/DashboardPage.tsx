@@ -46,6 +46,18 @@ export default function DashboardPage() {
         </div>
       </div>
     )
+  const inicioSemana = (() => {
+    const data = new Date()
+    const dia = data.getDay()
+    const diff = dia === 0 ? 6 : dia - 1
+    data.setHours(0, 0, 0, 0)
+    data.setDate(data.getDate() - diff)
+    return data
+  })()
+  const aprovadosNestaSemana = activities.filter(
+    (item) =>
+      item.tipo === 'versao_aprovada' && new Date(item.createdAt).getTime() >= inicioSemana.getTime(),
+  ).length
   const stats = [
     [
       'Aguardando aprovação',
@@ -65,12 +77,7 @@ export default function DashboardPage() {
       FolderKanban,
       'text-brand',
     ],
-    [
-      'Aprovados nesta semana',
-      materials.filter((item) => item.status === 'approved').length,
-      CheckCircle2,
-      'text-approval',
-    ],
+    ['Aprovados nesta semana', aprovadosNestaSemana, CheckCircle2, 'text-approval'],
   ] as const
   const clientName = (id: string) => clients.find((item) => item.id === id)?.name ?? 'Cliente'
   return (

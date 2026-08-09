@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Substituir DOMINIO-A-DEFINIR.invalid pelo domínio oficial antes da publicação. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://DOMINIO-A-DEFINIR.invalid/</loc></url>
-  <url><loc>https://DOMINIO-A-DEFINIR.invalid/produto</loc></url>
-  <url><loc>https://DOMINIO-A-DEFINIR.invalid/recursos</loc></url>
-  <url><loc>https://DOMINIO-A-DEFINIR.invalid/precos</loc></url>
-  <url><loc>https://DOMINIO-A-DEFINIR.invalid/contato</loc></url>
-  <url><loc>https://DOMINIO-A-DEFINIR.invalid/termos</loc></url>
-  <url><loc>https://DOMINIO-A-DEFINIR.invalid/privacidade</loc></url>
+  <url><loc>https://viztto.site/</loc></url>
+  <url><loc>https://viztto.site/produto</loc></url>
+  <url><loc>https://viztto.site/recursos</loc></url>
+  <url><loc>https://viztto.site/precos</loc></url>
+  <url><loc>https://viztto.site/contato</loc></url>
+  <url><loc>https://viztto.site/termos</loc></url>
+  <url><loc>https://viztto.site/privacidade</loc></url>
 </urlset>

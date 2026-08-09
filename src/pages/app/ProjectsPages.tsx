@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import {
   MaterialStatus,
@@ -9,9 +9,11 @@ import {
 } from '@/components/app/AppUi'
 import { Button } from '@/components/ui/Button'
 import { AvatarGroup, EmptyState } from '@/components/ui/DataDisplay'
-import { Input, Select, Textarea } from '@/components/ui/FormControls'
+import { Checkbox, Input, Select, Textarea } from '@/components/ui/FormControls'
 import { Modal, Tabs } from '@/components/ui/Interactive'
+import { ActivityPanel } from '@/components/review/ActivityPanel'
 import { useAppData } from '@/contexts/AppDataContext'
+import { assinaturasApi } from '@/services/api/assinaturasApi'
 import { dadosApi } from '@/services/api/dadosApi'
 import type { ProjectStatus } from '@/types/domain'
 
@@ -95,7 +97,7 @@ export function ProjectsPage() {
               </div>
               <ProjectProgress value={project.progress} />
               <ProjectStatusBadge status={project.status} />
-              <AvatarGroup names={project.members.slice(0, 3)} />
+              <AvatarGroup names={[...project.members, ...project.approvers].slice(0, 3)} />
               <span className="text-xs text-secondary">
                 {project.dueDate
                   ? new Date(project.dueDate).toLocaleDateString('pt-BR')
@@ -120,32 +122,64 @@ export function ProjectsPage() {
 export function NewProjectPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const { clients, addProject } = useAppData()
+  const { clients, team, addProject } = useAppData()
+  const membrosAtivos = team.filter((item) => item.status === 'active')
   const [saved, setSaved] = useState(false)
+  const [erro, setErro] = useState('')
+  const [variosAprovadores, setVariosAprovadores] = useState(false)
   const [form, setForm] = useState({
     name: '',
     clientId: params.get('client') ?? clients[0]?.id ?? '',
     description: '',
     type: 'Campanha',
     dueDate: '',
-    members: '',
+    memberIds: [] as string[],
+    approverIds: [] as string[],
   })
+  useEffect(() => {
+    void assinaturasApi
+      .limites()
+      .then(({ dado }) => setVariosAprovadores(Boolean(dado.recursos.permiteVariosAprovadores)))
+      .catch(() => setVariosAprovadores(false))
+  }, [])
   const set =
-    (key: keyof typeof form) =>
+    (key: 'name' | 'clientId' | 'description' | 'type' | 'dueDate') =>
     (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
       setForm({ ...form, [key]: event.target.value })
+  const toggleId = (lista: 'memberIds' | 'approverIds', id: string, checked: boolean) => {
+    setForm((atual) => {
+      const atualLista = atual[lista]
+      if (!checked) return { ...atual, [lista]: atualLista.filter((item) => item !== id) }
+      if (lista === 'approverIds' && !variosAprovadores) return { ...atual, approverIds: [id] }
+      return { ...atual, [lista]: [...atualLista, id] }
+    })
+  }
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!form.name || !form.clientId) return
-    const project = await addProject({
-      ...form,
-      members: form.members
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean),
-    })
-    setSaved(true)
-    window.setTimeout(() => navigate(`/app/projetos/${project.id}`), 350)
+    setErro('')
+    const nomes = (ids: string[]) =>
+      ids
+        .map((id) => membrosAtivos.find((membro) => membro.id === id)?.name)
+        .filter((nome): nome is string => Boolean(nome))
+    try {
+      const project = await addProject({
+        name: form.name,
+        clientId: form.clientId,
+        description: form.description,
+        type: form.type,
+        dueDate: form.dueDate,
+        memberIds: form.memberIds,
+        approverIds: form.approverIds,
+        members: nomes(form.memberIds),
+        approvers: nomes(form.approverIds),
+      })
+      setSaved(true)
+      window.setTimeout(() => navigate(`/app/projetos/${project.id}`), 350)
+    } catch (falha) {
+      setSaved(false)
+      setErro(falha instanceof Error ? falha.message : 'Não foi possível criar o projeto.')
+    }
   }
   return (
     <div>
@@ -173,13 +207,44 @@ export function NewProjectPage() {
             ))}
           </Select>
           <Input label="Prazo" type="date" value={form.dueDate} onChange={set('dueDate')} />
-          <Input
-            label="Responsáveis"
-            hint="Separe os nomes por vírgula."
-            value={form.members}
-            onChange={set('members')}
-          />
-          <Input label="Aprovadores" placeholder="Nome dos aprovadores" />
+          <div className="sm:col-span-2">
+            <p className="text-sm font-medium text-ink">Responsáveis</p>
+            <p className="mt-1 text-xs text-secondary">Membros da equipe que acompanham o projeto.</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {membrosAtivos.map((membro) => (
+                <Checkbox
+                  key={`resp-${membro.id}`}
+                  label={membro.name}
+                  checked={form.memberIds.includes(membro.id)}
+                  onChange={(checked) => toggleId('memberIds', membro.id, checked)}
+                />
+              ))}
+              {!membrosAtivos.length && (
+                <p className="text-sm text-muted">Nenhum membro ativo na equipe.</p>
+              )}
+            </div>
+          </div>
+          <div className="sm:col-span-2">
+            <p className="text-sm font-medium text-ink">Aprovadores</p>
+            <p className="mt-1 text-xs text-secondary">
+              {variosAprovadores
+                ? 'Selecione um ou mais aprovadores do workspace.'
+                : 'Seu plano permite um aprovador por projeto.'}
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {membrosAtivos.map((membro) => (
+                <Checkbox
+                  key={`aprov-${membro.id}`}
+                  label={membro.name}
+                  checked={form.approverIds.includes(membro.id)}
+                  onChange={(checked) => toggleId('approverIds', membro.id, checked)}
+                />
+              ))}
+              {!membrosAtivos.length && (
+                <p className="text-sm text-muted">Nenhum membro ativo na equipe.</p>
+              )}
+            </div>
+          </div>
           <div className="sm:col-span-2">
             <Textarea label="Descrição" value={form.description} onChange={set('description')} />
           </div>
@@ -187,6 +252,11 @@ export function NewProjectPage() {
         {saved && (
           <p role="status" className="mt-4 text-sm text-approval">
             Projeto criado.
+          </p>
+        )}
+        {erro && (
+          <p role="alert" className="mt-4 text-sm text-revision">
+            {erro}
           </p>
         )}
         <div className="mt-6 flex gap-3">
@@ -202,7 +272,7 @@ export function NewProjectPage() {
 
 export function ProjectDetailPage() {
   const { projectId } = useParams()
-  const { projects, clients, materials: allMaterials, addMaterial } = useAppData()
+  const { projects, clients, materials: allMaterials, activities, addMaterial } = useAppData()
   const [materialModal, setMaterialModal] = useState(false)
   const [materialForm, setMaterialForm] = useState({ name: '', type: 'image' })
   const [materialFile, setMaterialFile] = useState<File | null>(null)
@@ -220,6 +290,8 @@ export function ProjectDetailPage() {
     )
   const client = clients.find((item) => item.id === project.clientId)
   const materials = allMaterials.filter((item) => item.projectId === project.id)
+  const projectActivities = activities.filter((item) => item.projectId === project.id)
+  const equipeVisivel = [...project.members, ...project.approvers]
 
   const compartilharLink = async () => {
     setShareMessage('')
@@ -296,6 +368,28 @@ export function ProjectDetailPage() {
       </div>
     </div>
   )
+  const participantes = (
+    <div className="grid gap-6 sm:grid-cols-2">
+      <div>
+        <h3 className="font-semibold">Responsáveis</h3>
+        <ul className="mt-3 space-y-2 text-sm">
+          {project.members.map((nome) => (
+            <li key={nome}>{nome}</li>
+          ))}
+          {!project.members.length && <li className="text-muted">Nenhum responsável.</li>}
+        </ul>
+      </div>
+      <div>
+        <h3 className="font-semibold">Aprovadores</h3>
+        <ul className="mt-3 space-y-2 text-sm">
+          {project.approvers.map((nome) => (
+            <li key={nome}>{nome}</li>
+          ))}
+          {!project.approvers.length && <li className="text-muted">Nenhum aprovador.</li>}
+        </ul>
+      </div>
+    </div>
+  )
   return (
     <div>
       <div className="flex flex-col gap-5 border-b border-line pb-6 sm:flex-row sm:items-end sm:justify-between">
@@ -310,7 +404,7 @@ export function ProjectDetailPage() {
                 ? new Date(project.dueDate).toLocaleDateString('pt-BR')
                 : 'não definido'}
             </span>
-            <AvatarGroup names={project.members} />
+            <AvatarGroup names={equipeVisivel} />
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -335,9 +429,9 @@ export function ProjectDetailPage() {
             { label: 'Materiais', content: materialList },
             {
               label: 'Atividade',
-              content: <p>Atividades deste projeto serão registradas aqui.</p>,
+              content: <ActivityPanel activities={projectActivities} />,
             },
-            { label: 'Participantes', content: <p>{project.members.join(', ')}</p> },
+            { label: 'Participantes', content: participantes },
             {
               label: 'Configurações',
               content: (
