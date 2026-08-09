@@ -78,9 +78,17 @@ export function MaterialsPage() {
                 ) : url && material.type === 'video' ? (
                   <video src={url} className="h-36 w-full object-cover" muted preload="metadata" />
                 ) : url && material.type === 'pdf' ? (
-                  <div className="flex h-36 w-full flex-col items-center justify-center gap-2 text-brand">
-                    <FileImage className="h-9 w-9" />
-                    <span className="text-xs font-semibold uppercase tracking-wide">PDF</span>
+                  <div className="relative h-36 w-full overflow-hidden bg-white">
+                    <iframe
+                      src={`${url}#page=1&view=FitH`}
+                      title={`Prévia de ${material.name}`}
+                      className="pointer-events-none h-[220%] w-full origin-top scale-[0.55]"
+                      tabIndex={-1}
+                      aria-hidden
+                    />
+                    <span className="absolute bottom-2 left-2 rounded-sm bg-revision px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-background">
+                      PDF
+                    </span>
                   </div>
                 ) : (
                   <FileImage className="h-9 w-9 text-brand" />

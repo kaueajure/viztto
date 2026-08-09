@@ -335,8 +335,8 @@ export function ProjectDetailPage() {
   }, [])
   useEffect(() => {
     if (!project) return
-    setMemberIds(project.memberIds)
-    setApproverIds(project.approverIds)
+    setMemberIds(project.memberIds ?? [])
+    setApproverIds(project.approverIds ?? [])
   }, [project?.id, project?.memberIds, project?.approverIds])
 
   if (!project)
@@ -468,8 +468,8 @@ export function ProjectDetailPage() {
           <Button
             variant="outline"
             onClick={() => {
-              setMemberIds(project.memberIds)
-              setApproverIds(project.approverIds)
+              setMemberIds(project.memberIds ?? [])
+              setApproverIds(project.approverIds ?? [])
               setEditandoParticipantes(true)
               setParticipantesMsg('')
               setParticipantesErro('')
@@ -497,8 +497,8 @@ export function ProjectDetailPage() {
               variant="ghost"
               onClick={() => {
                 setEditandoParticipantes(false)
-                setMemberIds(project.memberIds)
-                setApproverIds(project.approverIds)
+                setMemberIds(project.memberIds ?? [])
+                setApproverIds(project.approverIds ?? [])
               }}
             >
               Cancelar
@@ -557,7 +557,12 @@ export function ProjectDetailPage() {
             { label: 'Materiais', content: materialList },
             {
               label: 'Atividade',
-              content: <ActivityPanel activities={projectActivities} />,
+              content: (
+                <ActivityPanel
+                  activities={projectActivities}
+                  emptyLabel="Nenhuma atividade registrada neste projeto."
+                />
+              ),
             },
             { label: 'Participantes', content: participantes },
             {
