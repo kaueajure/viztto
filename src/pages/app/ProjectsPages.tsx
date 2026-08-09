@@ -15,7 +15,7 @@ import { ActivityPanel } from '@/components/review/ActivityPanel'
 import { useAppData } from '@/contexts/AppDataContext'
 import { assinaturasApi } from '@/services/api/assinaturasApi'
 import { dadosApi } from '@/services/api/dadosApi'
-import type { ProjectStatus } from '@/types/domain'
+import type { ProjectStatus, TeamMember } from '@/types/domain'
 
 const filters: Array<[string, ProjectStatus | 'all']> = [
   ['Todos', 'all'],
@@ -25,6 +25,76 @@ const filters: Array<[string, ProjectStatus | 'all']> = [
   ['Aprovados', 'approved'],
   ['Arquivados', 'archived'],
 ]
+
+function ParticipantPicker({
+  membros,
+  memberIds,
+  approverIds,
+  variosAprovadores,
+  onChangeMembers,
+  onChangeApprovers,
+}: {
+  membros: TeamMember[]
+  memberIds: string[]
+  approverIds: string[]
+  variosAprovadores: boolean
+  onChangeMembers: (ids: string[]) => void
+  onChangeApprovers: (ids: string[]) => void
+}) {
+  const toggle = (
+    lista: string[],
+    id: string,
+    checked: boolean,
+    single: boolean,
+    onChange: (ids: string[]) => void,
+  ) => {
+    if (!checked) {
+      onChange(lista.filter((item) => item !== id))
+      return
+    }
+    onChange(single ? [id] : [...lista.filter((item) => item !== id), id])
+  }
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 sm:col-span-2">
+      <div>
+        <p className="text-sm font-medium text-ink">Responsáveis</p>
+        <p className="mt-1 text-xs text-secondary">Membros que acompanham o projeto.</p>
+        <div className="mt-3 grid gap-2">
+          {membros.map((membro) => (
+            <Checkbox
+              key={`resp-${membro.id}`}
+              label={membro.name}
+              checked={memberIds.includes(membro.id)}
+              onChange={(checked) => toggle(memberIds, membro.id, checked, false, onChangeMembers)}
+            />
+          ))}
+          {!membros.length && <p className="text-sm text-muted">Nenhum membro ativo.</p>}
+        </div>
+      </div>
+      <div>
+        <p className="text-sm font-medium text-ink">Aprovadores</p>
+        <p className="mt-1 text-xs text-secondary">
+          {variosAprovadores
+            ? 'Selecione um ou mais aprovadores.'
+            : 'Seu plano permite um aprovador por projeto.'}
+        </p>
+        <div className="mt-3 grid gap-2">
+          {membros.map((membro) => (
+            <Checkbox
+              key={`aprov-${membro.id}`}
+              label={membro.name}
+              checked={approverIds.includes(membro.id)}
+              onChange={(checked) =>
+                toggle(approverIds, membro.id, checked, !variosAprovadores, onChangeApprovers)
+              }
+            />
+          ))}
+          {!membros.length && <p className="text-sm text-muted">Nenhum membro ativo.</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function ProjectsPage() {
   const { projects, clients } = useAppData()
@@ -146,22 +216,14 @@ export function NewProjectPage() {
     (key: 'name' | 'clientId' | 'description' | 'type' | 'dueDate') =>
     (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
       setForm({ ...form, [key]: event.target.value })
-  const toggleId = (lista: 'memberIds' | 'approverIds', id: string, checked: boolean) => {
-    setForm((atual) => {
-      const atualLista = atual[lista]
-      if (!checked) return { ...atual, [lista]: atualLista.filter((item) => item !== id) }
-      if (lista === 'approverIds' && !variosAprovadores) return { ...atual, approverIds: [id] }
-      return { ...atual, [lista]: [...atualLista, id] }
-    })
-  }
+  const nomes = (ids: string[]) =>
+    ids
+      .map((id) => membrosAtivos.find((membro) => membro.id === id)?.name)
+      .filter((nome): nome is string => Boolean(nome))
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!form.name || !form.clientId) return
     setErro('')
-    const nomes = (ids: string[]) =>
-      ids
-        .map((id) => membrosAtivos.find((membro) => membro.id === id)?.name)
-        .filter((nome): nome is string => Boolean(nome))
     try {
       const project = await addProject({
         name: form.name,
@@ -183,10 +245,7 @@ export function NewProjectPage() {
   }
   return (
     <div>
-      <PageHeader
-        title="Novo projeto"
-        description="Informações iniciais do projeto"
-      />
+      <PageHeader title="Novo projeto" description="Informações iniciais do projeto" />
       <form
         onSubmit={submit}
         className="mt-7 max-w-3xl rounded-lg border border-line bg-surface p-5 sm:p-7"
@@ -207,44 +266,14 @@ export function NewProjectPage() {
             ))}
           </Select>
           <Input label="Prazo" type="date" value={form.dueDate} onChange={set('dueDate')} />
-          <div className="sm:col-span-2">
-            <p className="text-sm font-medium text-ink">Responsáveis</p>
-            <p className="mt-1 text-xs text-secondary">Membros da equipe que acompanham o projeto.</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {membrosAtivos.map((membro) => (
-                <Checkbox
-                  key={`resp-${membro.id}`}
-                  label={membro.name}
-                  checked={form.memberIds.includes(membro.id)}
-                  onChange={(checked) => toggleId('memberIds', membro.id, checked)}
-                />
-              ))}
-              {!membrosAtivos.length && (
-                <p className="text-sm text-muted">Nenhum membro ativo na equipe.</p>
-              )}
-            </div>
-          </div>
-          <div className="sm:col-span-2">
-            <p className="text-sm font-medium text-ink">Aprovadores</p>
-            <p className="mt-1 text-xs text-secondary">
-              {variosAprovadores
-                ? 'Selecione um ou mais aprovadores do workspace.'
-                : 'Seu plano permite um aprovador por projeto.'}
-            </p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {membrosAtivos.map((membro) => (
-                <Checkbox
-                  key={`aprov-${membro.id}`}
-                  label={membro.name}
-                  checked={form.approverIds.includes(membro.id)}
-                  onChange={(checked) => toggleId('approverIds', membro.id, checked)}
-                />
-              ))}
-              {!membrosAtivos.length && (
-                <p className="text-sm text-muted">Nenhum membro ativo na equipe.</p>
-              )}
-            </div>
-          </div>
+          <ParticipantPicker
+            membros={membrosAtivos}
+            memberIds={form.memberIds}
+            approverIds={form.approverIds}
+            variosAprovadores={variosAprovadores}
+            onChangeMembers={(memberIds) => setForm((atual) => ({ ...atual, memberIds }))}
+            onChangeApprovers={(approverIds) => setForm((atual) => ({ ...atual, approverIds }))}
+          />
           <div className="sm:col-span-2">
             <Textarea label="Descrição" value={form.description} onChange={set('description')} />
           </div>
@@ -272,7 +301,16 @@ export function NewProjectPage() {
 
 export function ProjectDetailPage() {
   const { projectId } = useParams()
-  const { projects, clients, materials: allMaterials, activities, addMaterial } = useAppData()
+  const {
+    projects,
+    clients,
+    team,
+    materials: allMaterials,
+    activities,
+    addMaterial,
+    updateProjectParticipants,
+  } = useAppData()
+  const membrosAtivos = team.filter((item) => item.status === 'active')
   const [materialModal, setMaterialModal] = useState(false)
   const [materialForm, setMaterialForm] = useState({ name: '', type: 'image' })
   const [materialFile, setMaterialFile] = useState<File | null>(null)
@@ -280,7 +318,27 @@ export function ProjectDetailPage() {
   const [materialError, setMaterialError] = useState('')
   const [shareMessage, setShareMessage] = useState('')
   const [shareError, setShareError] = useState('')
+  const [variosAprovadores, setVariosAprovadores] = useState(false)
+  const [editandoParticipantes, setEditandoParticipantes] = useState(false)
+  const [memberIds, setMemberIds] = useState<string[]>([])
+  const [approverIds, setApproverIds] = useState<string[]>([])
+  const [participantesMsg, setParticipantesMsg] = useState('')
+  const [participantesErro, setParticipantesErro] = useState('')
+  const [salvandoParticipantes, setSalvandoParticipantes] = useState(false)
   const project = projects.find((item) => item.id === projectId)
+
+  useEffect(() => {
+    void assinaturasApi
+      .limites()
+      .then(({ dado }) => setVariosAprovadores(Boolean(dado.recursos.permiteVariosAprovadores)))
+      .catch(() => setVariosAprovadores(false))
+  }, [])
+  useEffect(() => {
+    if (!project) return
+    setMemberIds(project.memberIds)
+    setApproverIds(project.approverIds)
+  }, [project?.id, project?.memberIds, project?.approverIds])
+
   if (!project)
     return (
       <EmptyState
@@ -310,13 +368,28 @@ export function ProjectDetailPage() {
     }
   }
 
+  const salvarParticipantes = async () => {
+    setParticipantesMsg('')
+    setParticipantesErro('')
+    setSalvandoParticipantes(true)
+    try {
+      await updateProjectParticipants(project.id, { memberIds, approverIds })
+      setParticipantesMsg('Participantes atualizados.')
+      setEditandoParticipantes(false)
+    } catch (falha) {
+      setParticipantesErro(
+        falha instanceof Error ? falha.message : 'Não foi possível salvar os participantes.',
+      )
+    } finally {
+      setSalvandoParticipantes(false)
+    }
+  }
+
   const overview = (
     <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
       <div>
         <h2 className="font-semibold text-ink">Resumo</h2>
-        <p className="mt-2 leading-relaxed">
-          {project.description || 'Sem descrição.'}
-        </p>
+        <p className="mt-2 leading-relaxed">{project.description || 'Sem descrição.'}</p>
         <div className="mt-6">
           <ProjectProgress value={project.progress} />
         </div>
@@ -369,25 +442,80 @@ export function ProjectDetailPage() {
     </div>
   )
   const participantes = (
-    <div className="grid gap-6 sm:grid-cols-2">
-      <div>
-        <h3 className="font-semibold">Responsáveis</h3>
-        <ul className="mt-3 space-y-2 text-sm">
-          {project.members.map((nome) => (
-            <li key={nome}>{nome}</li>
-          ))}
-          {!project.members.length && <li className="text-muted">Nenhum responsável.</li>}
-        </ul>
-      </div>
-      <div>
-        <h3 className="font-semibold">Aprovadores</h3>
-        <ul className="mt-3 space-y-2 text-sm">
-          {project.approvers.map((nome) => (
-            <li key={nome}>{nome}</li>
-          ))}
-          {!project.approvers.length && <li className="text-muted">Nenhum aprovador.</li>}
-        </ul>
-      </div>
+    <div className="space-y-4">
+      {!editandoParticipantes ? (
+        <>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div>
+              <h3 className="font-semibold">Responsáveis</h3>
+              <ul className="mt-3 space-y-2 text-sm">
+                {project.members.map((nome) => (
+                  <li key={nome}>{nome}</li>
+                ))}
+                {!project.members.length && <li className="text-muted">Nenhum responsável.</li>}
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold">Aprovadores</h3>
+              <ul className="mt-3 space-y-2 text-sm">
+                {project.approvers.map((nome) => (
+                  <li key={nome}>{nome}</li>
+                ))}
+                {!project.approvers.length && <li className="text-muted">Nenhum aprovador.</li>}
+              </ul>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setMemberIds(project.memberIds)
+              setApproverIds(project.approverIds)
+              setEditandoParticipantes(true)
+              setParticipantesMsg('')
+              setParticipantesErro('')
+            }}
+          >
+            Editar participantes
+          </Button>
+        </>
+      ) : (
+        <>
+          <ParticipantPicker
+            membros={membrosAtivos}
+            memberIds={memberIds}
+            approverIds={approverIds}
+            variosAprovadores={variosAprovadores}
+            onChangeMembers={setMemberIds}
+            onChangeApprovers={setApproverIds}
+          />
+          <div className="flex flex-wrap gap-3">
+            <Button loading={salvandoParticipantes} onClick={() => void salvarParticipantes()}>
+              Salvar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setEditandoParticipantes(false)
+                setMemberIds(project.memberIds)
+                setApproverIds(project.approverIds)
+              }}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </>
+      )}
+      {participantesMsg && (
+        <p role="status" className="text-sm text-approval">
+          {participantesMsg}
+        </p>
+      )}
+      {participantesErro && (
+        <p role="alert" className="text-sm text-revision">
+          {participantesErro}
+        </p>
+      )}
     </div>
   )
   return (
@@ -434,9 +562,7 @@ export function ProjectDetailPage() {
             { label: 'Participantes', content: participantes },
             {
               label: 'Configurações',
-              content: (
-                <p>Configure o portal em Configurações → Portal.</p>
-              ),
+              content: <p>Configure o portal em Configurações → Portal.</p>,
             },
           ]}
         />

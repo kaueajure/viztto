@@ -46,7 +46,9 @@ export type Project = {
   materialCount: number
   commentCount: number
   members: string[]
+  memberIds: string[]
   approvers: string[]
+  approverIds: string[]
   updatedAt: string
 }
 
@@ -98,6 +100,8 @@ export type ReviewComment = {
   text: string
   x: number
   y: number
+  timestampSeconds?: number
+  pdfPage?: number
   status: 'open' | 'resolved'
   createdAt: string
   updatedAt: string

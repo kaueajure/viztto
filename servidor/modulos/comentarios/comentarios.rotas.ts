@@ -22,6 +22,8 @@ const novoComentario = z.object({
   texto: z.string().trim().min(1).max(5000),
   posicaoX: z.number().min(0).max(1),
   posicaoY: z.number().min(0).max(1),
+  timestampSegundos: z.number().min(0).max(86400).optional().nullable(),
+  paginaPdf: z.number().int().min(1).max(10000).optional().nullable(),
 })
 const texto = z.object({ texto: z.string().trim().min(1).max(5000) })
 export const comentariosRotas = Router()
@@ -132,9 +134,13 @@ comentariosRotas.post(
         usuarioId: req.sessao!.usuarioId,
         criadoEm: agora,
         atualizadoEm: agora,
-        ...req.body,
+        versaoMaterialId: req.body.versaoMaterialId,
+        texto: req.body.texto,
         posicaoX: String(req.body.posicaoX),
         posicaoY: String(req.body.posicaoY),
+        timestampSegundos:
+          req.body.timestampSegundos == null ? null : String(req.body.timestampSegundos),
+        paginaPdf: req.body.paginaPdf ?? null,
       })
       await tx
         .update(materiais)

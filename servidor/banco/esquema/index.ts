@@ -576,6 +576,8 @@ export const comentarios = mysqlTable(
     texto: text('texto').notNull(),
     posicaoX: decimal('posicao_x', { precision: 8, scale: 7 }).notNull(),
     posicaoY: decimal('posicao_y', { precision: 8, scale: 7 }).notNull(),
+    timestampSegundos: decimal('timestamp_segundos', { precision: 12, scale: 3 }),
+    paginaPdf: int('pagina_pdf', { unsigned: true }),
     status: mysqlEnum('status', ['aberto', 'resolvido']).notNull().default('aberto'),
     resolvidoPorUsuarioId: char('resolvido_por_usuario_id', { length: 36 }),
     resolvidoEm: data('resolvido_em'),

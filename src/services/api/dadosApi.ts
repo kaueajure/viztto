@@ -84,6 +84,8 @@ type ComentarioBanco = {
   texto: string
   posicaoX: string | number
   posicaoY: string | number
+  timestampSegundos?: string | number | null
+  paginaPdf?: number | null
   status: 'aberto' | 'resolvido'
   criadoEm: Date | string
   atualizadoEm: Date | string
@@ -219,6 +221,9 @@ export async function carregarDadosApi() {
       text: comentario.texto,
       x: Number(comentario.posicaoX),
       y: Number(comentario.posicaoY),
+      timestampSeconds:
+        comentario.timestampSegundos == null ? undefined : Number(comentario.timestampSegundos),
+      pdfPage: comentario.paginaPdf ?? undefined,
       status: comentario.status === 'aberto' ? 'open' : 'resolved',
       createdAt: String(comentario.criadoEm),
       updatedAt: String(comentario.atualizadoEm),
@@ -258,6 +263,8 @@ export async function carregarDadosApi() {
     })),
     projects: p.dados.map<Project>((x) => {
       const participantes = x.participantes ?? []
+      const responsaveis = participantes.filter((item) => item.tipoParticipacao === 'responsavel')
+      const aprovadores = participantes.filter((item) => item.tipoParticipacao === 'aprovador')
       return {
         id: x.id,
         clientId: x.clienteId,
@@ -271,12 +278,10 @@ export async function carregarDadosApi() {
         commentCount: materials
           .filter((y) => y.projectId === x.id)
           .reduce((s, y) => s + y.unresolvedCommentCount, 0),
-        members: participantes
-          .filter((item) => item.tipoParticipacao === 'responsavel')
-          .map((item) => item.nome),
-        approvers: participantes
-          .filter((item) => item.tipoParticipacao === 'aprovador')
-          .map((item) => item.nome),
+        members: responsaveis.map((item) => item.nome),
+        memberIds: responsaveis.map((item) => item.usuarioId),
+        approvers: aprovadores.map((item) => item.nome),
+        approverIds: aprovadores.map((item) => item.usuarioId),
         updatedAt: String(x.atualizadoEm),
       }
     }),
@@ -445,6 +450,23 @@ export const dadosApi = {
           : {}),
       }),
     }),
+  participantes: (projetoId: string, d: { memberIds: string[]; approverIds: string[] }) =>
+    requisicaoApi<{
+      mensagem: string
+      dado: {
+        participantes: Array<{
+          usuarioId: string
+          nome: string
+          tipoParticipacao: string
+        }>
+      }
+    }>(`/api/projetos/${projetoId}/participantes`, {
+      method: 'PUT',
+      body: json({
+        responsavelIds: d.memberIds,
+        aprovadorIds: d.approverIds,
+      }),
+    }),
   material: (d: { name: string; projectId: string; type: string; file: File }) => {
     const corpo = new FormData()
     corpo.set('nome', d.name)
@@ -467,10 +489,25 @@ export const dadosApi = {
       body: corpo,
     })
   },
-  comentario: (d: { materialId: string; versionId: string; text: string; x: number; y: number }) =>
+  comentario: (d: {
+    materialId: string
+    versionId: string
+    text: string
+    x: number
+    y: number
+    timestampSeconds?: number
+    pdfPage?: number
+  }) =>
     requisicaoApi<{ dado: { id: string } }>(`/api/materiais/${d.materialId}/comentarios`, {
       method: 'POST',
-      body: json({ versaoMaterialId: d.versionId, texto: d.text, posicaoX: d.x, posicaoY: d.y }),
+      body: json({
+        versaoMaterialId: d.versionId,
+        texto: d.text,
+        posicaoX: d.x,
+        posicaoY: d.y,
+        timestampSegundos: d.timestampSeconds,
+        paginaPdf: d.pdfPage,
+      }),
     }),
   editarComentario: (id: string, texto: string) =>
     requisicaoApi(`/api/comentarios/${id}`, { method: 'PATCH', body: json({ texto }) }),

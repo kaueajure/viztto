@@ -6,6 +6,7 @@ import { Input, Select, Textarea } from '@/components/ui/FormControls'
 import { Modal } from '@/components/ui/Interactive'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/cn'
+import { formatVideoTimestamp } from '@/lib/formatVideoTimestamp'
 import type { MaterialVersion, ReviewComment } from '@/types/domain'
 
 type Filter = 'all' | 'open' | 'resolved' | 'current'
@@ -132,6 +133,10 @@ export function CommentsPanel({
                           #{number} · {comment.status === 'open' ? 'Aberto' : 'Resolvido'}
                         </Badge>
                         <Badge>v{versionNumber(comment.versionId)}</Badge>
+                        {comment.timestampSeconds != null && (
+                          <Badge>{formatVideoTimestamp(comment.timestampSeconds)}</Badge>
+                        )}
+                        {comment.pdfPage != null && <Badge>Pág. {comment.pdfPage}</Badge>}
                       </div>
                       <p className="mt-1 text-xs text-muted">{date(comment.createdAt)}</p>
                     </div>

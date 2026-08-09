@@ -15,6 +15,10 @@ export const faqItems = [
       'Sim. Vídeos entram no mesmo fluxo de revisão e comentários. Marcação por timestamp específico será expandida em breve.',
   },
   {
+    title: 'É possível comentar em páginas de PDF?',
+    content: 'Sim. Cada comentário pode ser associado à página atual do PDF em revisão.',
+  },
+  {
     title: 'Os comentários antigos desaparecem ao enviar uma nova versão?',
     content: 'Não. O histórico permanece relacionado à versão correspondente.',
   },

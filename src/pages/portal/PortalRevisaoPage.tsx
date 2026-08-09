@@ -2,7 +2,10 @@ import { ArrowLeft, Check, CheckCircle2, MessageSquarePlus, Send, X } from 'luci
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
-import { MaterialPreview } from '@/components/review/MaterialPreview'
+import {
+  MaterialPreview,
+  type MaterialPreviewHandle,
+} from '@/components/review/MaterialPreview'
 import { PortalApprovalDialog } from '@/components/portal/PortalApprovalDialog'
 import { PortalPasswordGate } from '@/components/portal/PortalPasswordGate'
 import {
@@ -18,9 +21,17 @@ import {
 import { Button, IconButton } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/FormControls'
 import { caminhoPortalProjeto, comTokenPortal, UUID_RE } from '@/lib/portalPaths'
+import { formatVideoTimestamp } from '@/lib/formatVideoTimestamp'
 import { ApiError, json, requisicaoApi } from '@/services/api/clienteHttp'
 import type { ReviewComment } from '@/types/domain'
 import { cn } from '@/lib/cn'
+
+type DraftPortal = {
+  x: number
+  y: number
+  timestampSeconds?: number
+  pdfPage?: number
+}
 
 type DetalhePortal = {
   projeto: {
@@ -64,14 +75,18 @@ export default function PortalRevisaoPage() {
   const [tentativa, setTentativa] = useState(0)
   const [creationMode, setCreationMode] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [draft, setDraft] = useState<{ x: number; y: number } | null>(null)
+  const [draft, setDraft] = useState<DraftPortal | null>(null)
   const [draftText, setDraftText] = useState('')
   const [acaoEmAndamento, setAcaoEmAndamento] = useState<
     'comentario' | 'alteracoes' | 'aprovacao' | null
   >(null)
   const [pendenciasParaConfirmar, setPendenciasParaConfirmar] = useState<number | null>(null)
   const [zoom, setZoom] = useState(100)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [pdfPage, setPdfPage] = useState(1)
+  const [seekSeconds, setSeekSeconds] = useState<number | null>(null)
   const draftRef = useRef<HTMLTextAreaElement>(null)
+  const previewRef = useRef<MaterialPreviewHandle>(null)
 
   const slugValido = Boolean(workspaceSlug) && UUID_RE.test(projectId) && UUID_RE.test(materialId)
   const voltarHref = caminhoPortalProjeto(workspaceSlug, projectId, tokenPortal)
@@ -175,6 +190,8 @@ export default function PortalRevisaoPage() {
           texto: draftText.trim(),
           posicaoX: draft.x,
           posicaoY: draft.y,
+          timestampSegundos: draft.timestampSeconds,
+          paginaPdf: draft.pdfPage,
         }),
       })
       setDraft(null)
@@ -449,17 +466,37 @@ export default function PortalRevisaoPage() {
             ) : (
               <div className="relative grid min-h-[32rem] place-items-center overflow-auto bg-[#090d12] p-4">
                 {creationMode && !aprovado && (
-                  <Button
-                    className="absolute left-4 top-4 z-10"
-                    onClick={() => setDraft({ x: 0.5, y: 0.5 })}
-                  >
-                    Adicionar comentário geral
-                  </Button>
+                  <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
+                    {detalhe.material.tipo === 'video' ? (
+                      <Button
+                        onClick={() => {
+                          const seconds = previewRef.current?.getCurrentTime() ?? currentTime
+                          setDraft({ x: 0.5, y: 0.5, timestampSeconds: seconds })
+                        }}
+                      >
+                        Comentar em {formatVideoTimestamp(currentTime)}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => {
+                          const page = previewRef.current?.getPdfPage() ?? pdfPage
+                          setDraft({ x: 0.5, y: 0.5, pdfPage: page })
+                        }}
+                      >
+                        Comentar na página {pdfPage}
+                      </Button>
+                    )}
+                  </div>
                 )}
                 <MaterialPreview
+                  ref={previewRef}
                   type={detalhe.material.tipo === 'video' ? 'video' : 'pdf'}
                   url={detalhe.versao.imagemUrl}
                   title={detalhe.material.nome}
+                  initialPdfPage={pdfPage}
+                  seekSeconds={seekSeconds}
+                  onTimeUpdate={setCurrentTime}
+                  onPageChange={setPdfPage}
                 />
               </div>
             )}
@@ -482,6 +519,13 @@ export default function PortalRevisaoPage() {
                     <X className="h-4 w-4" />
                   </IconButton>
                 </div>
+                {(draft.timestampSeconds != null || draft.pdfPage != null) && (
+                  <p className="mb-2 text-xs text-secondary">
+                    {draft.timestampSeconds != null
+                      ? `Timestamp: ${formatVideoTimestamp(draft.timestampSeconds)}`
+                      : `Página: ${draft.pdfPage}`}
+                  </p>
+                )}
                 <Textarea
                   ref={draftRef}
                   label="O que precisa mudar?"
@@ -510,7 +554,15 @@ export default function PortalRevisaoPage() {
                 <button
                   key={comentario.id}
                   type="button"
-                  onClick={() => setSelectedId(comentario.id)}
+                  onClick={() => {
+                    setSelectedId(comentario.id)
+                    if (comentario.timestampSeconds != null)
+                      setSeekSeconds(comentario.timestampSeconds)
+                    if (comentario.pdfPage != null) {
+                      setPdfPage(comentario.pdfPage)
+                      previewRef.current?.setPdfPage(comentario.pdfPage)
+                    }
+                  }}
                   className={cn(
                     'w-full rounded-md border p-3 text-left transition-colors',
                     selectedId === comentario.id
@@ -530,6 +582,13 @@ export default function PortalRevisaoPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted">{comentario.authorName}</p>
+                  {(comentario.timestampSeconds != null || comentario.pdfPage != null) && (
+                    <p className="mt-1 text-[11px] font-semibold text-secondary">
+                      {comentario.timestampSeconds != null
+                        ? formatVideoTimestamp(comentario.timestampSeconds)
+                        : `Pág. ${comentario.pdfPage}`}
+                    </p>
+                  )}
                   <p className="mt-2 text-sm">{comentario.text}</p>
                 </button>
               ))}
