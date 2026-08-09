@@ -5,6 +5,7 @@ import { ActivityPanel } from '@/components/review/ActivityPanel'
 import { CommentsPanel } from '@/components/review/CommentsPanel'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
 import { MaterialPreview, type MaterialPreviewHandle } from '@/components/review/MaterialPreview'
+import { PdfReviewCanvas } from '@/components/review/PdfReviewCanvas'
 import { NewVersionModal } from '@/components/review/NewVersionModal'
 import { ReviewDecisionModal } from '@/components/review/ReviewDecisionModal'
 import { ReviewToolbar } from '@/components/review/ReviewToolbar'
@@ -123,7 +124,6 @@ export default function ReviewWorkspacePage() {
     }
     if (comment?.pdfPage != null) {
       setPdfPage(comment.pdfPage)
-      previewRef.current?.setPdfPage(comment.pdfPage)
     }
   }
   const panelContent =
@@ -298,40 +298,36 @@ export default function ReviewWorkspacePage() {
               }}
               onSelect={selectComment}
             />
+          ) : material.type === 'pdf' ? (
+            <PdfReviewCanvas
+              url={activeVersion.imageUrl ?? ''}
+              page={pdfPage}
+              comments={activeComments}
+              selectedId={selectedId}
+              creationMode={creationMode}
+              zoom={zoom}
+              draftPosition={draft}
+              onPageChange={setPdfPage}
+              onPoint={(position) => {
+                setDraft(position)
+                setPdfPage(position.pdfPage)
+                setCreationMode(false)
+              }}
+              onSelect={selectComment}
+            />
           ) : (
             <div className="relative grid min-h-[32rem] flex-1 place-items-center overflow-auto bg-[#090d12] p-4">
               {creationMode && (
                 <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
-                  {material.type === 'video' ? (
-                    <Button
-                      onClick={() => {
-                        const seconds = previewRef.current?.getCurrentTime() ?? currentTime
-                        setDraft({ x: 0.5, y: 0.5, timestampSeconds: seconds })
-                        setCreationMode(false)
-                      }}
-                    >
-                      Comentar em {formatVideoTimestamp(currentTime)}
-                    </Button>
-                  ) : material.type === 'pdf' ? (
-                    <Button
-                      onClick={() => {
-                        const page = previewRef.current?.getPdfPage() ?? pdfPage
-                        setDraft({ x: 0.5, y: 0.5, pdfPage: page })
-                        setCreationMode(false)
-                      }}
-                    >
-                      Comentar na página {pdfPage}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => {
-                        setDraft({ x: 0.5, y: 0.5 })
-                        setCreationMode(false)
-                      }}
-                    >
-                      Adicionar comentário geral
-                    </Button>
-                  )}
+                  <Button
+                    onClick={() => {
+                      const seconds = previewRef.current?.getCurrentTime() ?? currentTime
+                      setDraft({ x: 0.5, y: 0.5, timestampSeconds: seconds })
+                      setCreationMode(false)
+                    }}
+                  >
+                    Comentar em {formatVideoTimestamp(currentTime)}
+                  </Button>
                 </div>
               )}
               <MaterialPreview
@@ -339,11 +335,9 @@ export default function ReviewWorkspacePage() {
                 type={material.type}
                 url={activeVersion.imageUrl ?? ''}
                 title={material.name}
-                initialPdfPage={pdfPage}
                 seekSeconds={seekSeconds}
                 seekToken={seekToken}
                 onTimeUpdate={setCurrentTime}
-                onPageChange={setPdfPage}
               />
             </div>
           )}
@@ -381,7 +375,7 @@ export default function ReviewWorkspacePage() {
                 <p className="mb-2 text-xs text-secondary">
                   {draft.timestampSeconds != null
                     ? `Timestamp: ${formatVideoTimestamp(draft.timestampSeconds)}`
-                    : `Página: ${draft.pdfPage}`}
+                    : `Página ${draft.pdfPage} · ponto marcado`}
                 </p>
               )}
               <Textarea

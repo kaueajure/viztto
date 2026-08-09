@@ -1,36 +1,19 @@
-import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist'
-
-let workerConfigured = false
-
-function ensureWorker() {
-  if (workerConfigured) return
-  GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url,
-  ).toString()
-  workerConfigured = true
-}
+import { loadPdfDocument } from '@/lib/pdfDocument'
 
 const cache = new Map<string, string>()
 const inflight = new Map<string, Promise<string>>()
 
 async function renderFirstPage(url: string): Promise<string> {
-  ensureWorker()
-  let doc: PDFDocumentProxy | null = null
-  try {
-    doc = await getDocument({ url, withCredentials: false }).promise
-    const page = await doc.getPage(1)
-    const viewport = page.getViewport({ scale: 0.45 })
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.max(1, Math.floor(viewport.width))
-    canvas.height = Math.max(1, Math.floor(viewport.height))
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('Canvas indisponível')
+  const doc = await loadPdfDocument(url)
+  const page = await doc.getPage(1)
+  const viewport = page.getViewport({ scale: 0.45 })
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.floor(viewport.width))
+  canvas.height = Math.max(1, Math.floor(viewport.height))
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Canvas indisponível')
     await page.render({ canvasContext: context, viewport }).promise
-    return canvas.toDataURL('image/jpeg', 0.72)
-  } finally {
-    await doc?.destroy().catch(() => undefined)
-  }
+  return canvas.toDataURL('image/jpeg', 0.72)
 }
 
 /** Renderiza a 1ª página do PDF em data-URL com cache em memória. */

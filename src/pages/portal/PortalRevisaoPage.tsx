@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { Link, useParams, useSearchParams } from 'react-router'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
 import { MaterialPreview, type MaterialPreviewHandle } from '@/components/review/MaterialPreview'
+import { PdfReviewCanvas } from '@/components/review/PdfReviewCanvas'
 import { PortalApprovalDialog } from '@/components/portal/PortalApprovalDialog'
 import { PortalPasswordGate } from '@/components/portal/PortalPasswordGate'
 import {
@@ -187,7 +188,6 @@ export default function PortalRevisaoPage() {
     }
     if (comment?.pdfPage != null) {
       setPdfPage(comment.pdfPage)
-      previewRef.current?.setPdfPage(comment.pdfPage)
     }
   }
 
@@ -476,47 +476,50 @@ export default function PortalRevisaoPage() {
                 }}
                 onSelect={selectComment}
               />
+            ) : detalhe.material.tipo === 'pdf' ? (
+              <PdfReviewCanvas
+                url={detalhe.versao.imagemUrl}
+                page={pdfPage}
+                comments={comentariosDaVersao}
+                selectedId={selectedId}
+                creationMode={creationMode && !aprovado}
+                zoom={zoom}
+                draftPosition={draft}
+                onPageChange={setPdfPage}
+                onPoint={(position) => {
+                  setDraft(position)
+                  setDraftText('')
+                  setPdfPage(position.pdfPage)
+                  setSelectedId(null)
+                  setCreationMode(false)
+                }}
+                onSelect={selectComment}
+              />
             ) : (
               <div className="relative grid min-h-[32rem] place-items-center overflow-auto bg-[#090d12] p-4">
                 {creationMode && !aprovado && (
                   <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
-                    {detalhe.material.tipo === 'video' ? (
-                      <Button
-                        onClick={() => {
-                          const seconds = previewRef.current?.getCurrentTime() ?? currentTime
-                          setDraft({ x: 0.5, y: 0.5, timestampSeconds: seconds })
-                          setDraftText('')
-                          setSelectedId(null)
-                          setCreationMode(false)
-                        }}
-                      >
-                        Comentar em {formatVideoTimestamp(currentTime)}
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={() => {
-                          const page = previewRef.current?.getPdfPage() ?? pdfPage
-                          setDraft({ x: 0.5, y: 0.5, pdfPage: page })
-                          setDraftText('')
-                          setSelectedId(null)
-                          setCreationMode(false)
-                        }}
-                      >
-                        Comentar na página {pdfPage}
-                      </Button>
-                    )}
+                    <Button
+                      onClick={() => {
+                        const seconds = previewRef.current?.getCurrentTime() ?? currentTime
+                        setDraft({ x: 0.5, y: 0.5, timestampSeconds: seconds })
+                        setDraftText('')
+                        setSelectedId(null)
+                        setCreationMode(false)
+                      }}
+                    >
+                      Comentar em {formatVideoTimestamp(currentTime)}
+                    </Button>
                   </div>
                 )}
                 <MaterialPreview
                   ref={previewRef}
-                  type={detalhe.material.tipo === 'video' ? 'video' : 'pdf'}
+                  type="video"
                   url={detalhe.versao.imagemUrl}
                   title={detalhe.material.nome}
-                  initialPdfPage={pdfPage}
                   seekSeconds={seekSeconds}
                   seekToken={seekToken}
                   onTimeUpdate={setCurrentTime}
-                  onPageChange={setPdfPage}
                 />
               </div>
             )}
@@ -543,7 +546,7 @@ export default function PortalRevisaoPage() {
                   <p className="mb-2 text-xs text-secondary">
                     {draft.timestampSeconds != null
                       ? `Timestamp: ${formatVideoTimestamp(draft.timestampSeconds)}`
-                      : `Página: ${draft.pdfPage}`}
+                      : `Página ${draft.pdfPage} · ponto marcado`}
                   </p>
                 )}
                 <Textarea
