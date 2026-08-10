@@ -1,10 +1,11 @@
 import { Router } from 'express'
-import { and, count, desc, eq, inArray, isNull, like } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, isNull, like, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
 import {
   atividades,
   clientes,
+  materiais,
   membrosWorkspace,
   participantesProjeto,
   projetos,
@@ -259,6 +260,38 @@ projetosRotas.get('/', async (req, res) => {
       .offset((q.pagina - 1) * q.porPagina),
   ])
   const participantesPorProjeto = await carregarParticipantes(dados.map((item) => item.id))
+  const progressoPorProjeto = new Map<
+    string,
+    { totalMaterials: number; approvedMaterials: number; progress: number }
+  >()
+  if (dados.length) {
+    const totais = await banco
+      .select({
+        projetoId: materiais.projetoId,
+        total: count(),
+        aprovados: sql<number>`sum(case when ${materiais.status} = 'aprovado' then 1 else 0 end)`,
+      })
+      .from(materiais)
+      .where(
+        and(
+          inArray(
+            materiais.projetoId,
+            dados.map((item) => item.id),
+          ),
+          isNull(materiais.excluidoEm),
+        ),
+      )
+      .groupBy(materiais.projetoId)
+    for (const linha of totais) {
+      const total = Number(linha.total ?? 0)
+      const approved = Number(linha.aprovados ?? 0)
+      progressoPorProjeto.set(linha.projetoId, {
+        totalMaterials: total,
+        approvedMaterials: approved,
+        progress: total > 0 ? Math.round((approved / total) * 100) : 0,
+      })
+    }
+  }
   res.json(
     paginar(
       q.pagina,
@@ -267,6 +300,11 @@ projetosRotas.get('/', async (req, res) => {
       dados.map((projeto) => ({
         ...semSegredosPortal(projeto),
         participantes: participantesPorProjeto.get(projeto.id) ?? [],
+        ...(progressoPorProjeto.get(projeto.id) ?? {
+          totalMaterials: 0,
+          approvedMaterials: 0,
+          progress: 0,
+        }),
       })),
     ),
   )

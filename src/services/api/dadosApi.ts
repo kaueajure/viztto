@@ -49,6 +49,9 @@ type ProjetoBanco = {
   portalUltimoAcessoEm?: Date | string | null
   atualizadoEm: Date | string
   participantes?: ParticipanteBanco[]
+  totalMaterials?: number
+  approvedMaterials?: number
+  progress?: number
 }
 type MaterialBanco = {
   id: string
@@ -287,7 +290,17 @@ export async function carregarDadosApi() {
       const responsaveis = participantes.filter((item) => item.tipoParticipacao === 'responsavel')
       const aprovadores = participantes.filter((item) => item.tipoParticipacao === 'aprovador')
       const projectMaterials = materials.filter((y) => y.projectId === x.id)
-      const approved = projectMaterials.filter((m) => m.status === 'approved').length
+      const approvedFromList = projectMaterials.filter((m) => m.status === 'approved').length
+      const total =
+        typeof x.totalMaterials === 'number' ? x.totalMaterials : projectMaterials.length
+      const approved =
+        typeof x.approvedMaterials === 'number' ? x.approvedMaterials : approvedFromList
+      const progress =
+        typeof x.progress === 'number'
+          ? x.progress
+          : total > 0
+            ? Math.round((approved / total) * 100)
+            : 0
       return {
         id: x.id,
         clientId: x.clienteId,
@@ -297,10 +310,8 @@ export async function carregarDadosApi() {
         status: statusProjeto[x.status as keyof typeof statusProjeto] ?? 'draft',
         startDate: x.dataInicio ? String(x.dataInicio) : undefined,
         dueDate: x.prazoEm ? String(x.prazoEm) : undefined,
-        progress: projectMaterials.length
-          ? Math.round((approved / projectMaterials.length) * 100)
-          : 0,
-        materialCount: projectMaterials.length,
+        progress,
+        materialCount: total,
         approvedMaterialCount: approved,
         pendingClientCount: projectMaterials.filter((m) => m.status === 'waiting-approval').length,
         commentCount: projectMaterials.reduce((s, y) => s + y.unresolvedCommentCount, 0),

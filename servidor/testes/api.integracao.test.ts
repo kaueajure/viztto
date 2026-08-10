@@ -580,6 +580,162 @@ describe('API integrada com MySQL', () => {
       .send({ versaoMaterialId: versaoAtualId, confirmarPendencias: true })
       .expect(201)
   })
+  it('nao marca o projeto como aprovado ao aprovar apenas um material', async () => {
+    const png = await sharp({
+      create: { width: 24, height: 24, channels: 4, background: '#202830' },
+    })
+      .png()
+      .toBuffer()
+
+    const criar = async (nome: string) => {
+      const criado = await agente
+        .post('/api/materiais')
+        .set('x-csrf-token', csrf)
+        .field('projetoId', projetoTeste)
+        .field('nome', nome)
+        .field('tipo', 'imagem')
+        .attach('imagem', png, `${nome}.png`)
+        .expect(201)
+      return criado.body.dado as { id: string; versaoId: string }
+    }
+
+    const a = await criar(`Banner A ${Date.now()}`)
+    const b = await criar(`Banner B ${Date.now()}`)
+
+    await banco
+      .update(esquema.materiais)
+      .set({ status: 'aguardando_aprovacao', atualizadoEm: new Date() })
+      .where(eq(esquema.materiais.id, a.id))
+    await banco
+      .update(esquema.materiais)
+      .set({ status: 'aguardando_aprovacao', atualizadoEm: new Date() })
+      .where(eq(esquema.materiais.id, b.id))
+    await banco
+      .update(esquema.projetos)
+      .set({ status: 'aguardando_aprovacao', atualizadoEm: new Date() })
+      .where(eq(esquema.projetos.id, projetoTeste))
+
+    await agente
+      .post(`/api/materiais/${a.id}/aprovar`)
+      .set('x-csrf-token', csrf)
+      .send({ versaoMaterialId: a.versaoId, confirmarPendencias: true })
+      .expect(201)
+
+    const [matA] = await banco
+      .select()
+      .from(esquema.materiais)
+      .where(eq(esquema.materiais.id, a.id))
+      .limit(1)
+    const [matB] = await banco
+      .select()
+      .from(esquema.materiais)
+      .where(eq(esquema.materiais.id, b.id))
+      .limit(1)
+    const [proj] = await banco
+      .select()
+      .from(esquema.projetos)
+      .where(eq(esquema.projetos.id, projetoTeste))
+      .limit(1)
+
+    expect(matA?.status).toBe('aprovado')
+    expect(matB?.status).toBe('aguardando_aprovacao')
+    expect(proj?.status).not.toBe('aprovado')
+
+    const lista = await agente.get('/api/projetos?porPagina=100').expect(200)
+    const item = lista.body.dados.find((p: { id: string }) => p.id === projetoTeste)
+    expect(item).toBeTruthy()
+    expect(item.totalMaterials).toBeGreaterThanOrEqual(2)
+    expect(item.approvedMaterials).toBeGreaterThanOrEqual(1)
+    expect(item.progress).toBe(
+      Math.round((item.approvedMaterials / item.totalMaterials) * 100),
+    )
+  })
+
+  it('bloqueia aprovacao de usuario que nao e aprovador do projeto', async () => {
+    const agora = new Date()
+    const criativoId = '22222222-2222-4222-8222-222222222222'
+    const senhaHash = await bcrypt.hash('Viztto@123', 4)
+    await banco
+      .insert(esquema.usuarios)
+      .values({
+        id: criativoId,
+        nome: 'Criativo Sem Poder',
+        email: 'criativo.aprovacao@viztto.local',
+        senhaHash,
+        emailVerificadoEm: agora,
+        ativo: true,
+        criadoEm: agora,
+        atualizadoEm: agora,
+      })
+      .onDuplicateKeyUpdate({ set: { senhaHash, ativo: true, atualizadoEm: agora } })
+    await banco
+      .insert(esquema.membrosWorkspace)
+      .values({
+        id: 'eeee0002-0000-4000-8000-000000000002',
+        workspaceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        usuarioId: criativoId,
+        funcao: 'criativo',
+        status: 'ativo',
+        entrouEm: agora,
+        criadoEm: agora,
+        atualizadoEm: agora,
+      })
+      .onDuplicateKeyUpdate({ set: { status: 'ativo', funcao: 'criativo', atualizadoEm: agora } })
+
+    await agente
+      .put(`/api/projetos/${projetoTeste}/participantes`)
+      .set('x-csrf-token', csrf)
+      .send({
+        responsavelIds: [],
+        aprovadorIds: ['11111111-1111-4111-8111-111111111111'],
+      })
+      .expect(200)
+
+    const agenteCriativo = supertest.agent(app)
+    await agenteCriativo
+      .post('/api/autenticacao/entrar')
+      .send({ email: 'criativo.aprovacao@viztto.local', senha: 'Viztto@123' })
+      .expect(200)
+    const csrfCriativo = (await agenteCriativo.get('/api/autenticacao/csrf')).body
+      .csrfToken as string
+
+    const png = await sharp({
+      create: { width: 20, height: 20, channels: 4, background: '#101820' },
+    })
+      .png()
+      .toBuffer()
+    const material = await agente
+      .post('/api/materiais')
+      .set('x-csrf-token', csrf)
+      .field('projetoId', projetoTeste)
+      .field('nome', `Aprovacao ACL ${Date.now()}`)
+      .field('tipo', 'imagem')
+      .attach('imagem', png, 'acl.png')
+      .expect(201)
+
+    const bloqueado = await agenteCriativo
+      .post(`/api/materiais/${material.body.dado.id}/aprovar`)
+      .set('x-csrf-token', csrfCriativo)
+      .send({ versaoMaterialId: material.body.dado.versaoId, confirmarPendencias: true })
+      .expect(403)
+    expect(bloqueado.body.erro.codigo).toBe('nao_aprovador')
+
+    await agente
+      .put(`/api/projetos/${projetoTeste}/participantes`)
+      .set('x-csrf-token', csrf)
+      .send({
+        responsavelIds: [],
+        aprovadorIds: [criativoId],
+      })
+      .expect(200)
+
+    await agenteCriativo
+      .post(`/api/materiais/${material.body.dado.id}/aprovar`)
+      .set('x-csrf-token', csrfCriativo)
+      .send({ versaoMaterialId: material.body.dado.versaoId, confirmarPendencias: true })
+      .expect(201)
+  })
+
   it('nao armazena token de sessao puro', async () => {
     const [s] = await banco
       .select()

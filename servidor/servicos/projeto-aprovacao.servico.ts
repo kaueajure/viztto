@@ -42,7 +42,7 @@ export async function garantirPodeAprovarProjeto(
   if (!ids.includes(sessao.usuarioId))
     throw new ErroHttp(
       403,
-      'Você não possui permissão para aprovar este projeto.',
+      'Você não está definido como aprovador deste projeto.',
       'nao_aprovador',
     )
 

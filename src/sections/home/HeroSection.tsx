@@ -85,7 +85,7 @@ export function HeroSection() {
                   },
                 },
               }}
-              className={`relative z-10 order-2 max-w-2xl lg:order-1 ${heroRevealed ? '' : 'pointer-events-none'}`}
+              className={`relative z-10 order-1 max-w-2xl ${heroRevealed ? '' : 'pointer-events-none'}`}
             >
               <motion.div
                 variants={entrance}
@@ -154,7 +154,7 @@ export function HeroSection() {
               </motion.p>
             </motion.div>
 
-            <div className="relative order-1 min-w-0 lg:order-2 lg:-mr-2 xl:-mr-6">
+            <div className="relative order-2 min-w-0 lg:-mr-2 xl:-mr-6">
               <HeroProductScene stage="live" />
             </div>
           </div>

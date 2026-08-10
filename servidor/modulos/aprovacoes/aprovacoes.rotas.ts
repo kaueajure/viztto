@@ -17,6 +17,8 @@ import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 import { notificarClienteProjetoAlterado } from '../../servicos/notificar-cliente-projeto.servico.js'
+import { garantirPodeAprovarProjeto } from '../../servicos/projeto-aprovacao.servico.js'
+import { recalcularStatusProjeto } from '../../servicos/projeto-status.servico.js'
 
 const decisao = z.object({
   versaoMaterialId: z.string().uuid(),
@@ -69,94 +71,6 @@ async function validarVersaoAtual(materialId: string, versaoMaterialId: string, 
   return versao
 }
 
-async function carregarContextoAprovacao(projetoId: string, usuarioId: string) {
-  const [projeto] = await banco
-    .select({
-      id: projetos.id,
-      modoAprovacao: projetos.modoAprovacao,
-      status: projetos.status,
-    })
-    .from(projetos)
-    .where(and(eq(projetos.id, projetoId), isNull(projetos.excluidoEm)))
-    .limit(1)
-  if (!projeto) throw new ErroHttp(404, 'Projeto nao encontrado.', 'projeto_nao_encontrado')
-
-  const aprovadores = await banco
-    .select({ usuarioId: participantesProjeto.usuarioId })
-    .from(participantesProjeto)
-    .where(
-      and(
-        eq(participantesProjeto.projetoId, projetoId),
-        eq(participantesProjeto.tipoParticipacao, 'aprovador'),
-        isNull(participantesProjeto.removidoEm),
-      ),
-    )
-
-  if (
-    aprovadores.length > 0 &&
-    !aprovadores.some((item) => item.usuarioId === usuarioId)
-  )
-    throw new ErroHttp(
-      403,
-      'Apenas aprovadores deste projeto podem registrar a aprovacao.',
-      'nao_aprovador',
-    )
-
-  return { projeto, aprovadores }
-}
-
-async function sincronizarStatusProjeto(
-  tx: Parameters<Parameters<typeof banco.transaction>[0]>[0],
-  projetoId: string,
-  agora: Date,
-  fallback: 'alteracoes_solicitadas' | 'em_revisao' | 'aguardando_aprovacao' | null = null,
-) {
-  const lista = await tx
-    .select({ status: materiais.status })
-    .from(materiais)
-    .where(and(eq(materiais.projetoId, projetoId), isNull(materiais.excluidoEm)))
-
-  if (!lista.length) {
-    if (fallback)
-      await tx
-        .update(projetos)
-        .set({ status: fallback, atualizadoEm: agora })
-        .where(eq(projetos.id, projetoId))
-    return
-  }
-
-  const todosAprovados = lista.every((item) => item.status === 'aprovado')
-  if (todosAprovados) {
-    await tx
-      .update(projetos)
-      .set({ status: 'aprovado', atualizadoEm: agora })
-      .where(eq(projetos.id, projetoId))
-    return
-  }
-
-  if (lista.some((item) => item.status === 'alteracoes_solicitadas')) {
-    await tx
-      .update(projetos)
-      .set({ status: 'alteracoes_solicitadas', atualizadoEm: agora })
-      .where(eq(projetos.id, projetoId))
-    return
-  }
-
-  if (lista.some((item) => item.status === 'aguardando_aprovacao')) {
-    await tx
-      .update(projetos)
-      .set({ status: 'aguardando_aprovacao', atualizadoEm: agora })
-      .where(eq(projetos.id, projetoId))
-    return
-  }
-
-  if (fallback)
-    await tx
-      .update(projetos)
-      .set({ status: fallback, atualizadoEm: agora })
-      .where(eq(projetos.id, projetoId))
-}
-
 aprovacoesRotas.post(
   '/materiais/:materialId/aprovar',
   exigirFuncao('atendimento'),
@@ -164,10 +78,17 @@ aprovacoesRotas.post(
   async (req, res) => {
     const m = await materialValido(String(req.params.materialId), req.sessao!.workspaceId)
     const versao = await validarVersaoAtual(m.id, req.body.versaoMaterialId, m.versaoAtualId!)
-    const { projeto, aprovadores } = await carregarContextoAprovacao(
-      m.projetoId,
-      req.sessao!.usuarioId,
-    )
+    const { aprovadores } = await garantirPodeAprovarProjeto(m.projetoId, {
+      usuarioId: req.sessao!.usuarioId,
+      funcao: req.sessao!.funcao,
+      admin: req.sessao!.admin,
+    })
+    const [projeto] = await banco
+      .select({ modoAprovacao: projetos.modoAprovacao })
+      .from(projetos)
+      .where(eq(projetos.id, m.projetoId))
+      .limit(1)
+
     const [abertos] = await banco
       .select({ total: count() })
       .from(comentarios)
@@ -192,26 +113,21 @@ aprovacoesRotas.post(
         aprovadoPorUsuarioId: aprovacoes.aprovadoPorUsuarioId,
       })
       .from(aprovacoes)
-      .where(
-        and(
-          eq(aprovacoes.versaoMaterialId, versao.id),
-          isNull(aprovacoes.revogadaEm),
-        ),
-      )
+      .where(and(eq(aprovacoes.versaoMaterialId, versao.id), isNull(aprovacoes.revogadaEm)))
     if (aprovacoesAtuais.some((item) => item.aprovadoPorUsuarioId === req.sessao!.usuarioId))
       throw new ErroHttp(409, 'Voce ja aprovou esta versao.', 'aprovacao_duplicada')
 
     const agora = new Date()
     const id = novoId()
     const atividadeId = novoId()
-    const idsAprovadores = aprovadores.map((item) => item.usuarioId)
+    const idsAprovadores = aprovadores
     const jaAprovaram = new Set(
       aprovacoesAtuais
         .map((item) => item.aprovadoPorUsuarioId)
         .filter((valor): valor is string => Boolean(valor)),
     )
     jaAprovaram.add(req.sessao!.usuarioId)
-    const exigeTodos = projeto.modoAprovacao === 'todos' && idsAprovadores.length > 1
+    const exigeTodos = projeto?.modoAprovacao === 'todos' && idsAprovadores.length > 1
     const materialFinalizado =
       !exigeTodos || idsAprovadores.every((aprovadorId) => jaAprovaram.has(aprovadorId))
 
@@ -241,7 +157,7 @@ aprovacoesRotas.post(
           .set({ status: 'aguardando_aprovacao', atualizadoEm: agora })
           .where(eq(materiais.id, m.id))
       }
-      await sincronizarStatusProjeto(tx, m.projetoId, agora, 'aguardando_aprovacao')
+      await recalcularStatusProjeto(m.projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
         workspaceId: m.workspaceId,
@@ -249,7 +165,7 @@ aprovacoesRotas.post(
         projetoId: m.projetoId,
         materialId: m.id,
         versaoMaterialId: versao.id,
-        tipo: materialFinalizado ? 'versao_aprovada' : 'aprovacao_parcial',
+        tipo: 'versao_aprovada',
         descricao: materialFinalizado
           ? 'Versao aprovada e decisao registrada'
           : 'Aprovacao registrada; aguardando demais aprovadores',
@@ -264,7 +180,7 @@ aprovacoesRotas.post(
         descricao: materialFinalizado
           ? 'A decisao foi registrada no historico do material.'
           : 'Sua aprovacao foi registrada. Ainda faltam outros aprovadores.',
-        tipo: materialFinalizado ? 'versao_aprovada' : 'aprovacao_parcial',
+        tipo: 'versao_aprovada',
         criadoEm: agora,
       })
     })
@@ -316,7 +232,7 @@ aprovacoesRotas.post(
         .update(materiais)
         .set({ status: 'alteracoes_solicitadas', atualizadoEm: agora })
         .where(eq(materiais.id, m.id))
-      await sincronizarStatusProjeto(tx, m.projetoId, agora, 'alteracoes_solicitadas')
+      await recalcularStatusProjeto(m.projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
         workspaceId: m.workspaceId,
@@ -366,7 +282,7 @@ aprovacoesRotas.post(
         .update(aprovacoes)
         .set({ revogadaEm: agora })
         .where(and(eq(aprovacoes.materialId, m.id), isNull(aprovacoes.revogadaEm)))
-      await sincronizarStatusProjeto(tx, m.projetoId, agora, 'em_revisao')
+      await recalcularStatusProjeto(m.projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
         workspaceId: m.workspaceId,
@@ -398,7 +314,6 @@ aprovacoesRotas.post(
   },
 )
 
-/** Lista aprovacoes da versao atual (quem aprovou / quem falta). */
 aprovacoesRotas.get('/materiais/:materialId/aprovadores', async (req, res) => {
   const m = await materialValido(String(req.params.materialId), req.sessao!.workspaceId)
   const [projeto] = await banco
@@ -407,9 +322,7 @@ aprovacoesRotas.get('/materiais/:materialId/aprovadores', async (req, res) => {
     .where(eq(projetos.id, m.projetoId))
     .limit(1)
   const aprovadores = await banco
-    .select({
-      usuarioId: participantesProjeto.usuarioId,
-    })
+    .select({ usuarioId: participantesProjeto.usuarioId })
     .from(participantesProjeto)
     .where(
       and(
@@ -428,10 +341,7 @@ aprovacoesRotas.get('/materiais/:materialId/aprovadores', async (req, res) => {
         })
         .from(aprovacoes)
         .where(
-          and(
-            eq(aprovacoes.versaoMaterialId, m.versaoAtualId),
-            isNull(aprovacoes.revogadaEm),
-          ),
+          and(eq(aprovacoes.versaoMaterialId, m.versaoAtualId), isNull(aprovacoes.revogadaEm)),
         )
     : []
   const aprovadosIds = new Set(
