@@ -5,7 +5,12 @@ import { Badge, EmptyState } from '@/components/ui/DataDisplay'
 import { useAppData } from '@/contexts/AppDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { materialTypeLabel } from '@/lib/materialType'
-import { isAguardandoCliente, isPrecisaDeMim } from '@/lib/reviewWaitingContext'
+import {
+  getPendingApproverIds,
+  isAguardandoCliente,
+  isPrecisaDeMim,
+  labelAguardandoAcao,
+} from '@/lib/reviewWaitingContext'
 import type { Material, MaterialStatus as MaterialStatusType, Project } from '@/types/domain'
 
 type FilaPrincipal =
@@ -60,7 +65,12 @@ export default function ReviewsPage() {
       'Precisa de mim',
       (m) => {
         const { project } = contexto(m.projectId)
-        return isPrecisaDeMim({ material: m, project, userId: user?.id })
+        return isPrecisaDeMim({
+          material: m,
+          project,
+          userId: user?.id,
+          approvedApproverIds: m.approvedApproverIds,
+        })
       },
     ],
     [
@@ -68,7 +78,12 @@ export default function ReviewsPage() {
       'Aguardando cliente',
       (m) => {
         const { project } = contexto(m.projectId)
-        return isAguardandoCliente({ material: m, project, userId: user?.id })
+        return isAguardandoCliente({
+          material: m,
+          project,
+          userId: user?.id,
+          approvedApproverIds: m.approvedApproverIds,
+        })
       },
     ],
     ['alteracoes', 'Alterações solicitadas', (m) => m.status === 'changes-requested'],
@@ -283,14 +298,20 @@ export default function ReviewsPage() {
         {itens.map((material) => {
           const { project, client } = contexto(material.projectId)
           const thumb = thumbnail(material)
-          const aguardando =
-            material.status === 'waiting-approval'
-              ? project?.approvers[0]
-                ? `Aguardando aprovação de ${project.approvers[0]}`
-                : 'Aguardando aprovação do cliente'
-              : material.status === 'changes-requested'
-                ? 'Cliente solicitou alterações'
-                : null
+          const pendentesIds = getPendingApproverIds(project, material.approvedApproverIds ?? [])
+          const nomesPendentes = pendentesIds.map((id) => {
+            const idx = project?.approverIds.indexOf(id) ?? -1
+            return idx >= 0 ? project!.approvers[idx] : null
+          }).filter((nome): nome is string => Boolean(nome))
+          const aguardando = labelAguardandoAcao(
+            {
+              material,
+              project,
+              userId: user?.id,
+              approvedApproverIds: material.approvedApproverIds,
+            },
+            nomesPendentes,
+          )
           return (
             <div
               key={material.id}

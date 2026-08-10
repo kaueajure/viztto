@@ -7,24 +7,34 @@ export type ReviewWaitingContext =
   | 'precisa_de_mim'
   | 'sem_acao_pendente'
 
-type Entrada = {
+export type ReviewWaitingEntrada = {
   material: Material
   project?: Project
   userId?: string | null
+  /** IDs de aprovadores internos que já registraram aprovação na versão atual. */
+  approvedApproverIds?: string[]
+}
+
+export function getPendingApproverIds(
+  project?: Project,
+  approvedApproverIds: string[] = [],
+): string[] {
+  const aprovados = new Set(approvedApproverIds)
+  return (project?.approverIds ?? []).filter((id) => !aprovados.has(id))
 }
 
 /**
  * Deriva quem deve agir a seguir, sem inventar status no banco.
- * - waiting-approval com aprovadores internos → aprovador interno
- * - waiting-approval sem aprovadores internos → cliente (portal)
+ * Fonte única para Revisões, Projetos e Clientes.
  */
 export function getReviewWaitingContext({
   material,
   project,
   userId,
-}: Entrada): ReviewWaitingContext {
+  approvedApproverIds = material.approvedApproverIds ?? [],
+}: ReviewWaitingEntrada): ReviewWaitingContext {
   const temAprovadoresInternos = Boolean(project?.approverIds?.length)
-  const souAprovador = Boolean(userId && project?.approverIds.includes(userId))
+  const pendentes = getPendingApproverIds(project, approvedApproverIds)
   const souResponsavel = Boolean(userId && project?.memberIds.includes(userId))
 
   if (material.status === 'approved' || material.status === 'draft') {
@@ -42,8 +52,8 @@ export function getReviewWaitingContext({
   }
 
   if (material.status === 'waiting-approval') {
-    if (temAprovadoresInternos) {
-      if (souAprovador) return 'precisa_de_mim'
+    if (temAprovadoresInternos && pendentes.length > 0) {
+      if (userId && pendentes.includes(userId)) return 'precisa_de_mim'
       return 'aguardando_aprovador_interno'
     }
     return 'aguardando_cliente'
@@ -52,10 +62,52 @@ export function getReviewWaitingContext({
   return 'sem_acao_pendente'
 }
 
-export function isAguardandoCliente(entrada: Entrada) {
+export function isAguardandoCliente(entrada: ReviewWaitingEntrada) {
   return getReviewWaitingContext(entrada) === 'aguardando_cliente'
 }
 
-export function isPrecisaDeMim(entrada: Entrada) {
+export function isPrecisaDeMim(entrada: ReviewWaitingEntrada) {
   return getReviewWaitingContext(entrada) === 'precisa_de_mim'
+}
+
+/** Rótulo curto para cards da Inbox de Revisões. */
+export function labelAguardandoAcao(
+  entrada: ReviewWaitingEntrada,
+  nomesPendentes: string[] = [],
+): string | null {
+  const { material } = entrada
+  if (material.status === 'changes-requested') return 'Cliente solicitou alterações'
+  if (material.status !== 'waiting-approval') return null
+
+  const ctx = getReviewWaitingContext(entrada)
+  if (ctx === 'aguardando_cliente') return 'Aguardando cliente'
+
+  if (nomesPendentes.length === 1) return `Aguardando aprovação de ${nomesPendentes[0]}`
+  if (nomesPendentes.length > 1) return `Aguardando ${nomesPendentes.length} aprovadores`
+
+  const pendentes = getPendingApproverIds(
+    entrada.project,
+    entrada.approvedApproverIds ?? material.approvedApproverIds ?? [],
+  )
+  if (pendentes.length === 1 && entrada.project) {
+    const idx = entrada.project.approverIds.indexOf(pendentes[0])
+    const nome = idx >= 0 ? entrada.project.approvers[idx] : null
+    if (nome) return `Aguardando aprovação de ${nome}`
+  }
+  if (pendentes.length > 1) return `Aguardando ${pendentes.length} aprovadores`
+
+  return 'Aguardando cliente'
+}
+
+export function countAguardandoCliente(
+  materials: Material[],
+  projectById: (projectId: string) => Project | undefined,
+): number {
+  return materials.filter((material) =>
+    isAguardandoCliente({
+      material,
+      project: projectById(material.projectId),
+      approvedApproverIds: material.approvedApproverIds,
+    }),
+  ).length
 }

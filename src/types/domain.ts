@@ -80,6 +80,8 @@ export type Material = {
   currentVersion: number
   commentCount: number
   unresolvedCommentCount: number
+  /** Aprovadores internos que já aprovaram a versão atual. */
+  approvedApproverIds?: string[]
   createdAt: string
   updatedAt: string
 }

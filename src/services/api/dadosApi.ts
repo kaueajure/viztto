@@ -9,6 +9,7 @@ import type {
   TeamMember,
   Workspace,
 } from '@/types/domain'
+import { isAguardandoCliente } from '@/lib/reviewWaitingContext'
 import { json, requisicaoApi } from './clienteHttp'
 
 type Lista<T> = { dados: T[] }
@@ -203,26 +204,40 @@ export async function carregarDadosApi() {
   ])
   const details = await Promise.all(
     m.dados.map(async (item) => {
-      const [detalhe, comentarios] = await Promise.all([
+      const aguardando = item.material.status === 'aguardando_aprovacao'
+      const [detalhe, comentarios, aprovadoresStatus] = await Promise.all([
         requisicaoApi<DetalheMaterial>(`/api/materiais/${item.material.id}`),
         requisicaoApi<Lista<ItemComentario>>(`/api/materiais/${item.material.id}/comentarios`),
+        aguardando
+          ? requisicaoApi<{
+              dado: {
+                aprovadores: Array<{ usuarioId: string; status: 'aprovado' | 'aguardando' }>
+              }
+            }>(`/api/materiais/${item.material.id}/aprovadores`).catch(() => null)
+          : Promise.resolve(null),
       ])
-      return { detalhe, comentarios }
+      return { detalhe, comentarios, aprovadoresStatus }
     }),
   )
-  const materials: Material[] = m.dados.map((item) => ({
-    id: item.material.id,
-    projectId: item.material.projetoId,
-    name: item.material.nome,
-    type: mapTipoMaterial(item.material.tipo),
-    status: statusMaterial[item.material.status as keyof typeof statusMaterial] ?? 'draft',
-    currentVersionId: item.material.versaoAtualId ?? '',
-    currentVersion: Number(item.numeroVersao ?? 0),
-    commentCount: Number(item.comentarios ?? 0),
-    unresolvedCommentCount: Number(item.pendencias ?? 0),
-    createdAt: String(item.material.criadoEm),
-    updatedAt: String(item.material.atualizadoEm),
-  }))
+  const materials: Material[] = m.dados.map((item, index) => {
+    const aprovadores = details[index]?.aprovadoresStatus?.dado.aprovadores ?? []
+    return {
+      id: item.material.id,
+      projectId: item.material.projetoId,
+      name: item.material.nome,
+      type: mapTipoMaterial(item.material.tipo),
+      status: statusMaterial[item.material.status as keyof typeof statusMaterial] ?? 'draft',
+      currentVersionId: item.material.versaoAtualId ?? '',
+      currentVersion: Number(item.numeroVersao ?? 0),
+      commentCount: Number(item.comentarios ?? 0),
+      unresolvedCommentCount: Number(item.pendencias ?? 0),
+      approvedApproverIds: aprovadores
+        .filter((a) => a.status === 'aprovado')
+        .map((a) => a.usuarioId),
+      createdAt: String(item.material.criadoEm),
+      updatedAt: String(item.material.atualizadoEm),
+    }
+  })
   const materialVersions: MaterialVersion[] = details.flatMap(({ detalhe }) =>
     detalhe.dado.versoes.map(({ versao, arquivo }) => ({
       id: versao.id,
@@ -263,6 +278,80 @@ export async function carregarDadosApi() {
       })),
     })),
   )
+  const projects = p.dados.map<Project>((x) => {
+    const participantes = x.participantes ?? []
+    const responsaveis = participantes.filter((item) => item.tipoParticipacao === 'responsavel')
+    const aprovadores = participantes.filter((item) => item.tipoParticipacao === 'aprovador')
+    const projectMaterials = materials.filter((y) => y.projectId === x.id)
+    const approvedFromList = projectMaterials.filter((m) => m.status === 'approved').length
+    const total =
+      typeof x.totalMaterials === 'number' ? x.totalMaterials : projectMaterials.length
+    const approved =
+      typeof x.approvedMaterials === 'number' ? x.approvedMaterials : approvedFromList
+    const progress =
+      typeof x.progress === 'number'
+        ? x.progress
+        : total > 0
+          ? Math.round((approved / total) * 100)
+          : 0
+    const project: Project = {
+      id: x.id,
+      clientId: x.clienteId,
+      name: x.nome,
+      description: x.descricao ?? undefined,
+      type: x.tipo,
+      status: statusProjeto[x.status as keyof typeof statusProjeto] ?? 'draft',
+      startDate: x.dataInicio ? String(x.dataInicio) : undefined,
+      dueDate: x.prazoEm ? String(x.prazoEm) : undefined,
+      progress,
+      materialCount: total,
+      approvedMaterialCount: approved,
+      pendingClientCount: 0,
+      commentCount: projectMaterials.reduce((s, y) => s + y.unresolvedCommentCount, 0),
+      members: responsaveis.map((item) => item.nome),
+      memberIds: responsaveis.map((item) => item.usuarioId),
+      approvers: aprovadores.map((item) => item.nome),
+      approverIds: aprovadores.map((item) => item.usuarioId),
+      approvalMode: x.modoAprovacao === 'todos' ? 'all' : 'any',
+      portalActive: x.portalAtivo !== false,
+      updatedAt: String(x.atualizadoEm),
+    }
+    project.pendingClientCount = projectMaterials.filter((m) =>
+      isAguardandoCliente({
+        material: m,
+        project,
+        approvedApproverIds: m.approvedApproverIds,
+      }),
+    ).length
+    return project
+  })
+
+  const clients = c.dados.map<Client>((x) => ({
+    id: x.id,
+    workspaceId: x.workspaceId,
+    name: x.nome,
+    company: x.empresa ?? undefined,
+    email: x.email ?? undefined,
+    phone: x.telefone ?? undefined,
+    notes: x.observacoes ?? undefined,
+    color: x.corIdentificacao ?? undefined,
+    status: x.status === 'ativo' ? 'active' : 'archived',
+    projectCount: projects.filter((y) => y.clientId === x.id).length,
+    pendingApprovals: materials.filter((m) => {
+      const project = projects.find((item) => item.id === m.projectId)
+      return (
+        project?.clientId === x.id &&
+        isAguardandoCliente({
+          material: m,
+          project,
+          approvedApproverIds: m.approvedApproverIds,
+        })
+      )
+    }).length,
+    createdAt: String(x.criadoEm),
+    updatedAt: String(x.atualizadoEm),
+  }))
+
   return {
     workspace: {
       id: w.dado.id,
@@ -271,60 +360,8 @@ export async function carregarDadosApi() {
       plan: w.dado.plano,
       createdAt: String(w.dado.criadoEm),
     } satisfies Workspace,
-    clients: c.dados.map<Client>((x) => ({
-      id: x.id,
-      workspaceId: x.workspaceId,
-      name: x.nome,
-      company: x.empresa ?? undefined,
-      email: x.email ?? undefined,
-      phone: x.telefone ?? undefined,
-      notes: x.observacoes ?? undefined,
-      color: x.corIdentificacao ?? undefined,
-      status: x.status === 'ativo' ? 'active' : 'archived',
-      projectCount: p.dados.filter((y) => y.clienteId === x.id).length,
-      pendingApprovals: 0,
-      createdAt: String(x.criadoEm),
-      updatedAt: String(x.atualizadoEm),
-    })),
-    projects: p.dados.map<Project>((x) => {
-      const participantes = x.participantes ?? []
-      const responsaveis = participantes.filter((item) => item.tipoParticipacao === 'responsavel')
-      const aprovadores = participantes.filter((item) => item.tipoParticipacao === 'aprovador')
-      const projectMaterials = materials.filter((y) => y.projectId === x.id)
-      const approvedFromList = projectMaterials.filter((m) => m.status === 'approved').length
-      const total =
-        typeof x.totalMaterials === 'number' ? x.totalMaterials : projectMaterials.length
-      const approved =
-        typeof x.approvedMaterials === 'number' ? x.approvedMaterials : approvedFromList
-      const progress =
-        typeof x.progress === 'number'
-          ? x.progress
-          : total > 0
-            ? Math.round((approved / total) * 100)
-            : 0
-      return {
-        id: x.id,
-        clientId: x.clienteId,
-        name: x.nome,
-        description: x.descricao ?? undefined,
-        type: x.tipo,
-        status: statusProjeto[x.status as keyof typeof statusProjeto] ?? 'draft',
-        startDate: x.dataInicio ? String(x.dataInicio) : undefined,
-        dueDate: x.prazoEm ? String(x.prazoEm) : undefined,
-        progress,
-        materialCount: total,
-        approvedMaterialCount: approved,
-        pendingClientCount: projectMaterials.filter((m) => m.status === 'waiting-approval').length,
-        commentCount: projectMaterials.reduce((s, y) => s + y.unresolvedCommentCount, 0),
-        members: responsaveis.map((item) => item.nome),
-        memberIds: responsaveis.map((item) => item.usuarioId),
-        approvers: aprovadores.map((item) => item.nome),
-        approverIds: aprovadores.map((item) => item.usuarioId),
-        approvalMode: x.modoAprovacao === 'todos' ? 'all' : 'any',
-        portalActive: x.portalAtivo !== false,
-        updatedAt: String(x.atualizadoEm),
-      }
-    }),
+    clients,
+    projects,
     materials,
     materialVersions,
     comments,
