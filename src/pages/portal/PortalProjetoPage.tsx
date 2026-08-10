@@ -41,8 +41,16 @@ type ConteudoPortal = {
     prazoEm: string | null
     empresaNome: string
     clienteNome: string
+    tituloPortal?: string | null
   }
   marca?: PortalBrand
+  permissoes?: {
+    permitirComentarios?: boolean
+    permitirAprovacao?: boolean
+    permitirSolicitacaoAlteracoes?: boolean
+    permitirDownloads?: boolean
+    permitirVersoesAntigas?: boolean
+  }
   materiais: Array<{
     id: string
     nome: string
@@ -57,11 +65,21 @@ type ConteudoPortal = {
 
 const rotuloStatus: Record<string, string> = {
   rascunho: 'Rascunho',
+  em_andamento: 'Em andamento',
   em_revisao: 'Em revisão',
   alteracoes_solicitadas: 'Alterações solicitadas',
   aguardando_aprovacao: 'Aguardando aprovação',
   aprovado: 'Aprovado',
   arquivado: 'Arquivado',
+}
+
+/** Textos simples para o cliente (sem jargão interno). */
+const rotuloStatusCliente: Record<string, string> = {
+  rascunho: 'Em preparação',
+  em_revisao: 'Em revisão',
+  alteracoes_solicitadas: 'Alterações solicitadas',
+  aguardando_aprovacao: 'Precisa da sua aprovação',
+  aprovado: 'Aprovado',
 }
 
 const rotuloTipo: Record<string, string> = {
@@ -174,14 +192,22 @@ export default function PortalProjetoPage() {
         ? Number(a.status === 'aprovado') - Number(b.status === 'aprovado')
         : 0,
     )
-  const materiaisPendentes =
-    marca?.materiaisAprovados === 'separar'
-      ? materiaisVisiveis.filter((material) => material.status !== 'aprovado')
-      : materiaisVisiveis
-  const materiaisAprovados =
-    marca?.materiaisAprovados === 'separar'
-      ? materiaisVisiveis.filter((material) => material.status === 'aprovado')
-      : []
+
+  const precisaAprovacao = materiaisVisiveis.filter(
+    (m) => m.status === 'aguardando_aprovacao' || m.status === 'em_revisao',
+  )
+  const alteracoesSolicitadas = materiaisVisiveis.filter(
+    (m) => m.status === 'alteracoes_solicitadas',
+  )
+  const aprovados = materiaisVisiveis.filter((m) => m.status === 'aprovado')
+  const emRevisao = materiaisVisiveis.filter((m) => m.status === 'em_revisao')
+  const aguardando = materiaisVisiveis.filter((m) => m.status === 'aguardando_aprovacao')
+  const atualizadosAposObservacoes = alteracoesSolicitadas.length
+    ? []
+    : materiaisVisiveis.filter((m) => m.status === 'aguardando_aprovacao')
+
+  const primeiroParaRevisar = precisaAprovacao[0] ?? null
+
   const renderizarCards = (lista: typeof conteudo.materiais) =>
     lista.map((material) => (
       <Link
@@ -211,7 +237,9 @@ export default function PortalProjetoPage() {
             )}
             {marca?.mostrarStatus !== false && (
               <p className="mt-2 text-[11px] font-medium text-muted">
-                {rotuloStatus[material.status] ?? material.status}
+                {rotuloStatusCliente[material.status] ??
+                  rotuloStatus[material.status] ??
+                  material.status}
               </p>
             )}
           </div>
@@ -223,11 +251,18 @@ export default function PortalProjetoPage() {
       </Link>
     ))
 
+  const tituloExibido =
+    conteudo.projeto.tituloPortal || marca?.tituloPortal || conteudo.projeto.nome
+  const descricaoExibida =
+    conteudo.projeto.descricao ||
+    marca?.descricaoPortal ||
+    'Acesse os materiais deste projeto para comentar, solicitar ajustes ou registrar sua aprovação.'
+
   return (
     <PortalBrandShell
       brand={marca}
       companyName={conteudo.projeto.empresaNome}
-      pageTitle={conteudo.projeto.nome}
+      pageTitle={tituloExibido}
     >
       <header className="border-b border-line/80 bg-background/75 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
@@ -248,17 +283,14 @@ export default function PortalProjetoPage() {
             <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
               <div>
                 <h1 className="max-w-3xl break-words text-3xl font-semibold tracking-[-0.035em] sm:text-5xl">
-                  {conteudo.projeto.nome}
+                  {tituloExibido}
                 </h1>
                 {marca?.mostrarCliente !== false && (
                   <p className="mt-2 text-sm font-medium text-brand">
                     {conteudo.projeto.clienteNome}
                   </p>
                 )}
-                <p className="mt-4 max-w-2xl leading-relaxed text-secondary">
-                  {conteudo.projeto.descricao ||
-                    'Acesse os materiais deste projeto para comentar, solicitar ajustes ou registrar sua aprovação.'}
-                </p>
+                <p className="mt-4 max-w-2xl leading-relaxed text-secondary">{descricaoExibida}</p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs text-secondary lg:max-w-xs lg:justify-end">
                 {marca?.mostrarStatus !== false && (
@@ -278,40 +310,108 @@ export default function PortalProjetoPage() {
           </div>
         </section>
 
-        <section className="mt-9" aria-labelledby="materiais-heading">
+        {(precisaAprovacao.length > 0 || atualizadosAposObservacoes.length > 0) && (
+          <section className="mt-6 rounded-xl border border-brand/40 bg-brand-soft/40 p-5 sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand">
+              Precisa da sua atenção
+            </p>
+            {precisaAprovacao.length > 0 && (
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-lg font-semibold text-ink">
+                  {precisaAprovacao.length === 1
+                    ? '1 material precisa da sua aprovação.'
+                    : `${precisaAprovacao.length} materiais precisam da sua aprovação.`}
+                </p>
+                {primeiroParaRevisar && (
+                  <Link
+                    to={caminhoPortalMaterial(
+                      workspaceSlug,
+                      projectId,
+                      primeiroParaRevisar.id,
+                      tokenPortal,
+                    )}
+                    className="inline-flex min-h-11 items-center justify-center rounded-md border border-brand bg-brand px-4 text-sm font-semibold text-brand-contrast"
+                  >
+                    Revisar agora
+                  </Link>
+                )}
+              </div>
+            )}
+            {atualizadosAposObservacoes.length > 0 && precisaAprovacao.length === 0 && (
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-lg font-semibold text-ink">
+                  {atualizadosAposObservacoes.length === 1
+                    ? '1 material atualizado após suas observações.'
+                    : `${atualizadosAposObservacoes.length} materiais atualizados após suas observações.`}
+                </p>
+                <Link
+                  to={caminhoPortalMaterial(
+                    workspaceSlug,
+                    projectId,
+                    atualizadosAposObservacoes[0].id,
+                    tokenPortal,
+                  )}
+                  className="inline-flex min-h-11 items-center justify-center rounded-md border border-brand bg-brand px-4 text-sm font-semibold text-brand-contrast"
+                >
+                  Ver nova versão
+                </Link>
+              </div>
+            )}
+          </section>
+        )}
+
+        <section className="mt-9 space-y-9" aria-labelledby="materiais-heading">
           <div className="flex items-end justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand">
                 Projeto
               </p>
               <h2 id="materiais-heading" className="mt-1 text-xl font-semibold">
-                Materiais para revisar
+                Materiais
               </h2>
             </div>
             <p className="text-sm text-muted">
-              {materiaisVisiveis.length} {materiaisVisiveis.length === 1 ? 'material' : 'materiais'}
+              {materiaisVisiveis.length}{' '}
+              {materiaisVisiveis.length === 1 ? 'material' : 'materiais'}
             </p>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {renderizarCards(materiaisPendentes)}
-          </div>
+          {aguardando.length > 0 && (
+            <div>
+              <h3 className="text-base font-semibold">Precisa de aprovação</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">{renderizarCards(aguardando)}</div>
+            </div>
+          )}
 
-          {materiaisAprovados.length > 0 && (
-            <div className="mt-9">
-              <h2 className="text-xl font-semibold">Materiais aprovados</h2>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {renderizarCards(materiaisAprovados)}
+          {emRevisao.length > 0 && (
+            <div>
+              <h3 className="text-base font-semibold">Em revisão</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">{renderizarCards(emRevisao)}</div>
+            </div>
+          )}
+
+          {alteracoesSolicitadas.length > 0 && (
+            <div>
+              <h3 className="text-base font-semibold">Alterações solicitadas</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {renderizarCards(alteracoesSolicitadas)}
               </div>
+            </div>
+          )}
+
+          {aprovados.length > 0 && marca?.materiaisAprovados !== 'ocultar' && (
+            <div>
+              <h3 className="text-base font-semibold">Aprovados</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">{renderizarCards(aprovados)}</div>
             </div>
           )}
 
           {!materiaisVisiveis.length && (
             <div className="mt-4 rounded-lg border border-dashed border-line bg-surface/70 p-7 text-center sm:p-10">
               <Inbox className="mx-auto h-7 w-7 text-muted" aria-hidden />
-              <p className="mt-3 font-semibold">Nenhum material</p>
+              <p className="mt-3 font-semibold">Nenhum material ainda</p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-secondary">
-                Aguarde a equipe publicar.
+                Aguarde a equipe publicar os arquivos deste projeto.
               </p>
             </div>
           )}

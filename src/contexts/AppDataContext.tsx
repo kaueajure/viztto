@@ -52,7 +52,15 @@ type Valor = Estado & {
   addProject: (d: NewProject) => Promise<Project>
   updateProjectParticipants: (
     projectId: string,
-    d: { memberIds: string[]; approverIds: string[] },
+    d: {
+      memberIds: string[]
+      approverIds: string[]
+      permissoes?: Array<{
+        usuarioId: string
+        podeEnviarMateriais?: boolean
+        podeResponderComentarios?: boolean
+      }>
+    },
   ) => Promise<void>
   addTeamMember: (d: Pick<TeamMember, 'email' | 'role'>) => Promise<void>
   addMaterial: (d: NewMaterial) => Promise<Material>
@@ -210,11 +218,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           dueDate: d.dueDate,
           progress: 0,
           materialCount: 0,
+          approvedMaterialCount: 0,
+          pendingClientCount: 0,
           commentCount: 0,
           members: d.members ?? [],
           memberIds: d.memberIds ?? [],
           approvers: d.approvers ?? [],
           approverIds: d.approverIds ?? [],
+          approvalMode: 'any',
+          portalActive: true,
           updatedAt: new Date().toISOString(),
         }
         setEstado((atual) => ({

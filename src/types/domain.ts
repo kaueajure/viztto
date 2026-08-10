@@ -32,7 +32,15 @@ export type Client = {
 }
 
 export type ProjectStatus =
-  'draft' | 'in-review' | 'changes-requested' | 'waiting-approval' | 'approved' | 'archived'
+  | 'draft'
+  | 'in-progress'
+  | 'in-review'
+  | 'changes-requested'
+  | 'waiting-approval'
+  | 'approved'
+  | 'archived'
+
+export type ApprovalMode = 'any' | 'all'
 
 export type Project = {
   id: string
@@ -41,14 +49,19 @@ export type Project = {
   description?: string
   type: string
   status: ProjectStatus
+  startDate?: string
   dueDate?: string
   progress: number
   materialCount: number
+  approvedMaterialCount: number
+  pendingClientCount: number
   commentCount: number
   members: string[]
   memberIds: string[]
   approvers: string[]
   approverIds: string[]
+  approvalMode: ApprovalMode
+  portalActive: boolean
   updatedAt: string
 }
 
@@ -132,6 +145,7 @@ export type Activity = {
   projectId?: string
   materialId?: string
   versionId?: string
+  commentId?: string
 }
 
 export type TeamMember = {

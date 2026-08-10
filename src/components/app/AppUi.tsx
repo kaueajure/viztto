@@ -63,10 +63,11 @@ export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
     [string, 'neutral' | 'brand' | 'approval' | 'revision' | 'warning']
   > = {
     draft: ['Rascunho', 'neutral'],
+    'in-progress': ['Em andamento', 'brand'],
     'in-review': ['Em revisão', 'brand'],
     'changes-requested': ['Alterações solicitadas', 'revision'],
-    'waiting-approval': ['Aguardando aprovação', 'warning'],
-    approved: ['Aprovado', 'approval'],
+    'waiting-approval': ['Aguardando cliente', 'warning'],
+    approved: ['Concluído', 'approval'],
     archived: ['Arquivado', 'neutral'],
   }
   const [label, tone] = config[status]
@@ -85,9 +86,23 @@ export function MaterialStatus({ status }: { status: Material['status'] }) {
   return <Badge tone={tone}>{label}</Badge>
 }
 
-export function ProjectProgress({ value }: { value: number }) {
+export function ProjectProgress({
+  value,
+  approved,
+  total,
+}: {
+  value: number
+  approved?: number
+  total?: number
+}) {
+  const temContagem = typeof approved === 'number' && typeof total === 'number'
   return (
-    <div className="w-28">
+    <div className={temContagem ? 'min-w-[8.5rem]' : 'w-28'}>
+      {temContagem && (
+        <p className="mb-1 text-xs text-secondary">
+          {approved} de {total} aprovados · {value}%
+        </p>
+      )}
       <Progress value={value} />
     </div>
   )

@@ -120,6 +120,27 @@
       "when": 1786400000000,
       "tag": "0016_formatos_imagem_video_pdf",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1786500000000,
+      "tag": "0017_ocultar_workspaces_e2e",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1786600000000,
+      "tag": "0018_configuracoes_projeto",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1786700000000,
+      "tag": "0019_aprovacao_parcial",
+      "breakpoints": true
     }
   ]
 }

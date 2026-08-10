@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Clock3, FolderKanban } from 'lucide-react'
+import { AlertCircle, Clock3, FolderKanban } from 'lucide-react'
 import { Link } from 'react-router'
 import { MaterialStatus, PageHeader, ProjectStatusBadge } from '@/components/app/AppUi'
 import { Avatar, Card } from '@/components/ui/DataDisplay'
@@ -46,18 +46,6 @@ export default function DashboardPage() {
         </div>
       </div>
     )
-  const inicioSemana = (() => {
-    const data = new Date()
-    const dia = data.getDay()
-    const diff = dia === 0 ? 6 : dia - 1
-    data.setHours(0, 0, 0, 0)
-    data.setDate(data.getDate() - diff)
-    return data
-  })()
-  const aprovadosNestaSemana = activities.filter(
-    (item) =>
-      item.tipo === 'versao_aprovada' && new Date(item.createdAt).getTime() >= inicioSemana.getTime(),
-  ).length
   const stats = [
     [
       'Aguardando aprovação',
@@ -77,12 +65,70 @@ export default function DashboardPage() {
       FolderKanban,
       'text-brand',
     ],
-    ['Aprovados nesta semana', aprovadosNestaSemana, CheckCircle2, 'text-approval'],
+    [
+      'Projetos atrasados',
+      projects.filter(
+        (item) =>
+          item.dueDate &&
+          !['approved', 'archived'].includes(item.status) &&
+          new Date(item.dueDate).getTime() < Date.now(),
+      ).length,
+      AlertCircle,
+      'text-revision',
+    ],
   ] as const
+  const revisoesPendentes = materials.filter((item) =>
+    ['in-review', 'changes-requested', 'waiting-approval'].includes(item.status),
+  ).length
+  const alteracoesCliente = materials.filter((item) => item.status === 'changes-requested').length
+  const projetosAtrasados = projects.filter(
+    (item) =>
+      item.dueDate &&
+      !['approved', 'archived'].includes(item.status) &&
+      new Date(item.dueDate).getTime() < Date.now(),
+  ).length
+  const precisaAtencao =
+    revisoesPendentes > 0 || alteracoesCliente > 0 || projetosAtrasados > 0
+
   const clientName = (id: string) => clients.find((item) => item.id === id)?.name ?? 'Cliente'
   return (
     <div>
       <PageHeader title={titulo} action={{ label: 'Novo projeto', to: '/app/projetos/novo' }} />
+      {precisaAtencao && (
+        <section className="mt-6 rounded-lg border border-brand/40 bg-brand-soft/30 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+            Precisa da sua atenção
+          </p>
+          <ul className="mt-3 space-y-1 text-sm text-ink">
+            {revisoesPendentes > 0 && (
+              <li>
+                {revisoesPendentes} {revisoesPendentes === 1 ? 'material precisa' : 'materiais precisam'}{' '}
+                de revisão
+              </li>
+            )}
+            {alteracoesCliente > 0 && (
+              <li>
+                {alteracoesCliente}{' '}
+                {alteracoesCliente === 1
+                  ? 'cliente solicitou alterações'
+                  : 'clientes solicitaram alterações'}
+              </li>
+            )}
+            {projetosAtrasados > 0 && (
+              <li>
+                {projetosAtrasados}{' '}
+                {projetosAtrasados === 1 ? 'projeto está atrasado' : 'projetos estão atrasados'}
+              </li>
+            )}
+          </ul>
+          <Link
+            to="/app/revisoes"
+            className="mt-4 inline-flex min-h-11 items-center rounded-md border border-brand bg-brand px-4 text-sm font-semibold text-brand-contrast"
+          >
+            Ver revisões
+          </Link>
+        </section>
+      )}
       <section aria-label="Resumo" className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map(([label, value, Icon, color]) => (
           <Card key={label} className="p-4">

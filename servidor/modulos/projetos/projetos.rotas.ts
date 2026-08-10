@@ -1,10 +1,11 @@
 import { Router } from 'express'
-import { and, count, desc, eq, inArray, isNull, like } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, isNull, like, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
 import {
   atividades,
   clientes,
+  materiais,
   membrosWorkspace,
   participantesProjeto,
   projetos,
@@ -47,6 +48,7 @@ const dadosProjeto = z.object({
   status: z
     .enum([
       'rascunho',
+      'em_andamento',
       'em_revisao',
       'alteracoes_solicitadas',
       'aguardando_aprovacao',
@@ -54,7 +56,10 @@ const dadosProjeto = z.object({
       'arquivado',
     ])
     .optional(),
+  dataInicio: z.coerce.date().optional().nullable(),
   prazoEm: z.coerce.date().optional().nullable(),
+  modoAprovacao: z.enum(['qualquer', 'todos']).optional(),
+  portalAtivo: z.boolean().optional(),
   responsavelIds: idsParticipantes,
   aprovadorIds: idsParticipantes,
 })
@@ -66,12 +71,26 @@ const dadosProjetoAtualizacao = dadosProjeto
 const dadosParticipantes = z.object({
   responsavelIds: idsParticipantes,
   aprovadorIds: idsParticipantes,
+  permissoes: z
+    .array(
+      z.object({
+        usuarioId: z.string().uuid(),
+        podeEnviarMateriais: z.boolean().optional(),
+        podeResponderComentarios: z.boolean().optional(),
+      }),
+    )
+    .max(50)
+    .optional(),
 })
 
 type ParticipanteResposta = {
   usuarioId: string
   nome: string
+  email: string
+  avatarUrl: string | null
   tipoParticipacao: 'responsavel' | 'colaborador' | 'aprovador' | 'visualizador'
+  podeEnviarMateriais: boolean
+  podeResponderComentarios: boolean
 }
 
 async function carregarParticipantes(projetoIds: string[]): Promise<Map<string, ParticipanteResposta[]>> {
@@ -82,7 +101,11 @@ async function carregarParticipantes(projetoIds: string[]): Promise<Map<string, 
       projetoId: participantesProjeto.projetoId,
       usuarioId: participantesProjeto.usuarioId,
       tipoParticipacao: participantesProjeto.tipoParticipacao,
+      podeEnviarMateriais: participantesProjeto.podeEnviarMateriais,
+      podeResponderComentarios: participantesProjeto.podeResponderComentarios,
       nome: usuarios.nome,
+      email: usuarios.email,
+      avatarUrl: usuarios.avatarUrl,
     })
     .from(participantesProjeto)
     .innerJoin(usuarios, eq(usuarios.id, participantesProjeto.usuarioId))
@@ -97,7 +120,11 @@ async function carregarParticipantes(projetoIds: string[]): Promise<Map<string, 
     lista.push({
       usuarioId: linha.usuarioId,
       nome: linha.nome,
+      email: linha.email,
+      avatarUrl: linha.avatarUrl,
       tipoParticipacao: linha.tipoParticipacao,
+      podeEnviarMateriais: linha.podeEnviarMateriais,
+      podeResponderComentarios: linha.podeResponderComentarios,
     })
     mapa.set(linha.projetoId, lista)
   }
@@ -152,10 +179,18 @@ async function sincronizarParticipantes(
   responsavelIds: string[],
   aprovadorIds: string[],
   agora: Date,
+  permissoes?: Array<{
+    usuarioId: string
+    podeEnviarMateriais?: boolean
+    podeResponderComentarios?: boolean
+  }>,
 ) {
   const desejados = new Map<string, 'responsavel' | 'aprovador'>()
   for (const id of responsavelIds) desejados.set(id, 'responsavel')
   for (const id of aprovadorIds) desejados.set(id, 'aprovador')
+  const mapaPermissoes = new Map(
+    (permissoes ?? []).map((item) => [item.usuarioId, item] as const),
+  )
 
   const existentes = await tx
     .select()
@@ -173,22 +208,34 @@ async function sincronizarParticipantes(
       continue
     }
     desejados.delete(atual.usuarioId)
+    const perms = mapaPermissoes.get(atual.usuarioId)
     await tx
       .update(participantesProjeto)
       .set({
         tipoParticipacao: tipo,
         removidoEm: null,
+        ...(perms?.podeEnviarMateriais !== undefined
+          ? { podeEnviarMateriais: perms.podeEnviarMateriais }
+          : {}),
+        ...(perms?.podeResponderComentarios !== undefined
+          ? { podeResponderComentarios: perms.podeResponderComentarios }
+          : {}),
       })
       .where(eq(participantesProjeto.id, atual.id))
   }
 
-  const novos = [...desejados.entries()].map(([usuarioId, tipoParticipacao]) => ({
-    id: novoId(),
-    projetoId,
-    usuarioId,
-    tipoParticipacao,
-    criadoEm: agora,
-  }))
+  const novos = [...desejados.entries()].map(([usuarioId, tipoParticipacao]) => {
+    const perms = mapaPermissoes.get(usuarioId)
+    return {
+      id: novoId(),
+      projetoId,
+      usuarioId,
+      tipoParticipacao,
+      podeEnviarMateriais: perms?.podeEnviarMateriais ?? true,
+      podeResponderComentarios: perms?.podeResponderComentarios ?? true,
+      criadoEm: agora,
+    }
+  })
   if (novos.length) await tx.insert(participantesProjeto).values(novos)
 }
 
@@ -213,6 +260,38 @@ projetosRotas.get('/', async (req, res) => {
       .offset((q.pagina - 1) * q.porPagina),
   ])
   const participantesPorProjeto = await carregarParticipantes(dados.map((item) => item.id))
+  const progressoPorProjeto = new Map<
+    string,
+    { totalMaterials: number; approvedMaterials: number; progress: number }
+  >()
+  if (dados.length) {
+    const totais = await banco
+      .select({
+        projetoId: materiais.projetoId,
+        total: count(),
+        aprovados: sql<number>`sum(case when ${materiais.status} = 'aprovado' then 1 else 0 end)`,
+      })
+      .from(materiais)
+      .where(
+        and(
+          inArray(
+            materiais.projetoId,
+            dados.map((item) => item.id),
+          ),
+          isNull(materiais.excluidoEm),
+        ),
+      )
+      .groupBy(materiais.projetoId)
+    for (const linha of totais) {
+      const total = Number(linha.total ?? 0)
+      const approved = Number(linha.aprovados ?? 0)
+      progressoPorProjeto.set(linha.projetoId, {
+        totalMaterials: total,
+        approvedMaterials: approved,
+        progress: total > 0 ? Math.round((approved / total) * 100) : 0,
+      })
+    }
+  }
   res.json(
     paginar(
       q.pagina,
@@ -221,6 +300,11 @@ projetosRotas.get('/', async (req, res) => {
       dados.map((projeto) => ({
         ...semSegredosPortal(projeto),
         participantes: participantesPorProjeto.get(projeto.id) ?? [],
+        ...(progressoPorProjeto.get(projeto.id) ?? {
+          totalMaterials: 0,
+          approvedMaterials: 0,
+          progress: 0,
+        }),
       })),
     ),
   )
@@ -333,7 +417,14 @@ projetosRotas.put(
     )
     const agora = new Date()
     await banco.transaction(async (tx) => {
-      await sincronizarParticipantes(tx, projetoId, responsavelIds, aprovadorIds, agora)
+      await sincronizarParticipantes(
+        tx,
+        projetoId,
+        responsavelIds,
+        aprovadorIds,
+        agora,
+        (req.body as z.infer<typeof dadosParticipantes>).permissoes,
+      )
       await tx
         .update(projetos)
         .set({ atualizadoEm: agora })
@@ -370,7 +461,11 @@ projetosRotas.get('/:projetoId/link-portal', exigirFuncao('atendimento'), async 
     token = gerarTokenPortal()
     await banco
       .update(projetos)
-      .set({ tokenPortal: token, atualizadoEm: new Date() })
+      .set({
+        tokenPortal: token,
+        portalCriadoEm: new Date(),
+        atualizadoEm: new Date(),
+      })
       .where(eq(projetos.id, projetoId))
   }
   res.json({
@@ -400,7 +495,13 @@ projetosRotas.post('/:projetoId/link-portal', exigirFuncao('atendimento'), async
   const tokenPortal = gerarTokenPortal()
   await banco
     .update(projetos)
-    .set({ tokenPortal, atualizadoEm: new Date() })
+    .set({
+      tokenPortal,
+      portalCriadoEm: new Date(),
+      portalAcessos: 0,
+      portalUltimoAcessoEm: null,
+      atualizadoEm: new Date(),
+    })
     .where(eq(projetos.id, projetoId))
   const envio = await reenviarLinkPortalProjeto({
     projetoId,
@@ -461,6 +562,49 @@ projetosRotas.patch(
     res.json({ mensagem: 'Projeto atualizado.' })
   },
 )
+
+/** Revoga o link atual do portal (invalida tokens existentes). */
+projetosRotas.delete('/:projetoId/link-portal', exigirFuncao('atendimento'), async (req, res) => {
+  const projetoId = String(req.params.projetoId)
+  const r = await banco
+    .update(projetos)
+    .set({
+      tokenPortal: null,
+      portalAcessos: 0,
+      portalUltimoAcessoEm: null,
+      portalCriadoEm: null,
+      atualizadoEm: new Date(),
+    })
+    .where(
+      and(
+        eq(projetos.id, projetoId),
+        eq(projetos.workspaceId, req.sessao!.workspaceId),
+        isNull(projetos.excluidoEm),
+      ),
+    )
+  if (!r[0].affectedRows)
+    throw new ErroHttp(404, 'Projeto não encontrado.', 'projeto_nao_encontrado')
+  res.json({ mensagem: 'Link do portal revogado.' })
+})
+
+/** Restaura projeto arquivado (status volta para em andamento). */
+projetosRotas.post('/:projetoId/restaurar', exigirFuncao('atendimento'), async (req, res) => {
+  const r = await banco
+    .update(projetos)
+    .set({ status: 'em_andamento', atualizadoEm: new Date() })
+    .where(
+      and(
+        eq(projetos.id, String(req.params.projetoId)),
+        eq(projetos.workspaceId, req.sessao!.workspaceId),
+        eq(projetos.status, 'arquivado'),
+        isNull(projetos.excluidoEm),
+      ),
+    )
+  if (!r[0].affectedRows)
+    throw new ErroHttp(404, 'Projeto arquivado não encontrado.', 'projeto_nao_encontrado')
+  res.json({ mensagem: 'Projeto restaurado.' })
+})
+
 projetosRotas.delete('/:projetoId', exigirFuncao('gestor'), async (req, res) => {
   const r = await banco
     .update(projetos)

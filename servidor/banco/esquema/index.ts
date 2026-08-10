@@ -47,6 +47,15 @@ export type PortalConfiguracaoDados = {
   mostrarTipo?: boolean
   mostrarVersao?: boolean
   materiaisAprovados?: 'mostrar' | 'separar' | 'ocultar'
+  /** Permissões do portal do cliente (por projeto). */
+  permitirComentarios?: boolean
+  permitirAprovacao?: boolean
+  permitirSolicitacaoAlteracoes?: boolean
+  permitirDownloads?: boolean
+  permitirVersoesAntigas?: boolean
+  /** Título/descrição exibidos no portal (override). */
+  tituloPortal?: string
+  descricaoPortal?: string
 }
 
 export const usuarios = mysqlTable(
@@ -377,6 +386,7 @@ export const projetos = mysqlTable(
     tipo: varchar('tipo', { length: 80 }).notNull(),
     status: mysqlEnum('status', [
       'rascunho',
+      'em_andamento',
       'em_revisao',
       'alteracoes_solicitadas',
       'aguardando_aprovacao',
@@ -385,11 +395,18 @@ export const projetos = mysqlTable(
     ])
       .notNull()
       .default('rascunho'),
+    dataInicio: data('data_inicio'),
     prazoEm: data('prazo_em'),
+    /** qualquer = um aprovador finaliza; todos = todos precisam aprovar (prévia de etapas). */
+    modoAprovacao: mysqlEnum('modo_aprovacao', ['qualquer', 'todos']).notNull().default('qualquer'),
+    portalAtivo: boolean('portal_ativo').notNull().default(true),
     senhaAcessoHash: varchar('senha_acesso_hash', { length: 255 }),
     tokenPortal: varchar('token_portal', { length: 64 }),
     portalConfiguracao: json('portal_configuracao').$type<PortalConfiguracaoDados>(),
     portalExpiraEm: data('portal_expira_em'),
+    portalCriadoEm: data('portal_criado_em'),
+    portalAcessos: int('portal_acessos').notNull().default(0),
+    portalUltimoAcessoEm: data('portal_ultimo_acesso_em'),
     criadoPorUsuarioId: id('criado_por_usuario_id'),
     criadoEm: data('criado_em').notNull(),
     atualizadoEm: data('atualizado_em').notNull(),
@@ -430,6 +447,8 @@ export const participantesProjeto = mysqlTable(
       'aprovador',
       'visualizador',
     ]).notNull(),
+    podeEnviarMateriais: boolean('pode_enviar_materiais').notNull().default(true),
+    podeResponderComentarios: boolean('pode_responder_comentarios').notNull().default(true),
     criadoEm: data('criado_em').notNull(),
     removidoEm: data('removido_em'),
   },
@@ -708,6 +727,7 @@ export const atividades = mysqlTable(
       'comentario_resolvido',
       'comentario_reaberto',
       'alteracoes_solicitadas',
+      'aprovacao_parcial',
       'versao_aprovada',
       'revisao_reaberta',
     ]).notNull(),

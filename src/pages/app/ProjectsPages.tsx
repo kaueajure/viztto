@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/Button'
 import { AvatarGroup, EmptyState } from '@/components/ui/DataDisplay'
 import { Checkbox, Input, Select, Textarea } from '@/components/ui/FormControls'
 import { Modal, Tabs } from '@/components/ui/Interactive'
+import { ProjectSettingsPanel } from '@/components/project/ProjectSettingsPanel'
+import { PROJECT_TYPES } from '@/lib/projectCatalog'
 import { ActivityPanel } from '@/components/review/ActivityPanel'
 import { useAppData } from '@/contexts/AppDataContext'
 import { assinaturasApi } from '@/services/api/assinaturasApi'
@@ -19,10 +21,11 @@ import type { ProjectStatus, TeamMember } from '@/types/domain'
 
 const filters: Array<[string, ProjectStatus | 'all']> = [
   ['Todos', 'all'],
+  ['Em andamento', 'in-progress'],
   ['Em revisão', 'in-review'],
   ['Alterações solicitadas', 'changes-requested'],
-  ['Aguardando aprovação', 'waiting-approval'],
-  ['Aprovados', 'approved'],
+  ['Aguardando cliente', 'waiting-approval'],
+  ['Concluídos', 'approved'],
   ['Arquivados', 'archived'],
 ]
 
@@ -60,14 +63,25 @@ function ParticipantPicker({
         <p className="text-sm font-medium text-ink">Responsáveis</p>
         <p className="mt-1 text-xs text-secondary">Membros que acompanham o projeto.</p>
         <div className="mt-3 grid gap-2">
-          {membros.map((membro) => (
-            <Checkbox
-              key={`resp-${membro.id}`}
-              label={membro.name}
-              checked={memberIds.includes(membro.id)}
-              onChange={(checked) => toggle(memberIds, membro.id, checked, false, onChangeMembers)}
-            />
-          ))}
+          {membros.map((membro) => {
+            const bloqueado = approverIds.includes(membro.id)
+            return (
+              <Checkbox
+                key={`resp-${membro.id}`}
+                label={
+                  bloqueado
+                    ? `${membro.name} — Indisponível (já é aprovador)`
+                    : membro.name
+                }
+                checked={memberIds.includes(membro.id)}
+                disabled={bloqueado}
+                onChange={(checked) => {
+                  if (bloqueado) return
+                  toggle(memberIds, membro.id, checked, false, onChangeMembers)
+                }}
+              />
+            )
+          })}
           {!membros.length && <p className="text-sm text-muted">Nenhum membro ativo.</p>}
         </div>
       </div>
@@ -79,16 +93,25 @@ function ParticipantPicker({
             : 'Seu plano permite um aprovador por projeto.'}
         </p>
         <div className="mt-3 grid gap-2">
-          {membros.map((membro) => (
-            <Checkbox
-              key={`aprov-${membro.id}`}
-              label={membro.name}
-              checked={approverIds.includes(membro.id)}
-              onChange={(checked) =>
-                toggle(approverIds, membro.id, checked, !variosAprovadores, onChangeApprovers)
-              }
-            />
-          ))}
+          {membros.map((membro) => {
+            const bloqueado = memberIds.includes(membro.id)
+            return (
+              <Checkbox
+                key={`aprov-${membro.id}`}
+                label={
+                  bloqueado
+                    ? `${membro.name} — Indisponível (já é responsável)`
+                    : membro.name
+                }
+                checked={approverIds.includes(membro.id)}
+                disabled={bloqueado}
+                onChange={(checked) => {
+                  if (bloqueado) return
+                  toggle(approverIds, membro.id, checked, !variosAprovadores, onChangeApprovers)
+                }}
+              />
+            )
+          })}
           {!membros.length && <p className="text-sm text-muted">Nenhum membro ativo.</p>}
         </div>
       </div>
@@ -152,29 +175,55 @@ export function ProjectsPage() {
           <span>Prazo</span>
         </div>
         <div className="divide-y divide-line">
-          {filtered.map((project) => (
+          {filtered.map((project) => {
+            const atrasado =
+              project.dueDate &&
+              project.status !== 'approved' &&
+              project.status !== 'archived' &&
+              new Date(project.dueDate).getTime() < Date.now()
+            const destaque =
+              atrasado ||
+              project.status === 'waiting-approval' ||
+              project.status === 'changes-requested'
+            return (
             <Link
               to={`/app/projetos/${project.id}`}
               key={project.id}
-              className="grid gap-4 p-4 hover:bg-surface-secondary lg:grid-cols-[1.2fr_.8fr_auto_auto_auto] lg:items-center"
+              className={`grid gap-4 p-4 hover:bg-surface-secondary lg:grid-cols-[1.2fr_.8fr_auto_auto_auto] lg:items-center ${
+                destaque ? 'border-l-2 border-l-warning' : ''
+              } ${atrasado ? 'bg-revision/5' : ''}`}
             >
               <div>
                 <p className="font-semibold">{project.name}</p>
                 <p className="mt-1 text-xs text-muted">
-                  {clientName(project.clientId)} · {project.materialCount} materiais ·{' '}
-                  {project.commentCount} abertos
+                  {clientName(project.clientId)} · {project.approvedMaterialCount}/
+                  {project.materialCount} materiais aprovados
+                  {project.pendingClientCount
+                    ? ` · ${project.pendingClientCount} aguardando cliente`
+                    : ''}
+                  {project.commentCount ? ` · ${project.commentCount} abertos` : ''}
                 </p>
+                {project.members[0] && (
+                  <p className="mt-1 text-xs text-secondary">Responsável: {project.members[0]}</p>
+                )}
               </div>
-              <ProjectProgress value={project.progress} />
+              <ProjectProgress
+                value={project.progress}
+                approved={project.approvedMaterialCount}
+                total={project.materialCount}
+              />
               <ProjectStatusBadge status={project.status} />
               <AvatarGroup names={[...project.members, ...project.approvers].slice(0, 3)} />
-              <span className="text-xs text-secondary">
+              <span className={`text-xs ${atrasado ? 'font-medium text-revision' : 'text-secondary'}`}>
                 {project.dueDate
-                  ? new Date(project.dueDate).toLocaleDateString('pt-BR')
+                  ? atrasado
+                    ? `Atrasado · ${new Date(project.dueDate).toLocaleDateString('pt-BR')}`
+                    : new Date(project.dueDate).toLocaleDateString('pt-BR')
                   : 'Sem prazo'}
               </span>
             </Link>
-          ))}
+            )
+          })}
           {!filtered.length && (
             <div className="p-6">
               <EmptyState
@@ -260,9 +309,11 @@ export function NewProjectPage() {
               </option>
             ))}
           </Select>
-          <Select label="Tipo" value={form.type} onChange={set('type')}>
-            {['Campanha', 'Redes sociais', 'Vídeo', 'Apresentação', 'Site', 'Outro'].map((item) => (
-              <option key={item}>{item}</option>
+          <Select label="Tipo do projeto" value={form.type} onChange={set('type')}>
+            {PROJECT_TYPES.map((item) => (
+              <option value={item.value} key={item.value}>
+                {item.label}
+              </option>
             ))}
           </Select>
           <Input label="Prazo" type="date" value={form.dueDate} onChange={set('dueDate')} />
@@ -386,18 +437,74 @@ export function ProjectDetailPage() {
   }
 
   const overview = (
-    <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
-      <div>
-        <h2 className="font-semibold text-ink">Resumo</h2>
-        <p className="mt-2 leading-relaxed">{project.description || 'Sem descrição.'}</p>
-        <div className="mt-6">
-          <ProjectProgress value={project.progress} />
+    <div className="space-y-6">
+      <div className="rounded-md border border-brand/30 bg-brand-soft/30 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+          Precisa de atenção
+        </p>
+        <ul className="mt-2 space-y-1 text-sm text-ink">
+          {materials.filter((m) => m.status === 'waiting-approval').length > 0 && (
+            <li>
+              {materials.filter((m) => m.status === 'waiting-approval').length} aguardando cliente
+            </li>
+          )}
+          {materials.filter((m) => m.status === 'changes-requested').length > 0 && (
+            <li>
+              {materials.filter((m) => m.status === 'changes-requested').length} com alterações
+              solicitadas
+            </li>
+          )}
+          {materials.filter((m) => m.status === 'in-review').length > 0 && (
+            <li>{materials.filter((m) => m.status === 'in-review').length} em revisão</li>
+          )}
+          {!materials.some((m) =>
+            ['waiting-approval', 'changes-requested', 'in-review'].includes(m.status),
+          ) && <li className="text-secondary">Nenhuma pendência no momento.</li>}
+        </ul>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
+        <div>
+          <h2 className="font-semibold text-ink">Resumo</h2>
+          <p className="mt-2 leading-relaxed">{project.description || 'Sem descrição.'}</p>
+          <div className="mt-6">
+            <ProjectProgress
+              value={project.progress}
+              approved={project.approvedMaterialCount}
+              total={project.materialCount}
+            />
+          </div>
+        </div>
+        <div className="rounded-md border border-line bg-surface-secondary p-4">
+          <p className="text-xs text-muted">Pendências</p>
+          <p className="mt-2 text-2xl font-semibold text-revision">{project.commentCount}</p>
+          <p className="mt-1 text-xs">comentários abertos</p>
         </div>
       </div>
-      <div className="rounded-md border border-line bg-surface-secondary p-4">
-        <p className="text-xs text-muted">Pendências</p>
-        <p className="mt-2 text-2xl font-semibold text-revision">{project.commentCount}</p>
-        <p className="mt-1 text-xs">comentários abertos</p>
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div>
+          <h3 className="font-semibold">Equipe</h3>
+          <ul className="mt-3 space-y-2 text-sm">
+            {project.members.map((nome) => (
+              <li key={nome}>{nome} — Responsável</li>
+            ))}
+            {!project.members.length && <li className="text-muted">Nenhum responsável.</li>}
+          </ul>
+        </div>
+        <div>
+          <h3 className="font-semibold">Aprovação</h3>
+          <ul className="mt-3 space-y-2 text-sm">
+            {project.approvers.map((nome) => (
+              <li key={nome}>{nome} — Aprovador</li>
+            ))}
+            {!project.approvers.length && <li className="text-muted">Nenhum aprovador.</li>}
+          </ul>
+          <p className="mt-2 text-xs text-muted">
+            Modo:{' '}
+            {project.approvalMode === 'all'
+              ? 'todos precisam aprovar'
+              : 'qualquer aprovador finaliza'}
+          </p>
+        </div>
       </div>
     </div>
   )
@@ -447,19 +554,19 @@ export function ProjectDetailPage() {
         <>
           <div className="grid gap-6 sm:grid-cols-2">
             <div>
-              <h3 className="font-semibold">Responsáveis</h3>
+              <h3 className="font-semibold">Equipe</h3>
               <ul className="mt-3 space-y-2 text-sm">
                 {project.members.map((nome) => (
-                  <li key={nome}>{nome}</li>
+                  <li key={nome}>{nome} — Responsável</li>
                 ))}
                 {!project.members.length && <li className="text-muted">Nenhum responsável.</li>}
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold">Aprovadores</h3>
+              <h3 className="font-semibold">Aprovação</h3>
               <ul className="mt-3 space-y-2 text-sm">
                 {project.approvers.map((nome) => (
-                  <li key={nome}>{nome}</li>
+                  <li key={nome}>{nome} — Aprovador</li>
                 ))}
                 {!project.approvers.length && <li className="text-muted">Nenhum aprovador.</li>}
               </ul>
@@ -549,12 +656,35 @@ export function ProjectDetailPage() {
                 ? new Date(project.dueDate).toLocaleDateString('pt-BR')
                 : 'não definido'}
             </span>
+            {project.members[0] && (
+              <span className="text-sm text-secondary">Responsável: {project.members[0]}</span>
+            )}
+            <span className="text-sm text-secondary">
+              {project.approvedMaterialCount} de {project.materialCount} materiais aprovados
+            </span>
             <AvatarGroup names={equipeVisivel} />
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={() => void compartilharLink()}>
-            Compartilhar link
+            Compartilhar
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              void (async () => {
+                try {
+                  const { dado } = await dadosApi.linkPortal(project.id)
+                  window.open(dado.link, '_blank', 'noopener,noreferrer')
+                } catch (erro) {
+                  setShareError(
+                    erro instanceof Error ? erro.message : 'Não foi possível abrir o portal.',
+                  )
+                }
+              })()
+            }}
+          >
+            Ver portal
           </Button>
           <Button onClick={() => setMaterialModal(true)}>Adicionar material</Button>
         </div>
@@ -584,7 +714,7 @@ export function ProjectDetailPage() {
             { label: 'Participantes', content: participantes },
             {
               label: 'Configurações',
-              content: <p>Configure o portal em Configurações → Portal.</p>,
+              content: <ProjectSettingsPanel projectId={project.id} />,
             },
           ]}
         />

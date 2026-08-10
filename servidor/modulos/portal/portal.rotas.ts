@@ -38,6 +38,8 @@ import {
   camposAssetPortal,
   obterAssetPortal,
 } from '../../servicos/portal-personalizacao.servico.js'
+import { recalcularStatusProjeto } from '../../servicos/projeto-status.servico.js'
+import { descricaoComentarioAtividade } from '../../utilitarios/descricao-comentario.js'
 
 const novoComentarioPortal = z.object({
   texto: z.string().trim().min(1).max(5000),
@@ -81,6 +83,8 @@ async function projetoPortal(projetoId: string, workspaceSlug?: string) {
       tokenPortal: projetos.tokenPortal,
       senhaAcessoHash: projetos.senhaAcessoHash,
       portalExpiraEm: projetos.portalExpiraEm,
+      portalAtivo: projetos.portalAtivo,
+      portalConfiguracao: projetos.portalConfiguracao,
       clienteId: projetos.clienteId,
       criadoPorUsuarioId: projetos.criadoPorUsuarioId,
       empresaNome: workspaces.nome,
@@ -122,6 +126,12 @@ async function exigirAcessoPortal(
 ) {
   const projeto = await projetoPortal(projetoId, workspaceSlug)
   await garantirLinksPortalCliente(projeto.workspaceId)
+  if (!projeto.portalAtivo || !projeto.tokenPortal)
+    throw new ErroHttp(
+      404,
+      'Este portal está desativado ou indisponível.',
+      'portal_indisponivel',
+    )
   if (!tokenPortalConfere(tokenRecebido, projeto.tokenPortal))
     throw new ErroHttp(
       401,
@@ -140,6 +150,16 @@ async function exigirAcessoPortal(
       'portal_senha_necessaria',
     )
   return projeto
+}
+
+async function registrarAcessoPortal(projetoId: string) {
+  await banco
+    .update(projetos)
+    .set({
+      portalAcessos: sql`${projetos.portalAcessos} + 1`,
+      portalUltimoAcessoEm: new Date(),
+    })
+    .where(eq(projetos.id, projetoId))
 }
 
 portalRotas.post(
@@ -262,6 +282,7 @@ portalRotas.get('/projetos/:projetoId/conteudo', async (req, res) => {
     undefined,
     cookieDaRequisicao(req, projetoId),
   )
+  await registrarAcessoPortal(projetoId)
   const lista = await banco
     .select({
       id: materiais.id,
@@ -278,19 +299,28 @@ portalRotas.get('/projetos/:projetoId/conteudo', async (req, res) => {
     .where(and(eq(materiais.projetoId, projetoId), isNull(materiais.excluidoEm)))
     .orderBy(desc(materiais.atualizadoEm))
 
+  const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
   res.json({
     dado: {
       projeto: {
         id: projeto.id,
         nome: projeto.nome,
-        descricao: projeto.descricao,
+        descricao: marca.descricaoPortal?.trim() || projeto.descricao,
         status: projeto.status,
         tipo: projeto.tipo,
         prazoEm: projeto.prazoEm,
         empresaNome: projeto.empresaNome,
         clienteNome: projeto.clienteNome,
+        tituloPortal: marca.tituloPortal?.trim() || null,
       },
-      marca: await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id),
+      marca,
+      permissoes: {
+        permitirComentarios: marca.permitirComentarios !== false,
+        permitirAprovacao: marca.permitirAprovacao !== false,
+        permitirSolicitacaoAlteracoes: marca.permitirSolicitacaoAlteracoes !== false,
+        permitirDownloads: marca.permitirDownloads === true,
+        permitirVersoesAntigas: marca.permitirVersoesAntigas === true,
+      },
       materiais: lista.map((item) => ({
         ...item,
         imagemUrl: item.arquivoId
@@ -421,13 +451,15 @@ portalRotas.post(
   validarCorpo(novoComentarioPortal),
   async (req, res) => {
     const projetoId = String(req.params.projetoId)
-    await exigirAcessoPortal(
+    const projeto = await exigirAcessoPortal(
       projetoId,
       tokenDaRequisicao(req),
       undefined,
       cookieDaRequisicao(req, projetoId),
     )
-    const projeto = await projetoPortal(projetoId)
+    const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
+    if (marca.permitirComentarios === false)
+      throw new ErroHttp(403, 'Comentários não permitidos neste portal.', 'sem_permissao')
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     await garantirComentarioNoMaterial(material.workspaceId, material.tipo)
     if (!material.versaoAtualId)
@@ -463,6 +495,7 @@ portalRotas.post(
         .update(materiais)
         .set({ status: 'em_revisao', atualizadoEm: agora })
         .where(eq(materiais.id, material.id))
+      await recalcularStatusProjeto(projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
         workspaceId: material.workspaceId,
@@ -472,7 +505,12 @@ portalRotas.post(
         versaoMaterialId: material.versaoAtualId!,
         comentarioId: id,
         tipo: 'comentario_criado',
-        descricao: `${projeto.clienteNome} comentou no material ${material.nome}`,
+        descricao: descricaoComentarioAtividade({
+          autorNome: projeto.clienteNome,
+          tipoMaterial: material.tipo,
+          timestampSegundos: req.body.timestampSegundos,
+          paginaPdf: req.body.paginaPdf,
+        }),
         criadoEm: agora,
       })
     })
@@ -481,7 +519,12 @@ portalRotas.post(
       destinatarioId: projeto.criadoPorUsuarioId,
       atividadeId,
       titulo: 'Novo comentario do cliente',
-      descricao: `${projeto.clienteNome} deixou um comentario em "${material.nome}".`,
+      descricao: descricaoComentarioAtividade({
+        autorNome: projeto.clienteNome,
+        tipoMaterial: material.tipo,
+        timestampSegundos: req.body.timestampSegundos,
+        paginaPdf: req.body.paginaPdf,
+      }),
       tipo: 'comentario_criado',
     })
     res.status(201).json({ dado: { id } })
@@ -492,13 +535,15 @@ portalRotas.post(
   '/projetos/:projetoId/materiais/:materialId/solicitar-alteracoes',
   async (req, res) => {
     const projetoId = String(req.params.projetoId)
-    await exigirAcessoPortal(
+    const projeto = await exigirAcessoPortal(
       projetoId,
       tokenDaRequisicao(req),
       undefined,
       cookieDaRequisicao(req, projetoId),
     )
-    const projeto = await projetoPortal(projetoId)
+    const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
+    if (marca.permitirSolicitacaoAlteracoes === false)
+      throw new ErroHttp(403, 'Solicitação de alterações não permitida neste portal.', 'sem_permissao')
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)
       throw new ErroHttp(422, 'Publique uma versão antes desta ação.', 'versao_ausente')
@@ -525,10 +570,7 @@ portalRotas.post(
         .update(materiais)
         .set({ status: 'alteracoes_solicitadas', atualizadoEm: agora })
         .where(eq(materiais.id, material.id))
-      await tx
-        .update(projetos)
-        .set({ status: 'alteracoes_solicitadas', atualizadoEm: agora })
-        .where(eq(projetos.id, projetoId))
+      await recalcularStatusProjeto(projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
         workspaceId: material.workspaceId,
@@ -558,13 +600,15 @@ portalRotas.post(
   validarCorpo(decisaoPortal),
   async (req, res) => {
     const projetoId = String(req.params.projetoId)
-    await exigirAcessoPortal(
+    const projeto = await exigirAcessoPortal(
       projetoId,
       tokenDaRequisicao(req),
       undefined,
       cookieDaRequisicao(req, projetoId),
     )
-    const projeto = await projetoPortal(projetoId)
+    const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
+    if (marca.permitirAprovacao === false)
+      throw new ErroHttp(403, 'Aprovação não permitida neste portal.', 'sem_permissao')
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)
       throw new ErroHttp(422, 'Publique uma versão antes desta ação.', 'versao_ausente')
@@ -607,10 +651,7 @@ portalRotas.post(
         .update(materiais)
         .set({ status: 'aprovado', atualizadoEm: agora })
         .where(eq(materiais.id, material.id))
-      await tx
-        .update(projetos)
-        .set({ status: 'aprovado', atualizadoEm: agora })
-        .where(eq(projetos.id, projetoId))
+      await recalcularStatusProjeto(projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
         workspaceId: material.workspaceId,

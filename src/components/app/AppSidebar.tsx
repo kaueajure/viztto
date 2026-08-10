@@ -36,9 +36,17 @@ function WorkspaceSwitcher({ close }: { close?: () => void }) {
   const { user, switchWorkspace } = useAuth()
   const [aberto, setAberto] = useState(false)
   const [opcoes, setOpcoes] = useState<WorkspaceOpcao[]>([])
+  const [busca, setBusca] = useState('')
   const [trocando, setTrocando] = useState(false)
   const painel = useRef<HTMLDivElement>(null)
   const podeTrocar = Boolean(user?.admin || opcoes.length > 1)
+  const filtradas = opcoes.filter((opcao) => {
+    const termo = busca.trim().toLowerCase()
+    if (!termo) return true
+    return (
+      opcao.nome.toLowerCase().includes(termo) || opcao.slug.toLowerCase().includes(termo)
+    )
+  })
 
   useEffect(() => {
     let ativo = true
@@ -62,6 +70,10 @@ function WorkspaceSwitcher({ close }: { close?: () => void }) {
     }
     document.addEventListener('mousedown', fechar)
     return () => document.removeEventListener('mousedown', fechar)
+  }, [aberto])
+
+  useEffect(() => {
+    if (!aberto) setBusca('')
   }, [aberto])
 
   async function selecionar(workspaceId: string) {
@@ -99,31 +111,45 @@ function WorkspaceSwitcher({ close }: { close?: () => void }) {
         </span>
       </button>
       {aberto && (
-        <ul
-          role="listbox"
-          className="absolute inset-x-0 z-20 mt-1 max-h-56 overflow-auto rounded-md border border-line bg-surface py-1 shadow-raised"
-        >
-          {opcoes.map((opcao) => (
-            <li key={opcao.id}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={opcao.id === workspace.id}
-                disabled={trocando}
-                onClick={() => void selecionar(opcao.id)}
-                className={cn(
-                  'flex w-full items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-surface-secondary',
-                  opcao.id === workspace.id && 'bg-brand-soft text-brand',
-                )}
-              >
-                <span>
-                  <span className="block font-medium">{opcao.nome}</span>
-                  <span className="block text-[11px] text-muted">{opcao.slug}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="absolute inset-x-0 z-20 mt-1 overflow-hidden rounded-md border border-line bg-surface shadow-raised">
+          {opcoes.length > 6 && (
+            <div className="border-b border-line p-2">
+              <input
+                type="search"
+                value={busca}
+                onChange={(event) => setBusca(event.target.value)}
+                placeholder="Buscar empresa"
+                aria-label="Buscar empresa"
+                className="min-h-9 w-full rounded-md border border-line bg-surface-secondary px-2.5 text-sm text-ink outline-none focus:border-brand"
+              />
+            </div>
+          )}
+          <ul role="listbox" className="max-h-56 overflow-auto py-1">
+            {filtradas.map((opcao) => (
+              <li key={opcao.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={opcao.id === workspace.id}
+                  disabled={trocando}
+                  onClick={() => void selecionar(opcao.id)}
+                  className={cn(
+                    'flex w-full items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-surface-secondary',
+                    opcao.id === workspace.id && 'bg-brand-soft text-brand',
+                  )}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{opcao.nome}</span>
+                    <span className="block truncate text-[11px] text-muted">{opcao.slug}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+            {!filtradas.length && (
+              <li className="px-3 py-3 text-sm text-muted">Nenhuma empresa encontrada.</li>
+            )}
+          </ul>
+        </div>
       )}
     </div>
   )

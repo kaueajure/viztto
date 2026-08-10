@@ -75,6 +75,13 @@ export const configuracaoPortalEntrada = z
     mostrarTipo: z.boolean().optional(),
     mostrarVersao: z.boolean().optional(),
     materiaisAprovados: enumOpcional(z.enum(['mostrar', 'separar', 'ocultar'])),
+    permitirComentarios: z.boolean().optional(),
+    permitirAprovacao: z.boolean().optional(),
+    permitirSolicitacaoAlteracoes: z.boolean().optional(),
+    permitirDownloads: z.boolean().optional(),
+    permitirVersoesAntigas: z.boolean().optional(),
+    tituloPortal: textoOpcional(120),
+    descricaoPortal: textoOpcional(500),
   })
   .strict()
 
@@ -108,6 +115,13 @@ export const configuracaoPortalPadrao: Required<Omit<PortalConfiguracaoDados, Ca
   mostrarTipo: true,
   mostrarVersao: true,
   materiaisAprovados: 'mostrar',
+  permitirComentarios: true,
+  permitirAprovacao: true,
+  permitirSolicitacaoAlteracoes: true,
+  permitirDownloads: false,
+  permitirVersoesAntigas: false,
+  tituloPortal: '',
+  descricaoPortal: '',
 }
 
 export function urlAssetPortal(

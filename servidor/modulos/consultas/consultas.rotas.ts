@@ -17,6 +17,7 @@ import { receberImagem } from '../../configuracao/upload.js'
 import { garantirIdentidadePersonalizada } from '../../servicos/limites-plano.servico.js'
 import { armazenarLogoWorkspace, removerArquivoSalvo } from '../../servicos/arquivo.servico.js'
 import { slugReservado } from '../../utilitarios/slugs.js'
+import { naoEhWorkspaceDeTeste } from '../../utilitarios/workspace-teste.js'
 
 const perfilEntrada = z.object({ nome: z.string().trim().min(2).max(160) })
 const workspaceEntrada = z.object({
@@ -252,7 +253,9 @@ consultasRotas.get('/workspaces', async (req, res) => {
         plano: workspaces.plano,
       })
       .from(workspaces)
-      .where(and(eq(workspaces.ativo, true), isNull(workspaces.excluidoEm)))
+      .where(
+        and(eq(workspaces.ativo, true), isNull(workspaces.excluidoEm), naoEhWorkspaceDeTeste()),
+      )
       .orderBy(workspaces.nome)
     return res.json({ dados })
   }
