@@ -87,7 +87,7 @@ export default function ReviewsPage() {
       },
     ],
     ['alteracoes', 'Alterações solicitadas', (m) => m.status === 'changes-requested'],
-    ['em-revisao', 'Em revisão', (m) => m.status === 'in-review'],
+    ['em-revisao', 'Aguardando revisão', (m) => m.status === 'in-review'],
     [
       'atrasados',
       'Atrasados',
@@ -275,7 +275,7 @@ export default function ReviewsPage() {
           className="min-h-11 rounded-md border border-line bg-surface px-3 text-sm"
         >
           <option value="all">Status</option>
-          <option value="in-review">Em revisão</option>
+          <option value="in-review">Aguardando revisão</option>
           <option value="waiting-approval">Aguardando aprovação</option>
           <option value="changes-requested">Alterações solicitadas</option>
           <option value="approved">Aprovado</option>
@@ -370,7 +370,7 @@ export default function ReviewsPage() {
           <div className="p-6">
             <EmptyState
               title="Nada nesta fila"
-              description="Quando houver materiais para revisar, solicitar alterações ou aprovar, eles aparecem aqui. Abra um projeto e adicione materiais para começar."
+              description="Quando houver materiais para revisar, solicitar alterações ou enviar para o cliente, eles aparecem aqui. Abra um projeto e adicione materiais para começar."
             />
             <div className="mt-4 flex justify-center">
               <Link

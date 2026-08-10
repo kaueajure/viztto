@@ -109,7 +109,7 @@ export function ReviewToolbar({
               Solicitar alterações
             </Button>
             <Button className="hidden lg:inline-flex" disabled={!isCurrentVersion} onClick={onApprove}>
-              <Check className="h-4 w-4" /> Aprovar
+              <Check className="h-4 w-4" /> Enviar para aprovação
             </Button>
           </>
         )}

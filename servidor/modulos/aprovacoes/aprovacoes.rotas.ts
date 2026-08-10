@@ -20,8 +20,8 @@ import { notificarClienteProjetoAlterado } from '../../servicos/notificar-client
 import { garantirPodeAprovarProjeto } from '../../servicos/projeto-aprovacao.servico.js'
 import { recalcularStatusProjeto } from '../../servicos/projeto-status.servico.js'
 import {
-  acaoAprovacaoAtividade,
-  descricaoAprovacaoNotificacao,
+  acaoEnvioAprovacaoAtividade,
+  descricaoEnvioAprovacaoNotificacao,
 } from '../../utilitarios/descricao-comentario.js'
 
 const decisao = z.object({
@@ -75,12 +75,22 @@ async function validarVersaoAtual(materialId: string, versaoMaterialId: string, 
   return versao
 }
 
+/**
+ * Envia a versão para revisão/aprovação do Cliente 2.
+ * Nunca define o material como `aprovado` — isso é exclusivo do portal.
+ */
 aprovacoesRotas.post(
   '/materiais/:materialId/aprovar',
   exigirFuncao('atendimento'),
   validarCorpo(decisao),
   async (req, res) => {
     const m = await materialValido(String(req.params.materialId), req.sessao!.workspaceId)
+    if (m.status === 'aprovado')
+      throw new ErroHttp(
+        409,
+        'Este material ja foi aprovado pelo cliente. Reabra a revisao para enviar novamente.',
+        'material_ja_aprovado',
+      )
     const versao = await validarVersaoAtual(m.id, req.body.versaoMaterialId, m.versaoAtualId!)
     const { aprovadores } = await garantirPodeAprovarProjeto(m.projetoId, {
       usuarioId: req.sessao!.usuarioId,
@@ -106,7 +116,7 @@ aprovacoesRotas.post(
     if ((abertos?.total ?? 0) > 0 && !req.body.confirmarPendencias)
       throw new ErroHttp(
         409,
-        'Esta versao possui comentarios pendentes. Confirme para aprovar.',
+        'Esta versao possui comentarios pendentes. Confirme para enviar.',
         'pendencias_abertas',
         { total: abertos?.total },
       )
@@ -119,7 +129,7 @@ aprovacoesRotas.post(
       .from(aprovacoes)
       .where(and(eq(aprovacoes.versaoMaterialId, versao.id), isNull(aprovacoes.revogadaEm)))
     if (aprovacoesAtuais.some((item) => item.aprovadoPorUsuarioId === req.sessao!.usuarioId))
-      throw new ErroHttp(409, 'Voce ja aprovou esta versao.', 'aprovacao_duplicada')
+      throw new ErroHttp(409, 'Voce ja enviou esta versao para aprovacao.', 'aprovacao_duplicada')
 
     const [versaoInfo] = await banco
       .select({ numero: versoesMaterial.numero })
@@ -139,26 +149,28 @@ aprovacoesRotas.post(
     )
     jaAprovaram.add(req.sessao!.usuarioId)
     const exigeTodos = projeto?.modoAprovacao === 'todos' && idsAprovadores.length > 1
-    const materialFinalizado =
+    const prontoParaCliente =
       !exigeTodos || idsAprovadores.every((aprovadorId) => jaAprovaram.has(aprovadorId))
     const faltam = exigeTodos
       ? idsAprovadores.filter((aprovadorId) => !jaAprovaram.has(aprovadorId)).length
       : 0
-    const tipoAtividade = materialFinalizado ? 'versao_aprovada' : 'aprovacao_parcial'
+    const tipoAtividade = prontoParaCliente ? 'enviado_para_aprovacao' : 'aprovacao_parcial'
     const nomeAprovador = req.sessao!.usuarioNome
     const aprovadoresPendentes = exigeTodos
       ? idsAprovadores.filter((aprovadorId) => !jaAprovaram.has(aprovadorId))
       : []
-    const descricaoAtividade = acaoAprovacaoAtividade({
+    const descricaoAtividade = acaoEnvioAprovacaoAtividade({
       numeroVersao,
-      materialFinalizado,
+      prontoParaCliente,
       faltam,
     })
-    const tituloNotificacao = materialFinalizado ? 'Material aprovado' : 'Aprovação parcial'
-    const descricaoNotificacao = descricaoAprovacaoNotificacao({
+    const tituloNotificacao = prontoParaCliente
+      ? 'Enviado para aprovação do cliente'
+      : 'Envio parcial registrado'
+    const descricaoNotificacao = descricaoEnvioAprovacaoNotificacao({
       autorNome: nomeAprovador,
       numeroVersao,
-      materialFinalizado,
+      prontoParaCliente,
       faltam,
     })
 
@@ -173,21 +185,14 @@ aprovacoesRotas.post(
         aprovadoEm: agora,
         criadoEm: agora,
       })
-      if (materialFinalizado) {
-        await tx
-          .update(versoesMaterial)
-          .set({ aprovada: true })
-          .where(eq(versoesMaterial.id, versao.id))
-        await tx
-          .update(materiais)
-          .set({ status: 'aprovado', atualizadoEm: agora })
-          .where(eq(materiais.id, m.id))
-      } else {
-        await tx
-          .update(materiais)
-          .set({ status: 'aguardando_aprovacao', atualizadoEm: agora })
-          .where(eq(materiais.id, m.id))
-      }
+      // Nunca marca versao/material como aprovado aqui — só o portal (Cliente 2) faz isso.
+      await tx
+        .update(materiais)
+        .set({
+          status: prontoParaCliente ? 'aguardando_revisao' : 'aguardando_aprovacao',
+          atualizadoEm: agora,
+        })
+        .where(eq(materiais.id, m.id))
       await recalcularStatusProjeto(m.projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
@@ -214,14 +219,16 @@ aprovacoesRotas.post(
     await notificarClienteProjetoAlterado({
       projetoId: m.projetoId,
       workspaceId: req.sessao!.workspaceId,
-      resumo: materialFinalizado
-        ? `${nomeAprovador} aprovou "${m.nome}" (V${numeroVersao}). O material foi aprovado.`
-        : `${nomeAprovador} aprovou "${m.nome}" (V${numeroVersao}). Ainda falta ${faltam} aprovação${faltam === 1 ? '' : 'ões'}.`,
+      resumo: prontoParaCliente
+        ? `${nomeAprovador} enviou "${m.nome}" (V${numeroVersao}) para sua aprovação.`
+        : `${nomeAprovador} registrou o envio de "${m.nome}" (V${numeroVersao}). Ainda falta ${faltam} confirmação${faltam === 1 ? '' : 'ões'} interna${faltam === 1 ? '' : 's'}.`,
     })
     res.status(201).json({
       dado: {
         id,
-        materialFinalizado,
+        /** Compat: indica que o checklist interno terminou e o material está com o Cliente 2. */
+        materialFinalizado: prontoParaCliente,
+        prontoParaCliente,
         aprovacoesRegistradas: jaAprovaram.size,
         aprovadoresNecessarios: exigeTodos ? idsAprovadores.length : 1,
         aprovadoresPendentes,
@@ -255,6 +262,7 @@ aprovacoesRotas.post(
       )
     const agora = new Date()
     const atividadeId = novoId()
+    const observacao = req.body.observacao?.trim()
     await banco.transaction(async (tx) => {
       await tx
         .update(materiais)
@@ -269,9 +277,9 @@ aprovacoesRotas.post(
         materialId: m.id,
         versaoMaterialId: versao.id,
         tipo: 'alteracoes_solicitadas',
-        descricao: req.body.observacao?.trim()
-          ? `Alteracoes solicitadas: ${req.body.observacao.trim()}`
-          : 'Alteracoes solicitadas nesta versao',
+        descricao: observacao
+          ? `solicitou alterações: ${observacao}`
+          : `solicitou alterações em ${m.nome}`,
         criadoEm: agora,
       })
       await tx.insert(notificacoes).values({
@@ -280,7 +288,7 @@ aprovacoesRotas.post(
         usuarioId: req.sessao!.usuarioId,
         atividadeId,
         titulo: 'Alteracoes solicitadas',
-        descricao: 'As pendencias da versao foram enviadas para revisao.',
+        descricao: `${req.sessao!.usuarioNome} solicitou alterações em "${m.nome}".`,
         tipo: 'alteracoes_solicitadas',
         criadoEm: agora,
       })
@@ -304,12 +312,16 @@ aprovacoesRotas.post(
     await banco.transaction(async (tx) => {
       await tx
         .update(materiais)
-        .set({ status: 'em_revisao', atualizadoEm: agora })
+        .set({ status: 'aguardando_revisao', atualizadoEm: agora })
         .where(eq(materiais.id, m.id))
       await tx
         .update(aprovacoes)
         .set({ revogadaEm: agora })
         .where(and(eq(aprovacoes.materialId, m.id), isNull(aprovacoes.revogadaEm)))
+      await tx
+        .update(versoesMaterial)
+        .set({ aprovada: false })
+        .where(eq(versoesMaterial.materialId, m.id))
       await recalcularStatusProjeto(m.projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
@@ -319,7 +331,7 @@ aprovacoesRotas.post(
         materialId: m.id,
         versaoMaterialId: m.versaoAtualId!,
         tipo: 'revisao_reaberta',
-        descricao: 'Revisao reaberta sem apagar aprovacoes anteriores',
+        descricao: 'reabriu a revisão para o cliente',
         criadoEm: agora,
       })
       await tx.insert(notificacoes).values({
@@ -328,7 +340,7 @@ aprovacoesRotas.post(
         usuarioId: req.sessao!.usuarioId,
         atividadeId,
         titulo: 'Revisao reaberta',
-        descricao: 'O material voltou ao fluxo de revisao.',
+        descricao: 'O material voltou ao fluxo de revisao do cliente.',
         tipo: 'revisao_reaberta',
         criadoEm: agora,
       })

@@ -221,20 +221,20 @@ export default function ReviewWorkspacePage() {
       const pendentes = resultado.aprovadoresPendentes
         .map((id) => data.team.find((membro) => membro.id === id)?.name)
         .filter((nome): nome is string => Boolean(nome))
-      const contagem = `${resultado.aprovacoesRegistradas} de ${resultado.aprovadoresNecessarios} aprovações`
+      const contagem = `${resultado.aprovacoesRegistradas} de ${resultado.aprovadoresNecessarios} confirmações`
       const aguardando =
         pendentes.length === 1
           ? `Aguardando ${pendentes[0]}.`
-          : 'Aguardando as demais aprovações.'
+          : 'Aguardando as demais confirmações internas.'
       setNotice({
         tone: 'success',
-        text: `✓ Sua aprovação foi registrada. ${contagem}. ${aguardando}`,
+        text: `✓ Envio registrado. ${contagem}. ${aguardando}`,
       })
       return
     }
     setNotice({
       tone: 'success',
-      text: `✓ Versão ${material.currentVersion} aprovada. Todas as aprovações necessárias foram registradas.`,
+      text: `✓ Versão ${material.currentVersion} enviada para aprovação de ${client?.name ?? 'cliente'}.`,
     })
   }
 
@@ -505,7 +505,7 @@ export default function ReviewWorkspacePage() {
                     setDecision('approve')
                   }}
                 >
-                  <Check className="h-4 w-4" /> Aprovar versão
+                  <Check className="h-4 w-4" /> Enviar para aprovação
                 </Button>
               </>
             )}

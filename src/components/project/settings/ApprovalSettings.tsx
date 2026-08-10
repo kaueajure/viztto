@@ -45,14 +45,14 @@ export function ApprovalSettings(props: Props) {
       <div className="mt-4 space-y-2">
         <p className="text-sm font-medium text-ink">Modo de aprovação</p>
         <Radio
-          label="Qualquer aprovador pode finalizar"
+          label="Qualquer aprovador interno pode enviar ao cliente"
           checked={props.approvalMode === 'any'}
           onChange={(checked) => {
             if (checked) props.onSalvarModo('any')
           }}
         />
         <Radio
-          label="Todos os aprovadores precisam aprovar"
+          label="Todos os aprovadores internos precisam confirmar o envio"
           checked={props.approvalMode === 'all'}
           onChange={(checked) => {
             if (checked) props.onSalvarModo('all')
@@ -66,7 +66,7 @@ export function ApprovalSettings(props: Props) {
         )}
       </div>
       <p className="mt-4 text-xs text-muted">
-        Etapas de aprovação (em breve): Equipe interna → Marketing → Diretoria
+        A aprovação final do material é sempre feita pelo Cliente 2 no portal.
       </p>
       {props.aprovacaoSaving && (
         <p role="status" className="mt-2 text-sm text-secondary">

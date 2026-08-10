@@ -128,7 +128,7 @@ materiaisRotas.post('/', exigirFuncao('criativo'), receberImagem, async (req, re
         projetoId: corpo.projetoId,
         nome: corpo.nome,
         tipo: corpo.tipo,
-        status: 'em_revisao',
+        status: 'aguardando_revisao',
         criadoPorUsuarioId: req.sessao!.usuarioId,
         criadoEm: agora,
         atualizadoEm: agora,
@@ -291,7 +291,7 @@ materiaisRotas.post(
         }
         await tx
           .update(materiais)
-          .set({ versaoAtualId: versaoId, status: 'em_revisao', atualizadoEm: agora })
+          .set({ versaoAtualId: versaoId, status: 'aguardando_revisao', atualizadoEm: agora })
           .where(eq(materiais.id, material.id))
         await recalcularStatusProjeto(material.projetoId, agora, tx)
         await tx.insert(atividades).values({

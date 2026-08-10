@@ -64,7 +64,7 @@ export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
   > = {
     draft: ['Rascunho', 'neutral'],
     'in-progress': ['Em andamento', 'brand'],
-    'in-review': ['Em revisão', 'brand'],
+    'in-review': ['Aguardando revisão', 'brand'],
     'changes-requested': ['Alterações solicitadas', 'revision'],
     'waiting-approval': ['Aguardando cliente', 'warning'],
     approved: ['Concluído', 'approval'],
@@ -77,8 +77,8 @@ export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
 export function MaterialStatus({ status }: { status: Material['status'] }) {
   const config = {
     draft: ['Rascunho', 'neutral'],
-    'in-review': ['Em revisão', 'brand'],
-    'waiting-approval': ['Aguardando aprovação', 'warning'],
+    'in-review': ['Aguardando revisão', 'brand'],
+    'waiting-approval': ['Aguardando envio interno', 'warning'],
     'changes-requested': ['Alterações solicitadas', 'revision'],
     approved: ['Aprovado', 'approval'],
   } as const

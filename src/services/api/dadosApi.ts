@@ -120,7 +120,7 @@ type ItemComentario = {
 const statusProjeto = {
   rascunho: 'draft',
   em_andamento: 'in-progress',
-  em_revisao: 'in-review',
+  aguardando_revisao: 'in-review',
   alteracoes_solicitadas: 'changes-requested',
   aguardando_aprovacao: 'waiting-approval',
   aprovado: 'approved',
@@ -130,7 +130,7 @@ const statusProjeto = {
 const statusProjetoApi = {
   draft: 'rascunho',
   'in-progress': 'em_andamento',
-  'in-review': 'em_revisao',
+  'in-review': 'aguardando_revisao',
   'changes-requested': 'alteracoes_solicitadas',
   'waiting-approval': 'aguardando_aprovacao',
   approved: 'aprovado',
@@ -138,7 +138,7 @@ const statusProjetoApi = {
 } as const
 const statusMaterial = {
   rascunho: 'draft',
-  em_revisao: 'in-review',
+  aguardando_revisao: 'in-review',
   alteracoes_solicitadas: 'changes-requested',
   aguardando_aprovacao: 'waiting-approval',
   aprovado: 'approved',

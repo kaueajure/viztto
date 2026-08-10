@@ -47,7 +47,9 @@ export function MaterialApprovalsProgress({ materialId, refreshKey }: Props) {
 
   return (
     <div className="rounded-md border border-line bg-surface-secondary p-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted">Aprovações</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+        Confirmações internas
+      </p>
       <ul className="mt-2 space-y-1.5 text-sm">
         {aprovadores.map((item) => {
           const nome = team.find((membro) => membro.id === item.usuarioId)?.name ?? 'Aprovador'
@@ -56,7 +58,7 @@ export function MaterialApprovalsProgress({ materialId, refreshKey }: Props) {
             <li key={item.usuarioId} className="flex items-center justify-between gap-2">
               <span className="truncate">{nome}</span>
               <span className={ok ? 'text-approval' : 'text-muted'}>
-                {ok ? '✓ Aprovado' : '⏳ Aguardando'}
+                {ok ? '✓ Confirmou envio' : '⏳ Aguardando'}
               </span>
             </li>
           )
@@ -65,11 +67,11 @@ export function MaterialApprovalsProgress({ materialId, refreshKey }: Props) {
       <p className="mt-2 text-xs text-secondary">
         {completo ? (
           <>
-            {total} de {total} aprovações
-            <span className="mt-1 block text-approval">✓ Material aprovado</span>
+            {total} de {total} confirmações
+            <span className="mt-1 block text-approval">✓ Pronto para aprovação do cliente</span>
           </>
         ) : (
-          `${aprovados} de ${total} aprovações`
+          `${aprovados} de ${total} confirmações`
         )}
       </p>
     </div>

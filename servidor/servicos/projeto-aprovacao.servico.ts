@@ -10,12 +10,14 @@ type SessaoAprovacao = {
 }
 
 /**
- * Regras de quem pode aprovar no app autenticado:
+ * Regras de quem pode enviar para aprovação do Cliente 2 no app autenticado:
  * - admin da plataforma: override
  * - administrador ou gestor do workspace: override
  * - demais funções: precisam estar em participantes_projeto como aprovador
  * - se não houver aprovadores configurados: mantém compatibilidade com atendimento/criativo+
  *   (quem já passou em exigirFuncao('atendimento'))
+ *
+ * A aprovação final (`aprovado`) continua exclusiva do portal do Cliente 2.
  */
 export async function garantirPodeAprovarProjeto(
   projetoId: string,

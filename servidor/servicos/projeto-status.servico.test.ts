@@ -6,17 +6,17 @@ describe('agregarStatusProjetoPorMateriais', () => {
     expect(
       agregarStatusProjetoPorMateriais([
         'aprovado',
-        'em_revisao',
+        'aguardando_revisao',
         'alteracoes_solicitadas',
         'aguardando_aprovacao',
       ]),
     ).toBe('alteracoes_solicitadas')
   })
 
-  it('prioriza em_revisao antes de aguardando_aprovacao', () => {
-    expect(agregarStatusProjetoPorMateriais(['aprovado', 'em_revisao', 'aguardando_aprovacao'])).toBe(
-      'em_revisao',
-    )
+  it('prioriza aguardando_revisao antes de aguardando_aprovacao', () => {
+    expect(
+      agregarStatusProjetoPorMateriais(['aprovado', 'aguardando_revisao', 'aguardando_aprovacao']),
+    ).toBe('aguardando_revisao')
   })
 
   it('marca aprovado apenas quando todos estao aprovados', () => {

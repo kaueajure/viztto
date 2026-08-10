@@ -119,12 +119,14 @@ test.describe('Fluxo principal (P0)', () => {
     expect(respostaComentario.ok(), await respostaComentario.text()).toBeTruthy()
     await expect(page.getByText(/comentário adicionado/i)).toBeVisible()
 
-    // --- Aprovação no app ---
-    await page.getByRole('button', { name: /^aprovar$/i }).click()
-    await expect(page.getByRole('heading', { name: /aprovar esta versão/i })).toBeVisible()
-    await page.getByLabel(/entendo que os comentários/i).check()
-    await page.getByRole('button', { name: /aprovar versão/i }).click()
-    await expect(page.getByRole('button', { name: /reabrir revisão/i })).toBeVisible()
+    // --- Envio para aprovação do cliente (não finaliza) ---
+    await page.getByRole('button', { name: /enviar para aprovação/i }).click()
+    await expect(
+      page.getByRole('heading', { name: /enviar esta versão para aprovação do cliente/i }),
+    ).toBeVisible()
+    await page.getByLabel(/enviar mesmo com comentários abertos/i).check()
+    await page.getByRole('button', { name: /^enviar para aprovação$/i }).click()
+    await expect(page.getByText(/enviada para aprovação/i)).toBeVisible()
 
     // --- Portal público com token ---
     await page.goto(urlProjeto)
@@ -150,7 +152,13 @@ test.describe('Fluxo principal (P0)', () => {
     await expect(page).toHaveURL(new RegExp(`/materiais/[0-9a-f-]+`, 'i'))
     await expect(page.getByRole('heading', { name: /revisão indisponível/i })).toHaveCount(0)
     await expect(page.getByText(nomeMaterial).first()).toBeVisible({ timeout: 30_000 })
-    // Já aprovado no app: o portal mostra o status, sem botão de aprovar de novo.
-    await expect(page.getByText(/aprovado/i).first()).toBeVisible()
+
+    // Cliente 2 dá a aprovação final no portal.
+    await page.getByRole('button', { name: /^aprovar$/i }).click()
+    const dialogAprovar = page.getByRole('dialog')
+    if (await dialogAprovar.isVisible().catch(() => false)) {
+      await dialogAprovar.getByRole('button', { name: /aprovar/i }).click()
+    }
+    await expect(page.getByText(/aprovado/i).first()).toBeVisible({ timeout: 15_000 })
   })
 })

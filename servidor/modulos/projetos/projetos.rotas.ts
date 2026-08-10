@@ -49,7 +49,7 @@ const dadosProjeto = z.object({
     .enum([
       'rascunho',
       'em_andamento',
-      'em_revisao',
+      'aguardando_revisao',
       'alteracoes_solicitadas',
       'aguardando_aprovacao',
       'aprovado',

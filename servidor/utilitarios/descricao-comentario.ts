@@ -59,10 +59,23 @@ export function acaoAprovacaoAtividade(entrada: {
   materialFinalizado: boolean
   faltam?: number
 }) {
+  return acaoEnvioAprovacaoAtividade({
+    numeroVersao: entrada.numeroVersao,
+    prontoParaCliente: entrada.materialFinalizado,
+    faltam: entrada.faltam,
+  })
+}
+
+/** Ação sem o nome do ator — envio interno para o Cliente 2 (não é aprovação final). */
+export function acaoEnvioAprovacaoAtividade(entrada: {
+  numeroVersao: number | string
+  prontoParaCliente: boolean
+  faltam?: number
+}) {
   const v = `V${entrada.numeroVersao}`
-  if (entrada.materialFinalizado) return `aprovou ${v}.`
+  if (entrada.prontoParaCliente) return `enviou ${v} para aprovação do cliente.`
   const faltam = entrada.faltam ?? 0
-  return `aprovou ${v}. Aguardando ${faltam} aprovação${faltam === 1 ? '' : 'ões'}.`
+  return `confirmou o envio de ${v}. Aguardando ${faltam} confirmação${faltam === 1 ? '' : 'ões'} interna${faltam === 1 ? '' : 's'}.`
 }
 
 export function descricaoAprovacaoNotificacao(entrada: {
@@ -71,11 +84,25 @@ export function descricaoAprovacaoNotificacao(entrada: {
   materialFinalizado: boolean
   faltam?: number
 }) {
+  return descricaoEnvioAprovacaoNotificacao({
+    autorNome: entrada.autorNome,
+    numeroVersao: entrada.numeroVersao,
+    prontoParaCliente: entrada.materialFinalizado,
+    faltam: entrada.faltam,
+  })
+}
+
+export function descricaoEnvioAprovacaoNotificacao(entrada: {
+  autorNome: string
+  numeroVersao: number | string
+  prontoParaCliente: boolean
+  faltam?: number
+}) {
   const nome = entrada.autorNome.trim() || 'Alguém'
   const v = `V${entrada.numeroVersao}`
-  if (entrada.materialFinalizado) {
-    return `${nome} aprovou ${v}. Todas as aprovações foram concluídas.`
+  if (entrada.prontoParaCliente) {
+    return `${nome} enviou ${v} para aprovação do cliente.`
   }
   const faltam = entrada.faltam ?? 0
-  return `${nome} aprovou ${v}. Ainda falta ${faltam} aprovação${faltam === 1 ? '' : 'ões'}.`
+  return `${nome} confirmou o envio de ${v}. Ainda falta ${faltam} confirmação${faltam === 1 ? '' : 'ões'} interna${faltam === 1 ? '' : 's'}.`
 }

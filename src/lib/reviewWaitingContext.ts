@@ -11,7 +11,7 @@ export type ReviewWaitingEntrada = {
   material: Material
   project?: Project
   userId?: string | null
-  /** IDs de aprovadores internos que já registraram aprovação na versão atual. */
+  /** IDs de aprovadores internos que já registraram o envio na versão atual. */
   approvedApproverIds?: string[]
 }
 
@@ -26,6 +26,10 @@ export function getPendingApproverIds(
 /**
  * Deriva quem deve agir a seguir, sem inventar status no banco.
  * Fonte única para Revisões, Projetos e Clientes.
+ *
+ * - `in-review` / aguardando_revisao → Cliente 2
+ * - `changes-requested` → equipe (Cliente 1)
+ * - `waiting-approval` → checklist interno incompleto; senão Cliente 2
  */
 export function getReviewWaitingContext({
   material,
@@ -47,8 +51,7 @@ export function getReviewWaitingContext({
   }
 
   if (material.status === 'in-review') {
-    if (souResponsavel || !userId) return 'precisa_de_mim'
-    return 'aguardando_responsavel'
+    return 'aguardando_cliente'
   }
 
   if (material.status === 'waiting-approval') {
@@ -77,13 +80,15 @@ export function labelAguardandoAcao(
 ): string | null {
   const { material } = entrada
   if (material.status === 'changes-requested') return 'Cliente solicitou alterações'
+  if (material.status === 'in-review') return 'Aguardando revisão do cliente'
+
   if (material.status !== 'waiting-approval') return null
 
   const ctx = getReviewWaitingContext(entrada)
   if (ctx === 'aguardando_cliente') return 'Aguardando cliente'
 
-  if (nomesPendentes.length === 1) return `Aguardando aprovação de ${nomesPendentes[0]}`
-  if (nomesPendentes.length > 1) return `Aguardando ${nomesPendentes.length} aprovadores`
+  if (nomesPendentes.length === 1) return `Aguardando confirmação de ${nomesPendentes[0]}`
+  if (nomesPendentes.length > 1) return `Aguardando ${nomesPendentes.length} confirmações internas`
 
   const pendentes = getPendingApproverIds(
     entrada.project,
@@ -92,9 +97,9 @@ export function labelAguardandoAcao(
   if (pendentes.length === 1 && entrada.project) {
     const idx = entrada.project.approverIds.indexOf(pendentes[0])
     const nome = idx >= 0 ? entrada.project.approvers[idx] : null
-    if (nome) return `Aguardando aprovação de ${nome}`
+    if (nome) return `Aguardando confirmação de ${nome}`
   }
-  if (pendentes.length > 1) return `Aguardando ${pendentes.length} aprovadores`
+  if (pendentes.length > 1) return `Aguardando ${pendentes.length} confirmações internas`
 
   return 'Aguardando cliente'
 }

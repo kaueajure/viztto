@@ -149,7 +149,7 @@ comentariosRotas.post(
       await tx
         .update(materiais)
         .set({
-          status: material.status === 'aprovado' ? 'em_revisao' : material.status,
+          status: material.status === 'aprovado' ? 'aguardando_revisao' : material.status,
           atualizadoEm: agora,
         })
         .where(eq(materiais.id, material.id))

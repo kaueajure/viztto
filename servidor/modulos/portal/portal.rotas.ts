@@ -496,7 +496,7 @@ portalRotas.post(
       })
       await tx
         .update(materiais)
-        .set({ status: 'em_revisao', atualizadoEm: agora })
+        .set({ status: 'aguardando_revisao', atualizadoEm: agora })
         .where(eq(materiais.id, material.id))
       await recalcularStatusProjeto(projetoId, agora, tx)
       await tx.insert(atividades).values({
@@ -549,6 +549,12 @@ portalRotas.post(
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)
       throw new ErroHttp(422, 'Publique uma versão antes desta ação.', 'versao_ausente')
+    if (material.status === 'aprovado')
+      throw new ErroHttp(
+        409,
+        'Este material já foi aprovado. Peça à equipe para reabrir a revisão.',
+        'material_ja_aprovado',
+      )
     const [abertos] = await banco
       .select({ total: count() })
       .from(comentarios)
@@ -582,6 +588,7 @@ portalRotas.post(
         versaoMaterialId: material.versaoAtualId!,
         tipo: 'alteracoes_solicitadas',
         descricao: `solicitou alterações em ${material.nome}`,
+        metadados: { solicitanteExternoNome: projeto.clienteNome },
         criadoEm: agora,
       })
     })
@@ -614,6 +621,8 @@ portalRotas.post(
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)
       throw new ErroHttp(422, 'Publique uma versão antes desta ação.', 'versao_ausente')
+    if (material.status === 'aprovado')
+      throw new ErroHttp(409, 'Este material já foi aprovado.', 'material_ja_aprovado')
     const [abertos] = await banco
       .select({ total: count() })
       .from(comentarios)
@@ -663,6 +672,7 @@ portalRotas.post(
         versaoMaterialId: material.versaoAtualId!,
         tipo: 'versao_aprovada',
         descricao: `aprovou ${material.nome}`,
+        metadados: { aprovadorExternoNome: projeto.clienteNome },
         criadoEm: agora,
       })
     })

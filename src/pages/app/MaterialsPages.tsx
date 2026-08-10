@@ -54,7 +54,7 @@ export function MaterialsPage() {
           className="min-h-11 rounded-md border border-line bg-surface px-3 text-sm"
         >
           <option value="all">Todos os status</option>
-          <option value="in-review">Em revisão</option>
+          <option value="in-review">Aguardando revisão</option>
           <option value="waiting-approval">Aguardando</option>
           <option value="changes-requested">Alterações</option>
           <option value="approved">Aprovados</option>

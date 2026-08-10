@@ -22,7 +22,7 @@ import type { ProjectStatus, TeamMember } from '@/types/domain'
 const filters: Array<[string, ProjectStatus | 'all']> = [
   ['Todos', 'all'],
   ['Em andamento', 'in-progress'],
-  ['Em revisão', 'in-review'],
+  ['Aguardando revisão', 'in-review'],
   ['Alterações solicitadas', 'changes-requested'],
   ['Aguardando cliente', 'waiting-approval'],
   ['Concluídos', 'approved'],
@@ -455,7 +455,7 @@ export function ProjectDetailPage() {
             </li>
           )}
           {materials.filter((m) => m.status === 'in-review').length > 0 && (
-            <li>{materials.filter((m) => m.status === 'in-review').length} em revisão</li>
+            <li>{materials.filter((m) => m.status === 'in-review').length} aguardando revisão</li>
           )}
           {!materials.some((m) =>
             ['waiting-approval', 'changes-requested', 'in-review'].includes(m.status),
@@ -501,8 +501,8 @@ export function ProjectDetailPage() {
           <p className="mt-2 text-xs text-muted">
             Modo:{' '}
             {project.approvalMode === 'all'
-              ? 'todos precisam aprovar'
-              : 'qualquer aprovador finaliza'}
+              ? 'todos precisam confirmar o envio'
+              : 'qualquer aprovador interno pode enviar'}
           </p>
         </div>
       </div>

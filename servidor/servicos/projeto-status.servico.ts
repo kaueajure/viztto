@@ -4,7 +4,7 @@ import { materiais, projetos } from '../banco/esquema/index.js'
 
 export type StatusMaterialAgregacao =
   | 'rascunho'
-  | 'em_revisao'
+  | 'aguardando_revisao'
   | 'alteracoes_solicitadas'
   | 'aguardando_aprovacao'
   | 'aprovado'
@@ -12,7 +12,7 @@ export type StatusMaterialAgregacao =
 export type StatusProjetoAgregado =
   | 'rascunho'
   | 'em_andamento'
-  | 'em_revisao'
+  | 'aguardando_revisao'
   | 'alteracoes_solicitadas'
   | 'aguardando_aprovacao'
   | 'aprovado'
@@ -21,9 +21,9 @@ export type StatusProjetoAgregado =
  * Agrega status do projeto a partir dos materiais ativos.
  * Prioridade:
  * 1. alteracoes_solicitadas
- * 2. em_revisao
- * 3. aguardando_aprovacao
- * 4. todos aprovados → aprovado
+ * 2. aguardando_revisao (Cliente 2 precisa revisar)
+ * 3. aguardando_aprovacao (checklist interno incompleto)
+ * 4. todos aprovados → aprovado (só via portal / Cliente 2)
  * 5. só rascunhos → rascunho
  * 6. caso contrário → em_andamento
  */
@@ -34,7 +34,7 @@ export function agregarStatusProjetoPorMateriais(
 
   if (statusMateriais.some((status) => status === 'alteracoes_solicitadas'))
     return 'alteracoes_solicitadas'
-  if (statusMateriais.some((status) => status === 'em_revisao')) return 'em_revisao'
+  if (statusMateriais.some((status) => status === 'aguardando_revisao')) return 'aguardando_revisao'
   if (statusMateriais.some((status) => status === 'aguardando_aprovacao'))
     return 'aguardando_aprovacao'
   if (statusMateriais.every((status) => status === 'aprovado')) return 'aprovado'

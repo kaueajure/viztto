@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/DataDisplay'
@@ -37,7 +37,11 @@ export function ReviewDecisionModal({
     <Modal
       open={open}
       onClose={fechar}
-      title={mode === 'changes' ? 'Solicitar alterações desta versão?' : 'Aprovar esta versão?'}
+      title={
+        mode === 'changes'
+          ? 'Solicitar alterações desta versão?'
+          : 'Enviar esta versão para aprovação do cliente?'
+      }
     >
       <div className="flex gap-3 rounded-md border border-line bg-surface-secondary p-4">
         <span
@@ -46,7 +50,7 @@ export function ReviewDecisionModal({
           {mode === 'changes' ? (
             <AlertTriangle className="h-5 w-5" />
           ) : (
-            <CheckCircle2 className="h-5 w-5" />
+            <Send className="h-5 w-5" />
           )}
         </span>
         <div>
@@ -60,6 +64,12 @@ export function ReviewDecisionModal({
               {openComments === 1 ? '' : 's'}
             </Badge>
           </div>
+          {mode === 'approve' && (
+            <p className="mt-3 text-sm text-secondary">
+              Isso marca o material como pronto para revisão. A aprovação final só pode ser feita
+              por {clientName} no portal.
+            </p>
+          )}
         </div>
       </div>
       {approvalWarning && (
@@ -67,7 +77,7 @@ export function ReviewDecisionModal({
           <p className="text-sm text-revision">Esta versão ainda possui comentários pendentes.</p>
           <div className="mt-3">
             <Checkbox
-              label="Aprovar mesmo com comentários abertos"
+              label="Enviar mesmo com comentários abertos"
               checked={acknowledged}
               onChange={setAcknowledged}
             />
@@ -86,7 +96,7 @@ export function ReviewDecisionModal({
             setAcknowledged(false)
           }}
         >
-          {mode === 'changes' ? 'Solicitar alterações' : 'Aprovar versão'}
+          {mode === 'changes' ? 'Solicitar alterações' : 'Enviar para aprovação'}
         </Button>
       </div>
     </Modal>

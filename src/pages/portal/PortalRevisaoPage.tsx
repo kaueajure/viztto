@@ -54,7 +54,7 @@ type DetalhePortal = {
 
 const rotuloStatus: Record<string, string> = {
   rascunho: 'Rascunho',
-  em_revisao: 'Em revisão',
+  aguardando_revisao: 'Aguardando revisão',
   alteracoes_solicitadas: 'Alterações solicitadas',
   aguardando_aprovacao: 'Aguardando aprovação',
   aprovado: 'Aprovado',

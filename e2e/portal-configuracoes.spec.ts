@@ -117,7 +117,7 @@ async function prepararConfiguracoes(page: Page) {
               clienteId,
               nome: 'Projeto Teste',
               tipo: 'Campanha',
-              status: 'em_revisao',
+              status: 'aguardando_revisao',
               atualizadoEm: new Date().toISOString(),
             },
           ],

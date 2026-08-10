@@ -81,6 +81,15 @@ describe('getReviewWaitingContext', () => {
     expect(isAguardandoCliente({ material, project })).toBe(true)
   })
 
+  it('classifica in-review como aguardando cliente', () => {
+    const material = baseMaterial('in-review')
+    const project = baseProject({ memberIds: ['user-pedro'], approverIds: [] })
+    expect(getReviewWaitingContext({ material, project, userId: 'user-pedro' })).toBe(
+      'aguardando_cliente',
+    )
+    expect(isAguardandoCliente({ material, project })).toBe(true)
+  })
+
   it('alteracoes solicitadas para o responsavel caem em precisa de mim', () => {
     const material = baseMaterial('changes-requested')
     const project = baseProject({ memberIds: ['user-pedro'], approverIds: ['user-maria'] })
@@ -101,7 +110,7 @@ describe('getPendingApproverIds e labelAguardandoAcao', () => {
     expect(getPendingApproverIds(project, material.approvedApproverIds)).toEqual(['user-maria'])
     expect(
       labelAguardandoAcao({ material, project }, ['Maria']),
-    ).toBe('Aguardando aprovação de Maria')
+    ).toBe('Aguardando confirmação de Maria')
   })
 
   it('exibe contagem quando ha multiplos pendentes', () => {
@@ -119,7 +128,7 @@ describe('getPendingApproverIds e labelAguardandoAcao', () => {
     ])
     expect(
       labelAguardandoAcao({ material, project }, ['Maria', 'Carlos']),
-    ).toBe('Aguardando 2 aprovadores')
+    ).toBe('Aguardando 2 confirmações internas')
   })
 })
 
@@ -142,11 +151,12 @@ describe('countAguardandoCliente', () => {
       baseMaterial('approved', { id: 'c', projectId: 'p-cliente' }),
       baseMaterial('changes-requested', { id: 'd', projectId: 'p-interno' }),
       baseMaterial('waiting-approval', { id: 'e', projectId: 'p-cliente' }),
+      baseMaterial('in-review', { id: 'f', projectId: 'p-cliente' }),
     ]
     const byId = (id: string) =>
       id === 'p-cliente' ? projectCliente : id === 'p-interno' ? projectInterno : undefined
 
-    expect(countAguardandoCliente(materials, byId)).toBe(2)
+    expect(countAguardandoCliente(materials, byId)).toBe(3)
     expect(
       isAguardandoCliente({
         material: materials[1],

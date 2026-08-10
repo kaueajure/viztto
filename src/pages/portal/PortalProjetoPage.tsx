@@ -66,7 +66,7 @@ type ConteudoPortal = {
 const rotuloStatus: Record<string, string> = {
   rascunho: 'Rascunho',
   em_andamento: 'Em andamento',
-  em_revisao: 'Em revisão',
+  aguardando_revisao: 'Aguardando revisão',
   alteracoes_solicitadas: 'Alterações solicitadas',
   aguardando_aprovacao: 'Aguardando aprovação',
   aprovado: 'Aprovado',
@@ -76,7 +76,7 @@ const rotuloStatus: Record<string, string> = {
 /** Textos simples para o cliente (sem jargão interno). */
 const rotuloStatusCliente: Record<string, string> = {
   rascunho: 'Em preparação',
-  em_revisao: 'Em revisão',
+  aguardando_revisao: 'Em revisão',
   alteracoes_solicitadas: 'Alterações solicitadas',
   aguardando_aprovacao: 'Precisa da sua aprovação',
   aprovado: 'Aprovado',
@@ -194,13 +194,13 @@ export default function PortalProjetoPage() {
     )
 
   const precisaAprovacao = materiaisVisiveis.filter(
-    (m) => m.status === 'aguardando_aprovacao' || m.status === 'em_revisao',
+    (m) => m.status === 'aguardando_aprovacao' || m.status === 'aguardando_revisao',
   )
   const alteracoesSolicitadas = materiaisVisiveis.filter(
     (m) => m.status === 'alteracoes_solicitadas',
   )
   const aprovados = materiaisVisiveis.filter((m) => m.status === 'aprovado')
-  const emRevisao = materiaisVisiveis.filter((m) => m.status === 'em_revisao')
+  const emRevisao = materiaisVisiveis.filter((m) => m.status === 'aguardando_revisao')
   const aguardando = materiaisVisiveis.filter((m) => m.status === 'aguardando_aprovacao')
   const atualizadosAposObservacoes = alteracoesSolicitadas.length
     ? []

@@ -26,9 +26,11 @@ As rotas de dominio exigem cookie de sessao, exceto as listadas como publicas. R
 - `PATCH|DELETE /api/comentarios/:comentarioId`
 - `POST /api/comentarios/:comentarioId/respostas|resolver|reabrir`
 - `POST /api/materiais/:materialId/aprovar|solicitar-alteracoes|reabrir`
+  - `aprovar` no app **envia** a versão para o Cliente 2 (`aguardando_revisao`); **nao** define `aprovado`.
   - Aprovar exige o usuario em `participantes_projeto` como `aprovador`, quando houver aprovadores configurados.
   - Override: `admin` da plataforma, `administrador` ou `gestor` do workspace.
-  - Aprovar um material **nao** marca o projeto como aprovado automaticamente; o status do projeto e recalculado pelos materiais ativos (`alteracoes_solicitadas` > `em_revisao` > `aguardando_aprovacao` > todos `aprovado`).
+  - Somente o portal do Cliente 2 (`POST /api/portal/.../aprovar`) define o material como `aprovado`.
+  - O status do projeto e recalculado pelos materiais ativos (`alteracoes_solicitadas` > `aguardando_revisao` > `aguardando_aprovacao` > todos `aprovado`).
 - `GET /api/materiais/:materialId/aprovadores` — quem ja aprovou / quem falta na versao atual
 - `GET /api/atividades`, `/api/notificacoes`, `/api/workspaces/atual`, `/api/usuarios/equipe`
 - `GET /arquivos/:arquivoId` (arquivo autorizado pelo workspace)

@@ -198,7 +198,12 @@ consultasRotas.get('/atividades', async (req, res) => {
   const dados = await banco
     .select({
       atividade: atividades,
-      autorNome: sql<string>`coalesce(${usuarios.nome}, 'Cliente')`.as('autorNome'),
+      autorNome: sql<string>`coalesce(
+        ${usuarios.nome},
+        json_unquote(json_extract(${atividades.metadados}, '$.aprovadorExternoNome')),
+        json_unquote(json_extract(${atividades.metadados}, '$.solicitanteExternoNome')),
+        'Cliente'
+      )`.as('autorNome'),
     })
     .from(atividades)
     .leftJoin(usuarios, eq(usuarios.id, atividades.usuarioId))

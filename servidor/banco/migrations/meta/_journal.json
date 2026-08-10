@@ -141,6 +141,13 @@
       "when": 1786700000000,
       "tag": "0019_aprovacao_parcial",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1786800000000,
+      "tag": "0020_aguardando_revisao_cliente",
+      "breakpoints": true
     }
   ]
 }

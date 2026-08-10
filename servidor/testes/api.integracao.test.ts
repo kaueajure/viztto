@@ -81,7 +81,7 @@ beforeAll(async () => {
       clienteId: '45454545-4545-4545-8545-454545454545',
       nome: 'Projeto da revisao',
       tipo: 'Imagem',
-      status: 'em_revisao',
+      status: 'aguardando_revisao',
       criadoPorUsuarioId: '11111111-1111-4111-8111-111111111111',
       criadoEm: agora,
       atualizadoEm: agora,
@@ -399,7 +399,7 @@ describe('API integrada com MySQL', () => {
       .where(eq(esquema.materiais.id, resposta.body.dado.id as string))
       .limit(1)
     expect(material?.versaoAtualId).toBe(resposta.body.dado.versaoId)
-    expect(material?.status).toBe('em_revisao')
+    expect(material?.status).toBe('aguardando_revisao')
   })
   it('rejeita arquivo cuja assinatura nao e uma imagem', async () => {
     await agente
@@ -580,7 +580,7 @@ describe('API integrada com MySQL', () => {
       .send({ versaoMaterialId: versaoAtualId, confirmarPendencias: true })
       .expect(201)
   })
-  it('nao marca o projeto como aprovado ao aprovar apenas um material', async () => {
+  it('envia material para revisao do cliente sem marcar como aprovado', async () => {
     const png = await sharp({
       create: { width: 24, height: 24, channels: 4, background: '#202830' },
     })
@@ -637,18 +637,23 @@ describe('API integrada com MySQL', () => {
       .where(eq(esquema.projetos.id, projetoTeste))
       .limit(1)
 
-    expect(matA?.status).toBe('aprovado')
+    expect(matA?.status).toBe('aguardando_revisao')
     expect(matB?.status).toBe('aguardando_aprovacao')
     expect(proj?.status).not.toBe('aprovado')
+    expect(proj?.status).toBe('aguardando_revisao')
+
+    const [versaoA] = await banco
+      .select()
+      .from(esquema.versoesMaterial)
+      .where(eq(esquema.versoesMaterial.id, a.versaoId))
+      .limit(1)
+    expect(versaoA?.aprovada).toBe(false)
 
     const lista = await agente.get('/api/projetos?porPagina=100').expect(200)
     const item = lista.body.dados.find((p: { id: string }) => p.id === projetoTeste)
     expect(item).toBeTruthy()
     expect(item.totalMaterials).toBeGreaterThanOrEqual(2)
-    expect(item.approvedMaterials).toBeGreaterThanOrEqual(1)
-    expect(item.progress).toBe(
-      Math.round((item.approvedMaterials / item.totalMaterials) * 100),
-    )
+    expect(item.approvedMaterials).toBe(0)
   })
 
   it('bloqueia aprovacao de usuario que nao e aprovador do projeto', async () => {
@@ -736,7 +741,7 @@ describe('API integrada com MySQL', () => {
       .expect(201)
   })
 
-  it('registra aprovacao_parcial ate o ultimo aprovador e so entao versao_aprovada', async () => {
+  it('registra aprovacao_parcial ate o ultimo envio interno e so entao enviado_para_aprovacao', async () => {
     const agora = new Date()
     const aprovadorBId = '33333333-3333-4333-8333-333333333333'
     const senhaHash = await bcrypt.hash('Viztto@123', 4)
@@ -828,10 +833,10 @@ describe('API integrada com MySQL', () => {
       .from(esquema.atividades)
       .where(eq(esquema.atividades.materialId, materialId))
     const ultimaParcial = atividadesParciais
-      .filter((item) => item.tipo === 'aprovacao_parcial' || item.tipo === 'versao_aprovada')
+      .filter((item) => item.tipo === 'aprovacao_parcial' || item.tipo === 'enviado_para_aprovacao')
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())[0]
     expect(ultimaParcial?.tipo).toBe('aprovacao_parcial')
-    expect(ultimaParcial?.descricao.startsWith('aprovou V')).toBe(true)
+    expect(ultimaParcial?.descricao.includes('confirmou o envio')).toBe(true)
     expect(ultimaParcial?.descricao.includes('Marina')).toBe(false)
 
     const [projParcial] = await banco
@@ -855,6 +860,7 @@ describe('API integrada com MySQL', () => {
       .send({ versaoMaterialId, confirmarPendencias: true })
       .expect(201)
     expect(final.body.dado.materialFinalizado).toBe(true)
+    expect(final.body.dado.prontoParaCliente).toBe(true)
     expect(final.body.dado.aprovacoesRegistradas).toBe(2)
     expect(final.body.dado.aprovadoresNecessarios).toBe(2)
     expect(final.body.dado.aprovadoresPendentes).toEqual([])
@@ -864,17 +870,24 @@ describe('API integrada com MySQL', () => {
       .from(esquema.materiais)
       .where(eq(esquema.materiais.id, materialId))
       .limit(1)
-    expect(matFinal?.status).toBe('aprovado')
+    expect(matFinal?.status).toBe('aguardando_revisao')
+
+    const [versaoFinal] = await banco
+      .select()
+      .from(esquema.versoesMaterial)
+      .where(eq(esquema.versoesMaterial.id, versaoMaterialId))
+      .limit(1)
+    expect(versaoFinal?.aprovada).toBe(false)
 
     const atividadesFinais = await banco
       .select()
       .from(esquema.atividades)
       .where(eq(esquema.atividades.materialId, materialId))
     const ultimaFinal = atividadesFinais
-      .filter((item) => item.tipo === 'aprovacao_parcial' || item.tipo === 'versao_aprovada')
+      .filter((item) => item.tipo === 'aprovacao_parcial' || item.tipo === 'enviado_para_aprovacao')
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())[0]
-    expect(ultimaFinal?.tipo).toBe('versao_aprovada')
-    expect(ultimaFinal?.descricao).toMatch(/^aprovou V\d+\.$/)
+    expect(ultimaFinal?.tipo).toBe('enviado_para_aprovacao')
+    expect(ultimaFinal?.descricao).toMatch(/enviou V\d+ para aprovação do cliente\./)
   })
 
   it('nao armazena token de sessao puro', async () => {

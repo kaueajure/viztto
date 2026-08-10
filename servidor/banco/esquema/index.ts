@@ -387,7 +387,7 @@ export const projetos = mysqlTable(
     status: mysqlEnum('status', [
       'rascunho',
       'em_andamento',
-      'em_revisao',
+      'aguardando_revisao',
       'alteracoes_solicitadas',
       'aguardando_aprovacao',
       'aprovado',
@@ -397,7 +397,7 @@ export const projetos = mysqlTable(
       .default('rascunho'),
     dataInicio: data('data_inicio'),
     prazoEm: data('prazo_em'),
-    /** qualquer = um aprovador finaliza; todos = todos precisam aprovar (prévia de etapas). */
+    /** qualquer = um aprovador interno envia ao cliente; todos = todos precisam enviar antes. */
     modoAprovacao: mysqlEnum('modo_aprovacao', ['qualquer', 'todos']).notNull().default('qualquer'),
     portalAtivo: boolean('portal_ativo').notNull().default(true),
     senhaAcessoHash: varchar('senha_acesso_hash', { length: 255 }),
@@ -477,7 +477,7 @@ export const materiais = mysqlTable(
     tipo: mysqlEnum('tipo', ['imagem', 'video', 'pdf']).notNull(),
     status: mysqlEnum('status', [
       'rascunho',
-      'em_revisao',
+      'aguardando_revisao',
       'alteracoes_solicitadas',
       'aguardando_aprovacao',
       'aprovado',
@@ -728,6 +728,7 @@ export const atividades = mysqlTable(
       'comentario_reaberto',
       'alteracoes_solicitadas',
       'aprovacao_parcial',
+      'enviado_para_aprovacao',
       'versao_aprovada',
       'revisao_reaberta',
     ]).notNull(),

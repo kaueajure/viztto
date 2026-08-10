@@ -26,7 +26,7 @@ export type MaterialFormatValue = (typeof MATERIAL_FORMATS)[number]['value']
 export const PROJECT_STATUS_OPTIONS = [
   { value: 'draft', api: 'rascunho', label: 'Rascunho' },
   { value: 'in-progress', api: 'em_andamento', label: 'Em andamento' },
-  { value: 'in-review', api: 'em_revisao', label: 'Em revisão' },
+  { value: 'in-review', api: 'aguardando_revisao', label: 'Aguardando revisão' },
   { value: 'waiting-approval', api: 'aguardando_aprovacao', label: 'Aguardando cliente' },
   { value: 'changes-requested', api: 'alteracoes_solicitadas', label: 'Alterações solicitadas' },
   { value: 'approved', api: 'aprovado', label: 'Concluído' },
