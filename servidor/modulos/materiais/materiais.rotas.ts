@@ -22,6 +22,7 @@ import {
   garantirTipoMaterial,
 } from '../../servicos/limites-plano.servico.js'
 import { notificarClienteProjetoAlterado } from '../../servicos/notificar-cliente-projeto.servico.js'
+import { recalcularStatusProjeto } from '../../servicos/projeto-status.servico.js'
 
 const novoMaterial = z.object({
   projetoId: z.string().uuid(),
@@ -150,6 +151,7 @@ materiaisRotas.post('/', exigirFuncao('criativo'), receberImagem, async (req, re
         criadoEm: agora,
       })
       await tx.update(materiais).set({ versaoAtualId: versaoId }).where(eq(materiais.id, id))
+      await recalcularStatusProjeto(corpo.projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: novoId(),
         workspaceId: req.sessao!.workspaceId,
@@ -291,6 +293,7 @@ materiaisRotas.post(
           .update(materiais)
           .set({ versaoAtualId: versaoId, status: 'em_revisao', atualizadoEm: agora })
           .where(eq(materiais.id, material.id))
+        await recalcularStatusProjeto(material.projetoId, agora, tx)
         await tx.insert(atividades).values({
           id: novoId(),
           workspaceId: material.workspaceId,

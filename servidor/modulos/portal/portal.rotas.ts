@@ -38,6 +38,7 @@ import {
   camposAssetPortal,
   obterAssetPortal,
 } from '../../servicos/portal-personalizacao.servico.js'
+import { recalcularStatusProjeto } from '../../servicos/projeto-status.servico.js'
 
 const novoComentarioPortal = z.object({
   texto: z.string().trim().min(1).max(5000),
@@ -493,6 +494,7 @@ portalRotas.post(
         .update(materiais)
         .set({ status: 'em_revisao', atualizadoEm: agora })
         .where(eq(materiais.id, material.id))
+      await recalcularStatusProjeto(projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
         workspaceId: material.workspaceId,
@@ -557,10 +559,7 @@ portalRotas.post(
         .update(materiais)
         .set({ status: 'alteracoes_solicitadas', atualizadoEm: agora })
         .where(eq(materiais.id, material.id))
-      await tx
-        .update(projetos)
-        .set({ status: 'alteracoes_solicitadas', atualizadoEm: agora })
-        .where(eq(projetos.id, projetoId))
+      await recalcularStatusProjeto(projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
         workspaceId: material.workspaceId,
@@ -641,17 +640,7 @@ portalRotas.post(
         .update(materiais)
         .set({ status: 'aprovado', atualizadoEm: agora })
         .where(eq(materiais.id, material.id))
-      const restantes = await tx
-        .select({ status: materiais.status })
-        .from(materiais)
-        .where(and(eq(materiais.projetoId, projetoId), isNull(materiais.excluidoEm)))
-      const projetoStatus = restantes.every((item) => item.status === 'aprovado')
-        ? 'aprovado'
-        : 'aguardando_aprovacao'
-      await tx
-        .update(projetos)
-        .set({ status: projetoStatus, atualizadoEm: agora })
-        .where(eq(projetos.id, projetoId))
+      await recalcularStatusProjeto(projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
         workspaceId: material.workspaceId,

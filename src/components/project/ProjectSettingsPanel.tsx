@@ -548,11 +548,16 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
             onChange={(event) => setResponsavelId(event.target.value)}
           >
             <option value="">Sem responsável</option>
-            {membrosAtivos.map((membro) => (
-              <option key={membro.id} value={membro.id}>
-                {membro.name}
-              </option>
-            ))}
+            {membrosAtivos.map((membro) => {
+              const bloqueado = approverIds.includes(membro.id)
+              return (
+                <option key={membro.id} value={membro.id} disabled={bloqueado}>
+                  {bloqueado
+                    ? `${membro.name} — Indisponível (já é aprovador)`
+                    : membro.name}
+                </option>
+              )
+            })}
           </Select>
           <Select
             label="Status"
@@ -597,23 +602,32 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
 
       <Section
         title="Participantes"
-        description="Defina quem acompanha o projeto e as permissões internas."
+        description="Responsáveis e aprovadores são listas separadas: a mesma pessoa não pode estar nas duas."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <p className="text-sm font-medium text-ink">Responsáveis</p>
             <p className="mt-1 text-xs text-secondary">Membros que acompanham o projeto.</p>
             <div className="mt-3 grid gap-2">
-              {membrosAtivos.map((membro) => (
-                <Checkbox
-                  key={`resp-${membro.id}`}
-                  label={membro.name}
-                  checked={memberIds.includes(membro.id)}
-                  onChange={(checked) =>
-                    toggleLista(memberIds, membro.id, checked, false, setMemberIds)
-                  }
-                />
-              ))}
+              {membrosAtivos.map((membro) => {
+                const bloqueado = approverIds.includes(membro.id)
+                return (
+                  <Checkbox
+                    key={`resp-${membro.id}`}
+                    label={
+                      bloqueado
+                        ? `${membro.name} — Indisponível (já é aprovador)`
+                        : membro.name
+                    }
+                    checked={memberIds.includes(membro.id)}
+                    disabled={bloqueado}
+                    onChange={(checked) => {
+                      if (bloqueado) return
+                      toggleLista(memberIds, membro.id, checked, false, setMemberIds)
+                    }}
+                  />
+                )
+              })}
               {!membrosAtivos.length && <p className="text-sm text-muted">Nenhum membro ativo.</p>}
             </div>
           </div>
@@ -625,22 +639,31 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
                 : 'Seu plano permite um aprovador por projeto.'}
             </p>
             <div className="mt-3 grid gap-2">
-              {membrosAtivos.map((membro) => (
-                <Checkbox
-                  key={`aprov-${membro.id}`}
-                  label={membro.name}
-                  checked={approverIds.includes(membro.id)}
-                  onChange={(checked) =>
-                    toggleLista(
-                      approverIds,
-                      membro.id,
-                      checked,
-                      !variosAprovadores,
-                      setApproverIds,
-                    )
-                  }
-                />
-              ))}
+              {membrosAtivos.map((membro) => {
+                const bloqueado = memberIds.includes(membro.id)
+                return (
+                  <Checkbox
+                    key={`aprov-${membro.id}`}
+                    label={
+                      bloqueado
+                        ? `${membro.name} — Indisponível (já é responsável)`
+                        : membro.name
+                    }
+                    checked={approverIds.includes(membro.id)}
+                    disabled={bloqueado}
+                    onChange={(checked) => {
+                      if (bloqueado) return
+                      toggleLista(
+                        approverIds,
+                        membro.id,
+                        checked,
+                        !variosAprovadores,
+                        setApproverIds,
+                      )
+                    }}
+                  />
+                )
+              })}
               {!membrosAtivos.length && <p className="text-sm text-muted">Nenhum membro ativo.</p>}
             </div>
           </div>

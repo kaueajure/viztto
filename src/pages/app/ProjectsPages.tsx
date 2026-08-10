@@ -63,14 +63,25 @@ function ParticipantPicker({
         <p className="text-sm font-medium text-ink">Responsáveis</p>
         <p className="mt-1 text-xs text-secondary">Membros que acompanham o projeto.</p>
         <div className="mt-3 grid gap-2">
-          {membros.map((membro) => (
-            <Checkbox
-              key={`resp-${membro.id}`}
-              label={membro.name}
-              checked={memberIds.includes(membro.id)}
-              onChange={(checked) => toggle(memberIds, membro.id, checked, false, onChangeMembers)}
-            />
-          ))}
+          {membros.map((membro) => {
+            const bloqueado = approverIds.includes(membro.id)
+            return (
+              <Checkbox
+                key={`resp-${membro.id}`}
+                label={
+                  bloqueado
+                    ? `${membro.name} — Indisponível (já é aprovador)`
+                    : membro.name
+                }
+                checked={memberIds.includes(membro.id)}
+                disabled={bloqueado}
+                onChange={(checked) => {
+                  if (bloqueado) return
+                  toggle(memberIds, membro.id, checked, false, onChangeMembers)
+                }}
+              />
+            )
+          })}
           {!membros.length && <p className="text-sm text-muted">Nenhum membro ativo.</p>}
         </div>
       </div>
@@ -82,16 +93,25 @@ function ParticipantPicker({
             : 'Seu plano permite um aprovador por projeto.'}
         </p>
         <div className="mt-3 grid gap-2">
-          {membros.map((membro) => (
-            <Checkbox
-              key={`aprov-${membro.id}`}
-              label={membro.name}
-              checked={approverIds.includes(membro.id)}
-              onChange={(checked) =>
-                toggle(approverIds, membro.id, checked, !variosAprovadores, onChangeApprovers)
-              }
-            />
-          ))}
+          {membros.map((membro) => {
+            const bloqueado = memberIds.includes(membro.id)
+            return (
+              <Checkbox
+                key={`aprov-${membro.id}`}
+                label={
+                  bloqueado
+                    ? `${membro.name} — Indisponível (já é responsável)`
+                    : membro.name
+                }
+                checked={approverIds.includes(membro.id)}
+                disabled={bloqueado}
+                onChange={(checked) => {
+                  if (bloqueado) return
+                  toggle(approverIds, membro.id, checked, !variosAprovadores, onChangeApprovers)
+                }}
+              />
+            )
+          })}
           {!membros.length && <p className="text-sm text-muted">Nenhum membro ativo.</p>}
         </div>
       </div>
@@ -187,7 +207,11 @@ export function ProjectsPage() {
                   <p className="mt-1 text-xs text-secondary">Responsável: {project.members[0]}</p>
                 )}
               </div>
-              <ProjectProgress value={project.progress} />
+              <ProjectProgress
+                value={project.progress}
+                approved={project.approvedMaterialCount}
+                total={project.materialCount}
+              />
               <ProjectStatusBadge status={project.status} />
               <AvatarGroup names={[...project.members, ...project.approvers].slice(0, 3)} />
               <span className={`text-xs ${atrasado ? 'font-medium text-revision' : 'text-secondary'}`}>
@@ -443,10 +467,11 @@ export function ProjectDetailPage() {
           <h2 className="font-semibold text-ink">Resumo</h2>
           <p className="mt-2 leading-relaxed">{project.description || 'Sem descrição.'}</p>
           <div className="mt-6">
-            <p className="mb-2 text-sm text-secondary">
-              {project.approvedMaterialCount} de {project.materialCount} materiais aprovados
-            </p>
-            <ProjectProgress value={project.progress} />
+            <ProjectProgress
+              value={project.progress}
+              approved={project.approvedMaterialCount}
+              total={project.materialCount}
+            />
           </div>
         </div>
         <div className="rounded-md border border-line bg-surface-secondary p-4">

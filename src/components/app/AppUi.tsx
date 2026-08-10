@@ -86,9 +86,23 @@ export function MaterialStatus({ status }: { status: Material['status'] }) {
   return <Badge tone={tone}>{label}</Badge>
 }
 
-export function ProjectProgress({ value }: { value: number }) {
+export function ProjectProgress({
+  value,
+  approved,
+  total,
+}: {
+  value: number
+  approved?: number
+  total?: number
+}) {
+  const temContagem = typeof approved === 'number' && typeof total === 'number'
   return (
-    <div className="w-28">
+    <div className={temContagem ? 'min-w-[8.5rem]' : 'w-28'}>
+      {temContagem && (
+        <p className="mb-1 text-xs text-secondary">
+          {approved} de {total} aprovados · {value}%
+        </p>
+      )}
       <Progress value={value} />
     </div>
   )

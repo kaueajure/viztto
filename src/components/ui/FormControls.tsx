@@ -114,13 +114,24 @@ export function Select({
   )
 }
 
-type ChoiceProps = { label: string; checked?: boolean; onChange?: (value: boolean) => void }
-export function Checkbox({ label, checked = false, onChange }: ChoiceProps) {
+type ChoiceProps = {
+  label: string
+  checked?: boolean
+  disabled?: boolean
+  onChange?: (value: boolean) => void
+}
+export function Checkbox({ label, checked = false, disabled = false, onChange }: ChoiceProps) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm">
+    <label
+      className={cn(
+        'inline-flex items-center gap-2.5 text-sm',
+        disabled ? 'cursor-not-allowed opacity-55' : 'cursor-pointer',
+      )}
+    >
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange?.(e.target.checked)}
         className="h-4 w-4 accent-brand"
       />
