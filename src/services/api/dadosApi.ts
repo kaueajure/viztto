@@ -182,6 +182,7 @@ export async function carregarDadosApi() {
           projetoId?: string | null
           materialId?: string | null
           versaoMaterialId?: string | null
+          comentarioId?: string | null
           tipo: string
           descricao: string
           criadoEm: string
@@ -384,6 +385,7 @@ export async function carregarDadosApi() {
       projectId: x.atividade.projetoId ?? undefined,
       materialId: x.atividade.materialId ?? undefined,
       versionId: x.atividade.versaoMaterialId ?? undefined,
+      commentId: x.atividade.comentarioId ?? undefined,
     })),
     notifications: n.dados.map<Notification>((x) => ({
       id: x.id,
@@ -629,6 +631,20 @@ export const dadosApi = {
       method: 'POST',
       body: json({ versaoMaterialId, confirmarPendencias }),
     }),
+  statusAprovadores: (id: string) =>
+    requisicaoApi<{
+      dado: {
+        modoAprovacao: 'qualquer' | 'todos'
+        versaoMaterialId: string | null
+        aprovadores: Array<{ usuarioId: string; status: 'aprovado' | 'aguardando' }>
+        registros: Array<{
+          id: string
+          usuarioId: string | null
+          aprovadoEm: string
+          externoNome: string | null
+        }>
+      }
+    }>(`/api/materiais/${id}/aprovadores`),
   reabrir: (id: string) => requisicaoApi(`/api/materiais/${id}/reabrir`, { method: 'POST' }),
   versao: (
     id: string,

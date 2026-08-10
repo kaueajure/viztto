@@ -134,6 +134,13 @@
       "when": 1786600000000,
       "tag": "0018_configuracoes_projeto",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1786700000000,
+      "tag": "0019_aprovacao_parcial",
+      "breakpoints": true
     }
   ]
 }

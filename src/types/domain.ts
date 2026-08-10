@@ -145,6 +145,7 @@ export type Activity = {
   projectId?: string
   materialId?: string
   versionId?: string
+  commentId?: string
 }
 
 export type TeamMember = {

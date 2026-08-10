@@ -4,6 +4,7 @@ import { useParams } from 'react-router'
 import { ActivityPanel } from '@/components/review/ActivityPanel'
 import { CommentsPanel } from '@/components/review/CommentsPanel'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
+import { MaterialApprovalsProgress } from '@/components/review/MaterialApprovalsProgress'
 import { MaterialPreview, type MaterialPreviewHandle } from '@/components/review/MaterialPreview'
 import { PdfReviewCanvas } from '@/components/review/PdfReviewCanvas'
 import { NewVersionModal } from '@/components/review/NewVersionModal'
@@ -159,10 +160,23 @@ export default function ReviewWorkspacePage() {
         onCompare={() => setCompare(true)}
       />
     ) : panel === 'activity' ? (
-      <ActivityPanel activities={materialActivities} />
+      <ActivityPanel
+        activities={materialActivities}
+        onSelectComment={(commentId) => {
+          const comment = data.comments.find((item) => item.id === commentId)
+          if (comment) setActiveVersionId(comment.versionId)
+          selectComment(commentId)
+        }}
+      />
     ) : (
       <section className="p-4">
         <h2 className="font-semibold">Informações</h2>
+        <div className="mt-4">
+          <MaterialApprovalsProgress
+            materialId={material.id}
+            refreshKey={`${material.status}-${material.updatedAt}-${activeVersion.id}`}
+          />
+        </div>
         <dl className="mt-4 grid gap-3 text-sm">
           <div>
             <dt className="text-muted">Cliente</dt>

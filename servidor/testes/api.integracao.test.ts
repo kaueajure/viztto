@@ -736,6 +736,138 @@ describe('API integrada com MySQL', () => {
       .expect(201)
   })
 
+  it('registra aprovacao_parcial ate o ultimo aprovador e so entao versao_aprovada', async () => {
+    const agora = new Date()
+    const aprovadorBId = '33333333-3333-4333-8333-333333333333'
+    const senhaHash = await bcrypt.hash('Viztto@123', 4)
+    await banco
+      .insert(esquema.usuarios)
+      .values({
+        id: aprovadorBId,
+        nome: 'Aprovador B',
+        email: 'aprovador.b@viztto.local',
+        senhaHash,
+        emailVerificadoEm: agora,
+        ativo: true,
+        criadoEm: agora,
+        atualizadoEm: agora,
+      })
+      .onDuplicateKeyUpdate({ set: { senhaHash, ativo: true, atualizadoEm: agora } })
+    await banco
+      .insert(esquema.membrosWorkspace)
+      .values({
+        id: 'eeee0003-0000-4000-8000-000000000003',
+        workspaceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        usuarioId: aprovadorBId,
+        funcao: 'atendimento',
+        status: 'ativo',
+        entrouEm: agora,
+        criadoEm: agora,
+        atualizadoEm: agora,
+      })
+      .onDuplicateKeyUpdate({
+        set: { status: 'ativo', funcao: 'atendimento', atualizadoEm: agora },
+      })
+
+    const marinaId = '11111111-1111-4111-8111-111111111111'
+    await banco
+      .update(esquema.projetos)
+      .set({ modoAprovacao: 'todos', status: 'aguardando_aprovacao', atualizadoEm: agora })
+      .where(eq(esquema.projetos.id, projetoTeste))
+
+    await agente
+      .put(`/api/projetos/${projetoTeste}/participantes`)
+      .set('x-csrf-token', csrf)
+      .send({
+        responsavelIds: [],
+        aprovadorIds: [marinaId, aprovadorBId],
+      })
+      .expect(200)
+
+    const png = await sharp({
+      create: { width: 18, height: 18, channels: 4, background: '#304050' },
+    })
+      .png()
+      .toBuffer()
+    const material = await agente
+      .post('/api/materiais')
+      .set('x-csrf-token', csrf)
+      .field('projetoId', projetoTeste)
+      .field('nome', `Multi aprovadores ${Date.now()}`)
+      .field('tipo', 'imagem')
+      .attach('imagem', png, 'multi.png')
+      .expect(201)
+
+    const materialId = material.body.dado.id as string
+    const versaoMaterialId = material.body.dado.versaoId as string
+
+    await banco
+      .update(esquema.materiais)
+      .set({ status: 'aguardando_aprovacao', atualizadoEm: agora })
+      .where(eq(esquema.materiais.id, materialId))
+
+    const parcial = await agente
+      .post(`/api/materiais/${materialId}/aprovar`)
+      .set('x-csrf-token', csrf)
+      .send({ versaoMaterialId, confirmarPendencias: true })
+      .expect(201)
+    expect(parcial.body.dado.materialFinalizado).toBe(false)
+
+    const [matParcial] = await banco
+      .select()
+      .from(esquema.materiais)
+      .where(eq(esquema.materiais.id, materialId))
+      .limit(1)
+    expect(matParcial?.status).toBe('aguardando_aprovacao')
+
+    const atividadesParciais = await banco
+      .select()
+      .from(esquema.atividades)
+      .where(eq(esquema.atividades.materialId, materialId))
+    const ultimaParcial = atividadesParciais
+      .filter((item) => item.tipo === 'aprovacao_parcial' || item.tipo === 'versao_aprovada')
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())[0]
+    expect(ultimaParcial?.tipo).toBe('aprovacao_parcial')
+
+    const [projParcial] = await banco
+      .select()
+      .from(esquema.projetos)
+      .where(eq(esquema.projetos.id, projetoTeste))
+      .limit(1)
+    expect(projParcial?.status).not.toBe('aprovado')
+
+    const agenteB = supertest.agent(app)
+    await agenteB
+      .post('/api/autenticacao/entrar')
+      .send({ email: 'aprovador.b@viztto.local', senha: 'Viztto@123' })
+      .expect(200)
+    const csrfResposta = await agenteB.get('/api/autenticacao/csrf').expect(200)
+    const csrfB = (csrfResposta.body.token ?? csrfResposta.body.csrfToken) as string
+
+    const final = await agenteB
+      .post(`/api/materiais/${materialId}/aprovar`)
+      .set('x-csrf-token', csrfB)
+      .send({ versaoMaterialId, confirmarPendencias: true })
+      .expect(201)
+    expect(final.body.dado.materialFinalizado).toBe(true)
+
+    const [matFinal] = await banco
+      .select()
+      .from(esquema.materiais)
+      .where(eq(esquema.materiais.id, materialId))
+      .limit(1)
+    expect(matFinal?.status).toBe('aprovado')
+
+    const atividadesFinais = await banco
+      .select()
+      .from(esquema.atividades)
+      .where(eq(esquema.atividades.materialId, materialId))
+    const ultimaFinal = atividadesFinais
+      .filter((item) => item.tipo === 'aprovacao_parcial' || item.tipo === 'versao_aprovada')
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())[0]
+    expect(ultimaFinal?.tipo).toBe('versao_aprovada')
+  })
+
   it('nao armazena token de sessao puro', async () => {
     const [s] = await banco
       .select()

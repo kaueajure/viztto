@@ -16,6 +16,7 @@ import { validarCorpo } from '../../middlewares/validacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 import { notificarClienteProjetoAlterado } from '../../servicos/notificar-cliente-projeto.servico.js'
 import { garantirComentarioNoMaterial } from '../../servicos/limites-plano.servico.js'
+import { descricaoComentarioAtividade } from '../../utilitarios/descricao-comentario.js'
 
 const novoComentario = z.object({
   versaoMaterialId: z.string().uuid(),
@@ -158,14 +159,24 @@ comentariosRotas.post(
         versaoMaterialId: versao.id,
         comentarioId: id,
         tipo: 'comentario_criado',
-        descricao: 'Comentario contextualizado criado',
+        descricao: descricaoComentarioAtividade({
+          autorNome: req.sessao!.usuarioNome,
+          tipoMaterial: material.tipo,
+          timestampSegundos: req.body.timestampSegundos,
+          paginaPdf: req.body.paginaPdf,
+        }),
         criadoEm: agora,
       })
     })
     await notificarClienteProjetoAlterado({
       projetoId: material.projetoId,
       workspaceId: req.sessao!.workspaceId,
-      resumo: `${req.sessao!.usuarioNome} adicionou um comentario no material "${material.nome}".`,
+      resumo: descricaoComentarioAtividade({
+        autorNome: req.sessao!.usuarioNome,
+        tipoMaterial: material.tipo,
+        timestampSegundos: req.body.timestampSegundos,
+        paginaPdf: req.body.paginaPdf,
+      }),
     })
     res.status(201).json({ dado: { id } })
   },

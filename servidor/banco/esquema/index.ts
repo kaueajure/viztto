@@ -727,6 +727,7 @@ export const atividades = mysqlTable(
       'comentario_resolvido',
       'comentario_reaberto',
       'alteracoes_solicitadas',
+      'aprovacao_parcial',
       'versao_aprovada',
       'revisao_reaberta',
     ]).notNull(),

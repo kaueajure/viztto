@@ -39,6 +39,7 @@ import {
   obterAssetPortal,
 } from '../../servicos/portal-personalizacao.servico.js'
 import { recalcularStatusProjeto } from '../../servicos/projeto-status.servico.js'
+import { descricaoComentarioAtividade } from '../../utilitarios/descricao-comentario.js'
 
 const novoComentarioPortal = z.object({
   texto: z.string().trim().min(1).max(5000),
@@ -504,7 +505,12 @@ portalRotas.post(
         versaoMaterialId: material.versaoAtualId!,
         comentarioId: id,
         tipo: 'comentario_criado',
-        descricao: `${projeto.clienteNome} comentou no material ${material.nome}`,
+        descricao: descricaoComentarioAtividade({
+          autorNome: projeto.clienteNome,
+          tipoMaterial: material.tipo,
+          timestampSegundos: req.body.timestampSegundos,
+          paginaPdf: req.body.paginaPdf,
+        }),
         criadoEm: agora,
       })
     })
@@ -513,7 +519,12 @@ portalRotas.post(
       destinatarioId: projeto.criadoPorUsuarioId,
       atividadeId,
       titulo: 'Novo comentario do cliente',
-      descricao: `${projeto.clienteNome} deixou um comentario em "${material.nome}".`,
+      descricao: descricaoComentarioAtividade({
+        autorNome: projeto.clienteNome,
+        tipoMaterial: material.tipo,
+        timestampSegundos: req.body.timestampSegundos,
+        paginaPdf: req.body.paginaPdf,
+      }),
       tipo: 'comentario_criado',
     })
     res.status(201).json({ dado: { id } })

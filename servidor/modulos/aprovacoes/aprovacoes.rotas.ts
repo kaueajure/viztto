@@ -117,6 +117,13 @@ aprovacoesRotas.post(
     if (aprovacoesAtuais.some((item) => item.aprovadoPorUsuarioId === req.sessao!.usuarioId))
       throw new ErroHttp(409, 'Voce ja aprovou esta versao.', 'aprovacao_duplicada')
 
+    const [versaoInfo] = await banco
+      .select({ numero: versoesMaterial.numero })
+      .from(versoesMaterial)
+      .where(eq(versoesMaterial.id, versao.id))
+      .limit(1)
+    const numeroVersao = versaoInfo?.numero ?? 1
+
     const agora = new Date()
     const id = novoId()
     const atividadeId = novoId()
@@ -130,6 +137,18 @@ aprovacoesRotas.post(
     const exigeTodos = projeto?.modoAprovacao === 'todos' && idsAprovadores.length > 1
     const materialFinalizado =
       !exigeTodos || idsAprovadores.every((aprovadorId) => jaAprovaram.has(aprovadorId))
+    const faltam = exigeTodos
+      ? idsAprovadores.filter((aprovadorId) => !jaAprovaram.has(aprovadorId)).length
+      : 0
+    const tipoAtividade = materialFinalizado ? 'versao_aprovada' : 'aprovacao_parcial'
+    const nomeAprovador = req.sessao!.usuarioNome
+    const descricaoAtividade = materialFinalizado
+      ? `${nomeAprovador} aprovou V${numeroVersao}. Versão totalmente aprovada.`
+      : `${nomeAprovador} aprovou V${numeroVersao}. Aguardando ${faltam} aprovação${faltam === 1 ? '' : 'ões'}.`
+    const tituloNotificacao = materialFinalizado ? 'Material aprovado' : 'Aprovação parcial'
+    const descricaoNotificacao = materialFinalizado
+      ? `${nomeAprovador} aprovou V${numeroVersao}. O material foi aprovado.`
+      : `${nomeAprovador} aprovou V${numeroVersao}. Ainda falta ${faltam} aprovação${faltam === 1 ? '' : 'ões'}.`
 
     await banco.transaction(async (tx) => {
       await tx.insert(aprovacoes).values({
@@ -165,10 +184,8 @@ aprovacoesRotas.post(
         projetoId: m.projetoId,
         materialId: m.id,
         versaoMaterialId: versao.id,
-        tipo: 'versao_aprovada',
-        descricao: materialFinalizado
-          ? 'Versao aprovada e decisao registrada'
-          : 'Aprovacao registrada; aguardando demais aprovadores',
+        tipo: tipoAtividade,
+        descricao: descricaoAtividade,
         criadoEm: agora,
       })
       await tx.insert(notificacoes).values({
@@ -176,11 +193,9 @@ aprovacoesRotas.post(
         workspaceId: m.workspaceId,
         usuarioId: req.sessao!.usuarioId,
         atividadeId,
-        titulo: materialFinalizado ? 'Versao aprovada' : 'Aprovacao registrada',
-        descricao: materialFinalizado
-          ? 'A decisao foi registrada no historico do material.'
-          : 'Sua aprovacao foi registrada. Ainda faltam outros aprovadores.',
-        tipo: 'versao_aprovada',
+        titulo: tituloNotificacao,
+        descricao: descricaoNotificacao,
+        tipo: tipoAtividade,
         criadoEm: agora,
       })
     })
@@ -188,8 +203,8 @@ aprovacoesRotas.post(
       projetoId: m.projetoId,
       workspaceId: req.sessao!.workspaceId,
       resumo: materialFinalizado
-        ? `${req.sessao!.usuarioNome} aprovou uma versao do material "${m.nome}".`
-        : `${req.sessao!.usuarioNome} registrou aprovacao no material "${m.nome}".`,
+        ? `${nomeAprovador} aprovou "${m.nome}" (V${numeroVersao}). O material foi aprovado.`
+        : `${nomeAprovador} aprovou "${m.nome}" (V${numeroVersao}). Ainda falta ${faltam} aprovação${faltam === 1 ? '' : 'ões'}.`,
     })
     res.status(201).json({
       dado: {
