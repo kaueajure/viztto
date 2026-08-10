@@ -63,10 +63,11 @@ export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
     [string, 'neutral' | 'brand' | 'approval' | 'revision' | 'warning']
   > = {
     draft: ['Rascunho', 'neutral'],
+    'in-progress': ['Em andamento', 'brand'],
     'in-review': ['Em revisão', 'brand'],
     'changes-requested': ['Alterações solicitadas', 'revision'],
-    'waiting-approval': ['Aguardando aprovação', 'warning'],
-    approved: ['Aprovado', 'approval'],
+    'waiting-approval': ['Aguardando cliente', 'warning'],
+    approved: ['Concluído', 'approval'],
     archived: ['Arquivado', 'neutral'],
   }
   const [label, tone] = config[status]

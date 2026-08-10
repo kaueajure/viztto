@@ -29,6 +29,13 @@ const camposConfiguracao = [
   'mostrarTipo',
   'mostrarVersao',
   'materiaisAprovados',
+  'permitirComentarios',
+  'permitirAprovacao',
+  'permitirSolicitacaoAlteracoes',
+  'permitirDownloads',
+  'permitirVersoesAntigas',
+  'tituloPortal',
+  'descricaoPortal',
 ] as const satisfies ReadonlyArray<keyof PortalBrand>
 
 function normalizarTexto(valor: unknown) {
@@ -63,7 +70,9 @@ function montarConfiguracaoParaSalvar(config: PortalBrand) {
       campo === 'rodapeTexto' ||
       campo === 'suporteEmail' ||
       campo === 'suporteTelefone' ||
-      campo === 'suporteWhatsapp'
+      campo === 'suporteWhatsapp' ||
+      campo === 'tituloPortal' ||
+      campo === 'descricaoPortal'
     ) {
       saida[campo] = valor == null ? '' : String(valor)
       continue
@@ -121,6 +130,13 @@ const padrao: PortalBrand = {
   mostrarTipo: true,
   mostrarVersao: true,
   materiaisAprovados: 'mostrar',
+  permitirComentarios: true,
+  permitirAprovacao: true,
+  permitirSolicitacaoAlteracoes: true,
+  permitirDownloads: false,
+  permitirVersoesAntigas: false,
+  tituloPortal: '',
+  descricaoPortal: '',
   whiteLabel: true,
 }
 

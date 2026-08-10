@@ -28,7 +28,10 @@ type ClienteBanco = {
 type ParticipanteBanco = {
   usuarioId: string
   nome: string
+  email?: string
   tipoParticipacao: 'responsavel' | 'colaborador' | 'aprovador' | 'visualizador'
+  podeEnviarMateriais?: boolean
+  podeResponderComentarios?: boolean
 }
 type ProjetoBanco = {
   id: string
@@ -37,7 +40,13 @@ type ProjetoBanco = {
   descricao?: string | null
   tipo: string
   status: string
+  dataInicio?: Date | string | null
   prazoEm?: Date | string | null
+  modoAprovacao?: 'qualquer' | 'todos' | null
+  portalAtivo?: boolean | null
+  portalCriadoEm?: Date | string | null
+  portalAcessos?: number | null
+  portalUltimoAcessoEm?: Date | string | null
   atualizadoEm: Date | string
   participantes?: ParticipanteBanco[]
 }
@@ -106,11 +115,22 @@ type ItemComentario = {
 
 const statusProjeto = {
   rascunho: 'draft',
+  em_andamento: 'in-progress',
   em_revisao: 'in-review',
   alteracoes_solicitadas: 'changes-requested',
   aguardando_aprovacao: 'waiting-approval',
   aprovado: 'approved',
   arquivado: 'archived',
+} as const
+
+const statusProjetoApi = {
+  draft: 'rascunho',
+  'in-progress': 'em_andamento',
+  'in-review': 'em_revisao',
+  'changes-requested': 'alteracoes_solicitadas',
+  'waiting-approval': 'aguardando_aprovacao',
+  approved: 'aprovado',
+  archived: 'arquivado',
 } as const
 const statusMaterial = {
   rascunho: 'draft',
@@ -266,6 +286,8 @@ export async function carregarDadosApi() {
       const participantes = x.participantes ?? []
       const responsaveis = participantes.filter((item) => item.tipoParticipacao === 'responsavel')
       const aprovadores = participantes.filter((item) => item.tipoParticipacao === 'aprovador')
+      const projectMaterials = materials.filter((y) => y.projectId === x.id)
+      const approved = projectMaterials.filter((m) => m.status === 'approved').length
       return {
         id: x.id,
         clientId: x.clienteId,
@@ -273,16 +295,21 @@ export async function carregarDadosApi() {
         description: x.descricao ?? undefined,
         type: x.tipo,
         status: statusProjeto[x.status as keyof typeof statusProjeto] ?? 'draft',
+        startDate: x.dataInicio ? String(x.dataInicio) : undefined,
         dueDate: x.prazoEm ? String(x.prazoEm) : undefined,
-        progress: 0,
-        materialCount: materials.filter((y) => y.projectId === x.id).length,
-        commentCount: materials
-          .filter((y) => y.projectId === x.id)
-          .reduce((s, y) => s + y.unresolvedCommentCount, 0),
+        progress: projectMaterials.length
+          ? Math.round((approved / projectMaterials.length) * 100)
+          : 0,
+        materialCount: projectMaterials.length,
+        approvedMaterialCount: approved,
+        pendingClientCount: projectMaterials.filter((m) => m.status === 'waiting-approval').length,
+        commentCount: projectMaterials.reduce((s, y) => s + y.unresolvedCommentCount, 0),
         members: responsaveis.map((item) => item.nome),
         memberIds: responsaveis.map((item) => item.usuarioId),
         approvers: aprovadores.map((item) => item.nome),
         approverIds: aprovadores.map((item) => item.usuarioId),
+        approvalMode: x.modoAprovacao === 'todos' ? 'all' : 'any',
+        portalActive: x.portalAtivo !== false,
         updatedAt: String(x.atualizadoEm),
       }
     }),
@@ -385,6 +412,57 @@ export const dadosApi = {
     requisicaoApi<{ dado: { link: string; tokenPortal: string } }>(
       `/api/projetos/${projetoId}/link-portal`,
     ),
+  regenerarLinkPortal: (projetoId: string) =>
+    requisicaoApi<{ mensagem: string; dado?: { link: string | null; tokenPortal: string } }>(
+      `/api/projetos/${projetoId}/link-portal`,
+      { method: 'POST' },
+    ),
+  revogarLinkPortal: (projetoId: string) =>
+    requisicaoApi<{ mensagem: string }>(`/api/projetos/${projetoId}/link-portal`, {
+      method: 'DELETE',
+    }),
+  projetoDetalhe: (projetoId: string) =>
+    requisicaoApi<{
+      dado: ProjetoBanco & {
+        participantes: ParticipanteBanco[]
+      }
+    }>(`/api/projetos/${projetoId}`),
+  atualizarProjeto: (
+    id: string,
+    d: Partial<{
+      name: string
+      description: string | null
+      clientId: string
+      type: string
+      status: Project['status']
+      startDate: string | null
+      dueDate: string | null
+      approvalMode: Project['approvalMode']
+      portalActive: boolean
+    }>,
+  ) =>
+    requisicaoApi<{ mensagem: string }>(`/api/projetos/${id}`, {
+      method: 'PATCH',
+      body: json({
+        ...(d.name !== undefined ? { nome: d.name } : {}),
+        ...(d.description !== undefined ? { descricao: d.description || null } : {}),
+        ...(d.clientId !== undefined ? { clienteId: d.clientId } : {}),
+        ...(d.type !== undefined ? { tipo: d.type } : {}),
+        ...(d.status !== undefined
+          ? { status: statusProjetoApi[d.status] ?? d.status }
+          : {}),
+        ...(d.startDate !== undefined ? { dataInicio: d.startDate?.trim() || null } : {}),
+        ...(d.dueDate !== undefined ? { prazoEm: d.dueDate?.trim() || null } : {}),
+        ...(d.approvalMode !== undefined
+          ? { modoAprovacao: d.approvalMode === 'all' ? 'todos' : 'qualquer' }
+          : {}),
+        ...(d.portalActive !== undefined ? { portalAtivo: d.portalActive } : {}),
+      }),
+    }),
+  excluirProjeto: (id: string) =>
+    requisicaoApi<{ mensagem: string }>(`/api/projetos/${id}`, { method: 'DELETE' }),
+  restaurarProjeto: (id: string) =>
+    requisicaoApi<{ mensagem: string }>(`/api/projetos/${id}/restaurar`, { method: 'POST' }),
   cliente: (d: {
     name: string
     company?: string
@@ -451,7 +529,18 @@ export const dadosApi = {
           : {}),
       }),
     }),
-  participantes: (projetoId: string, d: { memberIds: string[]; approverIds: string[] }) =>
+  participantes: (
+    projetoId: string,
+    d: {
+      memberIds: string[]
+      approverIds: string[]
+      permissoes?: Array<{
+        usuarioId: string
+        podeEnviarMateriais?: boolean
+        podeResponderComentarios?: boolean
+      }>
+    },
+  ) =>
     requisicaoApi<{
       mensagem: string
       dado: {
@@ -459,6 +548,8 @@ export const dadosApi = {
           usuarioId: string
           nome: string
           tipoParticipacao: string
+          podeEnviarMateriais?: boolean
+          podeResponderComentarios?: boolean
         }>
       }
     }>(`/api/projetos/${projetoId}/participantes`, {
@@ -466,6 +557,7 @@ export const dadosApi = {
       body: json({
         responsavelIds: d.memberIds,
         aprovadorIds: d.approverIds,
+        ...(d.permissoes !== undefined ? { permissoes: d.permissoes } : {}),
       }),
     }),
   material: (d: { name: string; projectId: string; type: string; file: File }) => {

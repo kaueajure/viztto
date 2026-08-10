@@ -30,6 +30,13 @@ export type PortalBrand = {
   mostrarTipo?: boolean
   mostrarVersao?: boolean
   materiaisAprovados?: 'mostrar' | 'separar' | 'ocultar'
+  permitirComentarios?: boolean
+  permitirAprovacao?: boolean
+  permitirSolicitacaoAlteracoes?: boolean
+  permitirDownloads?: boolean
+  permitirVersoesAntigas?: boolean
+  tituloPortal?: string
+  descricaoPortal?: string
   whiteLabel: boolean
 }
 

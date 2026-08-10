@@ -73,4 +73,6 @@ O schema fica em `servidor/banco/esquema`, e migrations versionadas em `servidor
 
 ## Observacoes
 
-Precos e limites da landing continuam provisórios. Recuperacao de senha, convites, video/PDF/apresentacao e armazenamento externo permanecem fora desta macroetapa.
+Materiais suportados: **imagem**, **vídeo** e **PDF**. Tipos de projeto (Campanha, Redes sociais, Vídeo, Site, Apresentação, Outro) são categorias de trabalho — não formatos de arquivo.
+
+Precos e limites da landing continuam provisórios em relação aos planos editáveis no admin. Busca global (Ctrl+K), etapas avançadas de aprovação e comparação side-by-side de versões estão planejadas; o produto já cobre autenticação, recuperação de senha, convites, portal do cliente, comentários posicionados, aprovação registrada e versionamento.
