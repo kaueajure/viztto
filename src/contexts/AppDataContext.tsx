@@ -4,6 +4,7 @@ import { carregarDadosApi, dadosApi } from '@/services/api/dadosApi'
 import type {
   Activity,
   Approval,
+  ApprovalResult,
   Client,
   Material,
   MaterialVersion,
@@ -74,7 +75,7 @@ type Valor = Estado & {
   reopenComment: (id: string) => Promise<void>
   addCommentReply: (id: string, t: string) => Promise<void>
   requestChanges: (id: string, versionId: string) => Promise<boolean>
-  approveVersion: (id: string, v: string) => Promise<Approval>
+  approveVersion: (id: string, v: string) => Promise<ApprovalResult>
   reopenReview: (id: string) => Promise<void>
   addActivity: () => never
 }
@@ -313,15 +314,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         }
       },
       async approveVersion(id, versionId) {
-        await dadosApi.aprovar(id, versionId)
+        const { dado } = await dadosApi.aprovar(id, versionId)
         await refresh()
         return {
-          id: `approval-${Date.now()}`,
-          materialId: id,
-          versionId,
-          approvedBy: user?.name || 'Usuário',
-          approvedAt: new Date().toISOString(),
-        }
+          approvalId: dado.id,
+          materialFinalizado: Boolean(dado.materialFinalizado),
+          aprovacoesRegistradas: Number(dado.aprovacoesRegistradas ?? 1),
+          aprovadoresNecessarios: Number(dado.aprovadoresNecessarios ?? 1),
+          aprovadoresPendentes: Array.isArray(dado.aprovadoresPendentes)
+            ? dado.aprovadoresPendentes
+            : [],
+        } satisfies ApprovalResult
       },
       async reopenReview(id) {
         await dadosApi.reabrir(id)
@@ -331,7 +334,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         throw new Error('Atividades sao criadas exclusivamente pelas transacoes do servidor.')
       },
     }),
-    [estado, onboarding, loading, error, user?.name],
+    [estado, onboarding, loading, error],
   )
   return <Contexto.Provider value={value}>{children}</Contexto.Provider>
 }

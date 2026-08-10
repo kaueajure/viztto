@@ -39,7 +39,10 @@ import {
   obterAssetPortal,
 } from '../../servicos/portal-personalizacao.servico.js'
 import { recalcularStatusProjeto } from '../../servicos/projeto-status.servico.js'
-import { descricaoComentarioAtividade } from '../../utilitarios/descricao-comentario.js'
+import {
+  acaoComentarioAtividade,
+  descricaoComentarioNotificacao,
+} from '../../utilitarios/descricao-comentario.js'
 
 const novoComentarioPortal = z.object({
   texto: z.string().trim().min(1).max(5000),
@@ -505,8 +508,7 @@ portalRotas.post(
         versaoMaterialId: material.versaoAtualId!,
         comentarioId: id,
         tipo: 'comentario_criado',
-        descricao: descricaoComentarioAtividade({
-          autorNome: projeto.clienteNome,
+        descricao: acaoComentarioAtividade({
           tipoMaterial: material.tipo,
           timestampSegundos: req.body.timestampSegundos,
           paginaPdf: req.body.paginaPdf,
@@ -519,7 +521,7 @@ portalRotas.post(
       destinatarioId: projeto.criadoPorUsuarioId,
       atividadeId,
       titulo: 'Novo comentario do cliente',
-      descricao: descricaoComentarioAtividade({
+      descricao: descricaoComentarioNotificacao({
         autorNome: projeto.clienteNome,
         tipoMaterial: material.tipo,
         timestampSegundos: req.body.timestampSegundos,
@@ -579,7 +581,7 @@ portalRotas.post(
         materialId: material.id,
         versaoMaterialId: material.versaoAtualId!,
         tipo: 'alteracoes_solicitadas',
-        descricao: `${projeto.clienteNome} solicitou alteracoes em ${material.nome}`,
+        descricao: `solicitou alterações em ${material.nome}`,
         criadoEm: agora,
       })
     })
@@ -660,7 +662,7 @@ portalRotas.post(
         materialId: material.id,
         versaoMaterialId: material.versaoAtualId!,
         tipo: 'versao_aprovada',
-        descricao: `${projeto.clienteNome} aprovou ${material.nome}`,
+        descricao: `aprovou ${material.nome}`,
         criadoEm: agora,
       })
     })

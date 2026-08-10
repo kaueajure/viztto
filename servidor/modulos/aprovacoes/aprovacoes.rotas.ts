@@ -19,6 +19,10 @@ import { novoId } from '../../utilitarios/seguranca.js'
 import { notificarClienteProjetoAlterado } from '../../servicos/notificar-cliente-projeto.servico.js'
 import { garantirPodeAprovarProjeto } from '../../servicos/projeto-aprovacao.servico.js'
 import { recalcularStatusProjeto } from '../../servicos/projeto-status.servico.js'
+import {
+  acaoAprovacaoAtividade,
+  descricaoAprovacaoNotificacao,
+} from '../../utilitarios/descricao-comentario.js'
 
 const decisao = z.object({
   versaoMaterialId: z.string().uuid(),
@@ -142,13 +146,21 @@ aprovacoesRotas.post(
       : 0
     const tipoAtividade = materialFinalizado ? 'versao_aprovada' : 'aprovacao_parcial'
     const nomeAprovador = req.sessao!.usuarioNome
-    const descricaoAtividade = materialFinalizado
-      ? `${nomeAprovador} aprovou V${numeroVersao}. Versão totalmente aprovada.`
-      : `${nomeAprovador} aprovou V${numeroVersao}. Aguardando ${faltam} aprovação${faltam === 1 ? '' : 'ões'}.`
+    const aprovadoresPendentes = exigeTodos
+      ? idsAprovadores.filter((aprovadorId) => !jaAprovaram.has(aprovadorId))
+      : []
+    const descricaoAtividade = acaoAprovacaoAtividade({
+      numeroVersao,
+      materialFinalizado,
+      faltam,
+    })
     const tituloNotificacao = materialFinalizado ? 'Material aprovado' : 'Aprovação parcial'
-    const descricaoNotificacao = materialFinalizado
-      ? `${nomeAprovador} aprovou V${numeroVersao}. O material foi aprovado.`
-      : `${nomeAprovador} aprovou V${numeroVersao}. Ainda falta ${faltam} aprovação${faltam === 1 ? '' : 'ões'}.`
+    const descricaoNotificacao = descricaoAprovacaoNotificacao({
+      autorNome: nomeAprovador,
+      numeroVersao,
+      materialFinalizado,
+      faltam,
+    })
 
     await banco.transaction(async (tx) => {
       await tx.insert(aprovacoes).values({
@@ -212,6 +224,7 @@ aprovacoesRotas.post(
         materialFinalizado,
         aprovacoesRegistradas: jaAprovaram.size,
         aprovadoresNecessarios: exigeTodos ? idsAprovadores.length : 1,
+        aprovadoresPendentes,
       },
     })
   },

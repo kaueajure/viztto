@@ -812,6 +812,9 @@ describe('API integrada com MySQL', () => {
       .send({ versaoMaterialId, confirmarPendencias: true })
       .expect(201)
     expect(parcial.body.dado.materialFinalizado).toBe(false)
+    expect(parcial.body.dado.aprovacoesRegistradas).toBe(1)
+    expect(parcial.body.dado.aprovadoresNecessarios).toBe(2)
+    expect(parcial.body.dado.aprovadoresPendentes).toEqual([aprovadorBId])
 
     const [matParcial] = await banco
       .select()
@@ -828,6 +831,8 @@ describe('API integrada com MySQL', () => {
       .filter((item) => item.tipo === 'aprovacao_parcial' || item.tipo === 'versao_aprovada')
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())[0]
     expect(ultimaParcial?.tipo).toBe('aprovacao_parcial')
+    expect(ultimaParcial?.descricao.startsWith('aprovou V')).toBe(true)
+    expect(ultimaParcial?.descricao.includes('Marina')).toBe(false)
 
     const [projParcial] = await banco
       .select()
@@ -850,6 +855,9 @@ describe('API integrada com MySQL', () => {
       .send({ versaoMaterialId, confirmarPendencias: true })
       .expect(201)
     expect(final.body.dado.materialFinalizado).toBe(true)
+    expect(final.body.dado.aprovacoesRegistradas).toBe(2)
+    expect(final.body.dado.aprovadoresNecessarios).toBe(2)
+    expect(final.body.dado.aprovadoresPendentes).toEqual([])
 
     const [matFinal] = await banco
       .select()
@@ -866,6 +874,7 @@ describe('API integrada com MySQL', () => {
       .filter((item) => item.tipo === 'aprovacao_parcial' || item.tipo === 'versao_aprovada')
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())[0]
     expect(ultimaFinal?.tipo).toBe('versao_aprovada')
+    expect(ultimaFinal?.descricao).toMatch(/^aprovou V\d+\.$/)
   })
 
   it('nao armazena token de sessao puro', async () => {

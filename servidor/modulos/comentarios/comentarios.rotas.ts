@@ -16,7 +16,10 @@ import { validarCorpo } from '../../middlewares/validacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 import { notificarClienteProjetoAlterado } from '../../servicos/notificar-cliente-projeto.servico.js'
 import { garantirComentarioNoMaterial } from '../../servicos/limites-plano.servico.js'
-import { descricaoComentarioAtividade } from '../../utilitarios/descricao-comentario.js'
+import {
+  acaoComentarioAtividade,
+  descricaoComentarioNotificacao,
+} from '../../utilitarios/descricao-comentario.js'
 
 const novoComentario = z.object({
   versaoMaterialId: z.string().uuid(),
@@ -159,8 +162,7 @@ comentariosRotas.post(
         versaoMaterialId: versao.id,
         comentarioId: id,
         tipo: 'comentario_criado',
-        descricao: descricaoComentarioAtividade({
-          autorNome: req.sessao!.usuarioNome,
+        descricao: acaoComentarioAtividade({
           tipoMaterial: material.tipo,
           timestampSegundos: req.body.timestampSegundos,
           paginaPdf: req.body.paginaPdf,
@@ -171,7 +173,7 @@ comentariosRotas.post(
     await notificarClienteProjetoAlterado({
       projetoId: material.projetoId,
       workspaceId: req.sessao!.workspaceId,
-      resumo: descricaoComentarioAtividade({
+      resumo: descricaoComentarioNotificacao({
         autorNome: req.sessao!.usuarioNome,
         tipoMaterial: material.tipo,
         timestampSegundos: req.body.timestampSegundos,

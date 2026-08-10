@@ -5,6 +5,7 @@ import { Badge, EmptyState } from '@/components/ui/DataDisplay'
 import { useAppData } from '@/contexts/AppDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { materialTypeLabel } from '@/lib/materialType'
+import { isAguardandoCliente, isPrecisaDeMim } from '@/lib/reviewWaitingContext'
 import type { Material, MaterialStatus as MaterialStatusType, Project } from '@/types/domain'
 
 type FilaPrincipal =
@@ -53,25 +54,22 @@ export default function ReviewsPage() {
     return { project, client }
   }
 
-  const souAprovadorDe = (project?: Project) =>
-    Boolean(user?.id && project?.approverIds.includes(user.id))
-
   const filas: Array<[FilaPrincipal, string, (m: Material) => boolean]> = [
     [
       'precisa-de-mim',
       'Precisa de mim',
       (m) => {
         const { project } = contexto(m.projectId)
-        if (m.status === 'changes-requested') return true
-        if (m.status === 'in-review') return true
-        if (m.status === 'waiting-approval' && souAprovadorDe(project)) return true
-        return false
+        return isPrecisaDeMim({ material: m, project, userId: user?.id })
       },
     ],
     [
       'aguardando-cliente',
       'Aguardando cliente',
-      (m) => m.status === 'waiting-approval',
+      (m) => {
+        const { project } = contexto(m.projectId)
+        return isAguardandoCliente({ material: m, project, userId: user?.id })
+      },
     ],
     ['alteracoes', 'Alterações solicitadas', (m) => m.status === 'changes-requested'],
     ['em-revisao', 'Em revisão', (m) => m.status === 'in-review'],

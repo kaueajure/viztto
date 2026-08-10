@@ -627,7 +627,15 @@ export const dadosApi = {
       body: json({ versaoMaterialId }),
     }),
   aprovar: (id: string, versaoMaterialId: string, confirmarPendencias = true) =>
-    requisicaoApi(`/api/materiais/${id}/aprovar`, {
+    requisicaoApi<{
+      dado: {
+        id: string
+        materialFinalizado: boolean
+        aprovacoesRegistradas: number
+        aprovadoresNecessarios: number
+        aprovadoresPendentes?: string[]
+      }
+    }>(`/api/materiais/${id}/aprovar`, {
       method: 'POST',
       body: json({ versaoMaterialId, confirmarPendencias }),
     }),

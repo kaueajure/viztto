@@ -17,7 +17,6 @@ import { EmptyState } from '@/components/ui/DataDisplay'
 import { Textarea } from '@/components/ui/FormControls'
 import { Modal } from '@/components/ui/Interactive'
 import { useAppData } from '@/contexts/AppDataContext'
-import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/cn'
 import { formatVideoTimestamp } from '@/lib/formatVideoTimestamp'
 import { materialTypeLabel } from '@/lib/materialType'
@@ -32,7 +31,6 @@ type DraftComment = {
 
 export default function ReviewWorkspacePage() {
   const { materialId } = useParams()
-  const { user } = useAuth()
   const data = useAppData()
   const material = data.materials.find((item) => item.id === materialId)
   const project = data.projects.find((item) => item.id === material?.projectId)
@@ -217,11 +215,26 @@ export default function ReviewWorkspacePage() {
   }
   const confirmApproval = async () => {
     if (activeVersion.id !== material.currentVersionId) return
-    await data.approveVersion(material.id, activeVersion.id)
+    const resultado = await data.approveVersion(material.id, activeVersion.id)
     setDecision(null)
+    if (!resultado.materialFinalizado) {
+      const pendentes = resultado.aprovadoresPendentes
+        .map((id) => data.team.find((membro) => membro.id === id)?.name)
+        .filter((nome): nome is string => Boolean(nome))
+      const contagem = `${resultado.aprovacoesRegistradas} de ${resultado.aprovadoresNecessarios} aprovações`
+      const aguardando =
+        pendentes.length === 1
+          ? `Aguardando ${pendentes[0]}.`
+          : 'Aguardando as demais aprovações.'
+      setNotice({
+        tone: 'success',
+        text: `✓ Sua aprovação foi registrada. ${contagem}. ${aguardando}`,
+      })
+      return
+    }
     setNotice({
       tone: 'success',
-      text: `Versão ${material.currentVersion} aprovada${user?.name ? ` por ${user.name}` : ''}.`,
+      text: `✓ Versão ${material.currentVersion} aprovada. Todas as aprovações necessárias foram registradas.`,
     })
   }
 

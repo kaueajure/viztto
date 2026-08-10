@@ -133,6 +133,15 @@ export type Approval = {
   note?: string
 }
 
+/** Resultado real de POST /materiais/:id/aprovar */
+export type ApprovalResult = {
+  approvalId: string
+  materialFinalizado: boolean
+  aprovacoesRegistradas: number
+  aprovadoresNecessarios: number
+  aprovadoresPendentes: string[]
+}
+
 export type Activity = {
   id: string
   workspaceId: string

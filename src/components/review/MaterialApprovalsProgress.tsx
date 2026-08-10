@@ -63,9 +63,14 @@ export function MaterialApprovalsProgress({ materialId, refreshKey }: Props) {
         })}
       </ul>
       <p className="mt-2 text-xs text-secondary">
-        {completo
-          ? `${total} de ${total} aprovações · Material aprovado`
-          : `${aprovados} de ${total} aprovações`}
+        {completo ? (
+          <>
+            {total} de {total} aprovações
+            <span className="mt-1 block text-approval">✓ Material aprovado</span>
+          </>
+        ) : (
+          `${aprovados} de ${total} aprovações`
+        )}
       </p>
     </div>
   )
