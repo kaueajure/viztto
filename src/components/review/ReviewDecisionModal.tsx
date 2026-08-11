@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Send } from 'lucide-react'
+import { AlertTriangle, Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/DataDisplay'

@@ -1,18 +1,55 @@
-node_modules
-dist
-.vite
-*.local
-*.log
+# Dependências
+node_modules/
+
+# Builds
+dist/
+build/
+build-servidor/
+.vite/
 *.tsbuildinfo
-.env
-build-servidor
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testes
+coverage/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Temporários
+*.tmp
+*.temp
+*.bak
+*.old
+*.swp
+*.swo
+*.local
 .smoke-uploads-*
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-uploads/*
-!uploads/.gitkeep
-!uploads/imagens/.gitkeep
-!uploads/miniaturas/.gitkeep
-!uploads/temporarios/.gitkeep
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Ambiente
+.env
+.env.local
+.env.*.local
+
+# Uploads / arquivos gerados em runtime
+uploads/**
+!uploads/**/
+!uploads/**/.gitkeep

@@ -5,7 +5,10 @@ import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
 import { MaterialPreview, type MaterialPreviewHandle } from '@/components/review/MaterialPreview'
 import { PdfReviewCanvas } from '@/components/review/PdfReviewCanvas'
 import { PortalApprovalDialog } from '@/components/portal/PortalApprovalDialog'
+import { PortalIdentityGate } from '@/components/portal/PortalIdentityGate'
 import { PortalPasswordGate } from '@/components/portal/PortalPasswordGate'
+import { VersionComparison } from '@/components/features/VersionComparison'
+import { Modal } from '@/components/ui/Interactive'
 import {
   PortalAccessBadge,
   PortalBrandIdentity,
@@ -20,6 +23,11 @@ import { Button, IconButton } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/DataDisplay'
 import { Textarea } from '@/components/ui/FormControls'
 import { caminhoPortalProjeto, comTokenPortal, UUID_RE } from '@/lib/portalPaths'
+import {
+  lerIdentidadePortal,
+  salvarIdentidadePortal,
+  type IdentidadePortal,
+} from '@/lib/portalIdentidade'
 import { formatVideoTimestamp } from '@/lib/formatVideoTimestamp'
 import { ApiError, json, requisicaoApi } from '@/services/api/clienteHttp'
 import type { ReviewComment } from '@/types/domain'
@@ -50,6 +58,17 @@ type DetalhePortal = {
     imagemUrl: string
   }
   marca?: PortalBrand
+  versoes?: Array<{
+    id: string
+    numero: number
+    nome: string
+    arquivoId: string
+    aprovada: boolean
+    atual?: boolean
+    imagemUrl: string
+    criadoEm?: string
+    criadoPorNome?: string | null
+  }>
 }
 
 const rotuloStatus: Record<string, string> = {
@@ -80,6 +99,18 @@ export default function PortalRevisaoPage() {
     'comentario' | 'alteracoes' | 'aprovacao' | null
   >(null)
   const [pendenciasParaConfirmar, setPendenciasParaConfirmar] = useState<number | null>(null)
+  const [identidadePendente, setIdentidadePendente] = useState<
+    null | 'comentario' | 'alteracoes' | 'aprovacao'
+  >(null)
+  const [identidade, setIdentidade] = useState<IdentidadePortal | null>(null)
+  const [rascunhoAcao, setRascunhoAcao] = useState<{
+    tipo: 'comentario' | 'alteracoes' | 'aprovacao'
+    payload?: Record<string, unknown>
+  } | null>(null)
+  const [versaoSelecionadaId, setVersaoSelecionadaId] = useState<string | null>(null)
+  const [compareAberto, setCompareAberto] = useState(false)
+  const [compareAntesId, setCompareAntesId] = useState<string | null>(null)
+  const [compareDepoisId, setCompareDepoisId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(100)
   const [currentTime, setCurrentTime] = useState(0)
   const [pdfPage, setPdfPage] = useState(1)
@@ -131,12 +162,19 @@ export default function PortalRevisaoPage() {
             ...dado.versao,
             imagemUrl: comTokenPortal(dado.versao.imagemUrl, tokenPortal),
           },
+          versoes: (dado.versoes ?? []).map((item) => ({
+            ...item,
+            imagemUrl: comTokenPortal(item.imagemUrl, tokenPortal),
+          })),
         })
+        setVersaoSelecionadaId((atual) => atual ?? dado.versao.id)
+        setIdentidade((atual) => atual ?? lerIdentidadePortal(dado.projeto.id))
         setComentarios(
           lista.dados.map((item) => ({
             ...item,
             createdAt: String(item.createdAt),
             updatedAt: String(item.updatedAt),
+            replies: item.replies ?? [],
           })),
         )
       } catch (error) {
@@ -167,7 +205,9 @@ export default function PortalRevisaoPage() {
     if (draft) draftRef.current?.focus()
   }, [draft])
 
-  const versaoAtualId = detalhe?.versao.id
+  const versaoVisivel =
+    detalhe?.versoes?.find((item) => item.id === versaoSelecionadaId) ?? detalhe?.versao
+  const versaoAtualId = versaoVisivel?.id
   const comentariosDaVersao = useMemo(
     () => comentarios.filter((item) => item.versionId === versaoAtualId),
     [comentarios, versaoAtualId],
@@ -178,6 +218,20 @@ export default function PortalRevisaoPage() {
   )
   const aprovado = Boolean(detalhe?.material.status === 'aprovado' || detalhe?.versao.aprovada)
   const enviando = acaoEmAndamento !== null
+
+  const comIdentidade = async (
+    tipo: 'comentario' | 'alteracoes' | 'aprovacao',
+    executar: (id: IdentidadePortal) => Promise<void>,
+    payload?: Record<string, unknown>,
+  ) => {
+    const salva = identidade ?? (detalhe ? lerIdentidadePortal(detalhe.projeto.id) : null)
+    if (!salva) {
+      setRascunhoAcao({ tipo, payload })
+      setIdentidadePendente(tipo)
+      return
+    }
+    await executar(salva)
+  }
 
   const selectComment = (commentId: string) => {
     setSelectedId(commentId)
@@ -194,107 +248,146 @@ export default function PortalRevisaoPage() {
   const publicarComentario = async (event: FormEvent) => {
     event.preventDefault()
     if (!draft || !draftText.trim() || enviando) return
-    setAcaoEmAndamento('comentario')
-    setErro('')
-    try {
-      await requisicaoApi(urlComentarios, {
-        method: 'POST',
-        body: json({
-          texto: draftText.trim(),
-          posicaoX: draft.x,
-          posicaoY: draft.y,
-          timestampSegundos: draft.timestampSeconds,
-          paginaPdf: draft.pdfPage,
-        }),
-      })
-      setDraft(null)
-      setDraftText('')
-      setCreationMode(false)
-      setAviso('Comentário enviado')
-      await carregar(true)
-    } catch (error) {
-      setErro(
-        error instanceof ApiError && error.codigo === 'material_aprovado'
-          ? 'Este material já foi aprovado e não aceita novos comentários.'
-          : 'Não foi possível enviar o comentário. Seu texto foi preservado; tente novamente.',
-      )
-    } finally {
-      setAcaoEmAndamento(null)
-    }
+    const texto = draftText.trim()
+    const draftLocal = draft
+    await comIdentidade('comentario', async (id) => {
+      setAcaoEmAndamento('comentario')
+      setErro('')
+      try {
+        await requisicaoApi(urlComentarios, {
+          method: 'POST',
+          body: json({
+            nome: id.nome,
+            email: id.email,
+            texto,
+            posicaoX: draftLocal.x,
+            posicaoY: draftLocal.y,
+            timestampSegundos: draftLocal.timestampSeconds,
+            paginaPdf: draftLocal.pdfPage,
+          }),
+        })
+        setDraft(null)
+        setDraftText('')
+        setCreationMode(false)
+        setAviso('Comentário enviado')
+        await carregar(true)
+      } catch (error) {
+        setErro(
+          error instanceof ApiError && error.codigo === 'contato_nao_autorizado'
+            ? 'Este email não está cadastrado como contato deste cliente.'
+            : error instanceof ApiError && error.codigo === 'contato_sem_permissao'
+              ? 'Seu contato não tem permissão para comentar.'
+              : error instanceof ApiError && error.codigo === 'material_aprovado'
+                ? 'Este material já foi aprovado e não aceita novos comentários.'
+                : 'Não foi possível enviar o comentário. Seu texto foi preservado; tente novamente.',
+        )
+      } finally {
+        setAcaoEmAndamento(null)
+      }
+    })
   }
 
   const solicitarAlteracoes = async () => {
     if (enviando) return
-    setAcaoEmAndamento('alteracoes')
-    setErro('')
-    try {
-      await requisicaoApi(urlSolicitarAlteracoes, { method: 'POST' })
-      setAviso(
-        detalhe?.marca?.mensagemAlteracoes || 'Alterações solicitadas. A equipe foi avisada.',
-      )
-      setCreationMode(false)
-      setDraft(null)
-      await carregar(true)
-    } catch (error) {
-      setErro(
-        error instanceof ApiError && error.codigo === 'sem_pendencias'
-          ? 'Adicione ao menos um comentário antes de solicitar alterações.'
-          : 'Não foi possível solicitar alterações. Tente novamente.',
-      )
-    } finally {
-      setAcaoEmAndamento(null)
-    }
+    await comIdentidade('alteracoes', async (id) => {
+      setAcaoEmAndamento('alteracoes')
+      setErro('')
+      try {
+        await requisicaoApi(urlSolicitarAlteracoes, {
+          method: 'POST',
+          body: json({ nome: id.nome, email: id.email }),
+        })
+        setAviso(
+          detalhe?.marca?.mensagemAlteracoes || 'Alterações solicitadas. A equipe foi avisada.',
+        )
+        setCreationMode(false)
+        setDraft(null)
+        await carregar(true)
+      } catch (error) {
+        setErro(
+          error instanceof ApiError && error.codigo === 'sem_pendencias'
+            ? 'Adicione ao menos um comentário antes de solicitar alterações.'
+            : error instanceof ApiError && error.codigo === 'contato_nao_autorizado'
+              ? 'Este email não está cadastrado como contato deste cliente.'
+              : error instanceof ApiError && error.codigo === 'contato_sem_permissao'
+                ? 'Seu contato não tem permissão para solicitar alterações.'
+                : error instanceof ApiError && error.codigo === 'transicao_invalida'
+                  ? 'Este material ainda não está disponível para solicitação de alterações.'
+                  : 'Não foi possível solicitar alterações. Tente novamente.',
+        )
+      } finally {
+        setAcaoEmAndamento(null)
+      }
+    })
   }
 
   const aprovar = async (confirmarPendencias: boolean) => {
     if (enviando) return
-    setAcaoEmAndamento('aprovacao')
-    setErro('')
-    try {
-      await requisicaoApi(urlAprovar, {
-        method: 'POST',
-        body: json({ confirmarPendencias }),
-      })
-      setDetalhe((atual) =>
-        atual
-          ? {
-              ...atual,
-              material: { ...atual.material, status: 'aprovado' },
-              versao: { ...atual.versao, aprovada: true },
-            }
-          : atual,
-      )
-      setAviso('')
-      setCreationMode(false)
-      setDraft(null)
-      setPendenciasParaConfirmar(null)
-      await carregar(true)
-    } catch (error) {
-      if (
-        !confirmarPendencias &&
-        error instanceof ApiError &&
-        error.codigo === 'pendencias_abertas'
-      ) {
-        const detalhes = error.detalhes as { total?: unknown } | undefined
-        const total = Number(detalhes?.total)
-        setPendenciasParaConfirmar(
-          Number.isFinite(total) && total > 0 ? total : Math.max(1, abertos),
+    await comIdentidade('aprovacao', async (id) => {
+      setAcaoEmAndamento('aprovacao')
+      setErro('')
+      try {
+        await requisicaoApi(urlAprovar, {
+          method: 'POST',
+          body: json({ nome: id.nome, email: id.email, confirmarPendencias }),
+        })
+        setDetalhe((atual) =>
+          atual
+            ? {
+                ...atual,
+                material: { ...atual.material, status: 'aprovado' },
+                versao: { ...atual.versao, aprovada: true },
+              }
+            : atual,
         )
-      } else {
-        setErro('Não foi possível registrar a aprovação. Tente novamente.')
+        setAviso('')
+        setCreationMode(false)
+        setDraft(null)
+        setPendenciasParaConfirmar(null)
+        await carregar(true)
+      } catch (error) {
+        if (
+          !confirmarPendencias &&
+          error instanceof ApiError &&
+          error.codigo === 'pendencias_abertas'
+        ) {
+          const detalhes = error.detalhes as { total?: unknown } | undefined
+          const total = Number(detalhes?.total)
+          setPendenciasParaConfirmar(Number.isFinite(total) ? total : abertos)
+          return
+        }
+        setErro(
+          error instanceof ApiError && error.codigo === 'solicitacoes_pendentes'
+            ? 'Existem solicitações de alteração pendentes. Resolva-as antes de aprovar.'
+            : error instanceof ApiError && error.codigo === 'contato_nao_autorizado'
+              ? 'Este email não está cadastrado como contato deste cliente.'
+              : error instanceof ApiError && error.codigo === 'contato_sem_permissao'
+                ? 'Seu contato não tem permissão para aprovar.'
+                : error instanceof ApiError && error.codigo === 'transicao_invalida'
+                  ? 'Este material ainda não está aguardando aprovação.'
+                  : 'Não foi possível aprovar agora. Tente novamente.',
+        )
+      } finally {
+        setAcaoEmAndamento(null)
       }
-    } finally {
-      setAcaoEmAndamento(null)
-    }
+    })
   }
 
   const iniciarAprovacao = () => {
     if (enviando) return
-    if (abertos > 0) {
-      setPendenciasParaConfirmar(abertos)
-      return
-    }
     void aprovar(false)
+  }
+
+  const confirmarIdentidade = (valor: IdentidadePortal) => {
+    if (!detalhe) return
+    salvarIdentidadePortal(detalhe.projeto.id, valor)
+    setIdentidade(valor)
+    setIdentidadePendente(null)
+    const pendente = rascunhoAcao
+    setRascunhoAcao(null)
+    if (pendente?.tipo === 'comentario') void publicarComentario({ preventDefault() {} } as FormEvent)
+    if (pendente?.tipo === 'alteracoes') void solicitarAlteracoes()
+    if (pendente?.tipo === 'aprovacao') void aprovar(false)
   }
 
   if (carregando) {
@@ -350,11 +443,60 @@ export default function PortalRevisaoPage() {
               </h1>
               <p className="mt-1 text-sm text-secondary">
                 {detalhe.projeto.nome}
-                {detalhe.marca?.mostrarVersao !== false ? ` · v${detalhe.versao.numero}` : ''}
+                {detalhe.marca?.mostrarVersao !== false
+                  ? ` · v${versaoVisivel?.numero ?? detalhe.versao.numero}`
+                  : ''}
                 {detalhe.marca?.mostrarStatus !== false
                   ? ` · ${rotuloStatus[detalhe.material.status] ?? detalhe.material.status}`
                   : ''}
               </p>
+              {(detalhe.versoes?.length ?? 0) > 1 && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-9 px-3 text-xs"
+                    disabled={!detalhe.versoes || detalhe.versoes.length < 2}
+                    onClick={() => {
+                      const lista = [...(detalhe.versoes ?? [])].sort((a, b) => a.numero - b.numero)
+                      const idx = lista.findIndex((item) => item.id === versaoAtualId)
+                      if (idx > 0) setVersaoSelecionadaId(lista[idx - 1].id)
+                    }}
+                  >
+                    ← Anterior
+                  </Button>
+                  <span className="text-xs text-muted">
+                    Versão {versaoVisivel?.numero ?? 1} de{' '}
+                    {Math.max(...(detalhe.versoes ?? []).map((v) => v.numero), 1)}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-9 px-3 text-xs"
+                    onClick={() => {
+                      const lista = [...(detalhe.versoes ?? [])].sort((a, b) => a.numero - b.numero)
+                      const idx = lista.findIndex((item) => item.id === versaoAtualId)
+                      if (idx >= 0 && idx < lista.length - 1)
+                        setVersaoSelecionadaId(lista[idx + 1].id)
+                    }}
+                  >
+                    Próxima →
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-9 px-3 text-xs"
+                    onClick={() => {
+                      const lista = detalhe.versoes ?? []
+                      setCompareAntesId(lista[1]?.id ?? lista[0]?.id ?? null)
+                      setCompareDepoisId(lista[0]?.id ?? null)
+                      setCompareAberto(true)
+                    }}
+                  >
+                    Comparar versões
+                  </Button>
+                </div>
+              )}
               {aprovado && (
                 <div
                   className="mt-4 flex max-w-xl items-start gap-3 rounded-md border border-approval/30 bg-approval-soft p-4"
@@ -463,7 +605,7 @@ export default function PortalRevisaoPage() {
             )}
             {detalhe.material.tipo === 'imagem' ? (
               <ImageReviewCanvas
-                imageUrl={detalhe.versao.imagemUrl}
+                imageUrl={versaoVisivel?.imagemUrl ?? detalhe.versao.imagemUrl}
                 comments={comentariosDaVersao}
                 selectedId={selectedId}
                 creationMode={creationMode && !aprovado}
@@ -478,7 +620,7 @@ export default function PortalRevisaoPage() {
               />
             ) : detalhe.material.tipo === 'pdf' ? (
               <PdfReviewCanvas
-                url={detalhe.versao.imagemUrl}
+                url={versaoVisivel?.imagemUrl ?? detalhe.versao.imagemUrl}
                 page={pdfPage}
                 comments={comentariosDaVersao}
                 selectedId={selectedId}
@@ -515,7 +657,7 @@ export default function PortalRevisaoPage() {
                 <MaterialPreview
                   ref={previewRef}
                   type="video"
-                  url={detalhe.versao.imagemUrl}
+                  url={versaoVisivel?.imagemUrl ?? detalhe.versao.imagemUrl}
                   title={detalhe.material.nome}
                   seekSeconds={seekSeconds}
                   seekToken={seekToken}
@@ -640,6 +782,30 @@ export default function PortalRevisaoPage() {
           }}
           onConfirm={() => void aprovar(true)}
         />
+        <PortalIdentityGate
+          open={identidadePendente !== null}
+          initial={identidade}
+          onCancel={() => {
+            setIdentidadePendente(null)
+            setRascunhoAcao(null)
+          }}
+          onConfirm={confirmarIdentidade}
+        />
+        <Modal open={compareAberto} onClose={() => setCompareAberto(false)} title="Comparar versões">
+          <VersionComparison
+            mode="side-by-side"
+            versions={(detalhe.versoes ?? []).map((item) => ({
+              id: item.id,
+              label: `v${item.numero} · ${item.nome}`,
+              imageUrl: item.imagemUrl,
+              tipo: detalhe.material.tipo,
+            }))}
+            beforeId={compareAntesId}
+            afterId={compareDepoisId}
+            onBeforeId={setCompareAntesId}
+            onAfterId={setCompareDepoisId}
+          />
+        </Modal>
       </div>
     </PortalBrandShell>
   )

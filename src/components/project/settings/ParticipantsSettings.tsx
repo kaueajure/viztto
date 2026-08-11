@@ -7,15 +7,12 @@ import { inicialNome, type PermissaoParticipante } from './settingsHelpers'
 type Props = {
   membrosAtivos: TeamMember[]
   memberIds: string[]
-  approverIds: string[]
-  variosAprovadores: boolean
   participantesVisiveis: TeamMember[]
   permissoes: Map<string, PermissaoParticipante>
   participantesSaving: boolean
   participantesMsg: string
   participantesErro: string
   onToggleMembros: (id: string, checked: boolean) => void
-  onToggleAprovadores: (id: string, checked: boolean) => void
   onAtualizarPermissao: (
     usuarioId: string,
     campo: keyof PermissaoParticipante,
@@ -28,68 +25,23 @@ export function ParticipantsSettings(props: Props) {
   return (
     <SettingsSection
       title="Participantes"
-      description="Responsáveis e aprovadores são listas separadas: a mesma pessoa não pode estar nas duas."
+      description="Membros internos da equipe que acompanham o projeto. A aprovação final é feita pelos contatos externos do Cliente 2."
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <p className="text-sm font-medium text-ink">Responsáveis</p>
-          <p className="mt-1 text-xs text-secondary">Membros que acompanham o projeto.</p>
-          <div className="mt-3 grid gap-2">
-            {props.membrosAtivos.map((membro) => {
-              const bloqueado = props.approverIds.includes(membro.id)
-              return (
-                <Checkbox
-                  key={`resp-${membro.id}`}
-                  label={
-                    bloqueado
-                      ? `${membro.name} — Indisponível (já é aprovador)`
-                      : membro.name
-                  }
-                  checked={props.memberIds.includes(membro.id)}
-                  disabled={bloqueado}
-                  onChange={(checked) => {
-                    if (bloqueado) return
-                    props.onToggleMembros(membro.id, checked)
-                  }}
-                />
-              )
-            })}
-            {!props.membrosAtivos.length && (
-              <p className="text-sm text-muted">Nenhum membro ativo.</p>
-            )}
-          </div>
-        </div>
-        <div>
-          <p className="text-sm font-medium text-ink">Aprovadores</p>
-          <p className="mt-1 text-xs text-secondary">
-            {props.variosAprovadores
-              ? 'Selecione um ou mais aprovadores.'
-              : 'Seu plano permite um aprovador por projeto.'}
-          </p>
-          <div className="mt-3 grid gap-2">
-            {props.membrosAtivos.map((membro) => {
-              const bloqueado = props.memberIds.includes(membro.id)
-              return (
-                <Checkbox
-                  key={`aprov-${membro.id}`}
-                  label={
-                    bloqueado
-                      ? `${membro.name} — Indisponível (já é responsável)`
-                      : membro.name
-                  }
-                  checked={props.approverIds.includes(membro.id)}
-                  disabled={bloqueado}
-                  onChange={(checked) => {
-                    if (bloqueado) return
-                    props.onToggleAprovadores(membro.id, checked)
-                  }}
-                />
-              )
-            })}
-            {!props.membrosAtivos.length && (
-              <p className="text-sm text-muted">Nenhum membro ativo.</p>
-            )}
-          </div>
+      <div>
+        <p className="text-sm font-medium text-ink">Responsáveis</p>
+        <p className="mt-1 text-xs text-secondary">Membros que acompanham o projeto.</p>
+        <div className="mt-3 grid gap-2">
+          {props.membrosAtivos.map((membro) => (
+            <Checkbox
+              key={`resp-${membro.id}`}
+              label={membro.name}
+              checked={props.memberIds.includes(membro.id)}
+              onChange={(checked) => props.onToggleMembros(membro.id, checked)}
+            />
+          ))}
+          {!props.membrosAtivos.length && (
+            <p className="text-sm text-muted">Nenhum membro ativo.</p>
+          )}
         </div>
       </div>
 
@@ -99,9 +51,6 @@ export function ParticipantsSettings(props: Props) {
             podeEnviarMateriais: true,
             podeResponderComentarios: true,
           }
-          const tipos: string[] = []
-          if (props.memberIds.includes(membro.id)) tipos.push('Responsável')
-          if (props.approverIds.includes(membro.id)) tipos.push('Aprovador')
           return (
             <div
               key={membro.id}
@@ -114,9 +63,7 @@ export function ParticipantsSettings(props: Props) {
                 <div>
                   <p className="font-medium text-ink">{membro.name}</p>
                   <p className="text-xs text-muted">{membro.email}</p>
-                  <p className="mt-1 text-xs text-secondary">
-                    {membro.role} · {tipos.join(' · ') || 'Participante'}
-                  </p>
+                  <p className="mt-1 text-xs text-secondary">{membro.role} · Responsável</p>
                 </div>
               </div>
               <div className="grid gap-2 sm:justify-items-end">

@@ -317,13 +317,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         const { dado } = await dadosApi.aprovar(id, versionId)
         await refresh()
         return {
-          approvalId: dado.id,
-          materialFinalizado: Boolean(dado.materialFinalizado),
-          aprovacoesRegistradas: Number(dado.aprovacoesRegistradas ?? 1),
-          aprovadoresNecessarios: Number(dado.aprovadoresNecessarios ?? 1),
-          aprovadoresPendentes: Array.isArray(dado.aprovadoresPendentes)
-            ? dado.aprovadoresPendentes
-            : [],
+          materialFinalizado: Boolean(dado.materialFinalizado ?? dado.prontoParaCliente),
+          prontoParaCliente: Boolean(dado.prontoParaCliente ?? dado.materialFinalizado),
         } satisfies ApprovalResult
       },
       async reopenReview(id) {

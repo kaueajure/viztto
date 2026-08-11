@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/FormControls'
-import { PROJECT_STATUS_OPTIONS, PROJECT_TYPES } from '@/lib/projectCatalog'
+import { PROJECT_TYPES } from '@/lib/projectCatalog'
 import type { Client, ProjectStatus, TeamMember } from '@/types/domain'
 import { SettingsSection } from './SettingsSection'
 
@@ -15,7 +15,6 @@ type Props = {
   status: ProjectStatus
   clients: Client[]
   membrosAtivos: TeamMember[]
-  approverIds: string[]
   infoSaving: boolean
   infoSaved: boolean
   infoErro: string
@@ -26,15 +25,24 @@ type Props = {
   onResponsavelId: (value: string) => void
   onStartDate: (value: string) => void
   onDueDate: (value: string) => void
-  onStatus: (value: ProjectStatus) => void
   onSalvar: () => void
+}
+
+const rotulosStatus: Partial<Record<ProjectStatus, string>> = {
+  draft: 'Rascunho',
+  'in-progress': 'Em andamento',
+  'in-review': 'Aguardando revisão',
+  'changes-requested': 'Alterações solicitadas',
+  'waiting-approval': 'Aguardando revisão',
+  approved: 'Aprovado',
+  archived: 'Arquivado',
 }
 
 export function GeneralSettings(props: Props) {
   return (
     <SettingsSection
       title="Informações do projeto"
-      description="Nome, cliente, datas e status exibidos na equipe e no portal."
+      description="Nome, cliente e datas. O status operacional é calculado automaticamente pelos materiais."
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -73,28 +81,19 @@ export function GeneralSettings(props: Props) {
           onChange={(e) => props.onResponsavelId(e.target.value)}
         >
           <option value="">Sem responsável</option>
-          {props.membrosAtivos.map((membro) => {
-            const bloqueado = props.approverIds.includes(membro.id)
-            return (
-              <option key={membro.id} value={membro.id} disabled={bloqueado}>
-                {bloqueado
-                  ? `${membro.name} — Indisponível (já é aprovador)`
-                  : membro.name}
-              </option>
-            )
-          })}
-        </Select>
-        <Select
-          label="Status"
-          value={props.status}
-          onChange={(e) => props.onStatus(e.target.value as ProjectStatus)}
-        >
-          {PROJECT_STATUS_OPTIONS.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
+          {props.membrosAtivos.map((membro) => (
+            <option key={membro.id} value={membro.id}>
+              {membro.name}
             </option>
           ))}
         </Select>
+        <div>
+          <p className="text-sm font-medium text-ink">Status</p>
+          <p className="mt-2 rounded-md border border-line bg-surface-secondary px-3 py-2 text-sm text-secondary">
+            {rotulosStatus[props.status] ?? props.status}
+            <span className="mt-1 block text-xs text-muted">Derivado automaticamente dos materiais</span>
+          </p>
+        </div>
         <Input
           label="Início"
           type="date"
@@ -118,7 +117,7 @@ export function GeneralSettings(props: Props) {
         </Button>
         {props.infoSaved && !props.infoErro && (
           <p role="status" className="text-sm text-approval">
-            Alterações salvas.
+            Informações salvas.
           </p>
         )}
         {props.infoErro && (

@@ -22,23 +22,26 @@ export type StatusProjetoAgregado =
  * Prioridade:
  * 1. alteracoes_solicitadas
  * 2. aguardando_revisao (Cliente 2 precisa revisar)
- * 3. aguardando_aprovacao (checklist interno incompleto)
- * 4. todos aprovados → aprovado (só via portal / Cliente 2)
- * 5. só rascunhos → rascunho
- * 6. caso contrário → em_andamento
+ * 3. todos aprovados → aprovado
+ * 4. só rascunhos → rascunho
+ * 5. caso contrário → em_andamento
+ *
+ * `aguardando_aprovacao` legado é tratado como aguardando_revisao.
  */
 export function agregarStatusProjetoPorMateriais(
   statusMateriais: StatusMaterialAgregacao[],
 ): StatusProjetoAgregado | null {
   if (!statusMateriais.length) return null
 
-  if (statusMateriais.some((status) => status === 'alteracoes_solicitadas'))
+  const normalizados = statusMateriais.map((status) =>
+    status === 'aguardando_aprovacao' ? 'aguardando_revisao' : status,
+  )
+
+  if (normalizados.some((status) => status === 'alteracoes_solicitadas'))
     return 'alteracoes_solicitadas'
-  if (statusMateriais.some((status) => status === 'aguardando_revisao')) return 'aguardando_revisao'
-  if (statusMateriais.some((status) => status === 'aguardando_aprovacao'))
-    return 'aguardando_aprovacao'
-  if (statusMateriais.every((status) => status === 'aprovado')) return 'aprovado'
-  if (statusMateriais.every((status) => status === 'rascunho')) return 'rascunho'
+  if (normalizados.some((status) => status === 'aguardando_revisao')) return 'aguardando_revisao'
+  if (normalizados.every((status) => status === 'aprovado')) return 'aprovado'
+  if (normalizados.every((status) => status === 'rascunho')) return 'rascunho'
   return 'em_andamento'
 }
 

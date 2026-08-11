@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   countAguardandoCliente,
-  getPendingApproverIds,
   getReviewWaitingContext,
   isAguardandoCliente,
   isPrecisaDeMim,
@@ -32,7 +31,7 @@ const baseProject = (overrides: Partial<Project> = {}): Project => ({
   clientId: 'c1',
   name: 'Campanha',
   type: 'Campanha',
-  status: 'waiting-approval',
+  status: 'in-review',
   progress: 0,
   materialCount: 1,
   approvedMaterialCount: 0,
@@ -49,119 +48,49 @@ const baseProject = (overrides: Partial<Project> = {}): Project => ({
 })
 
 describe('getReviewWaitingContext', () => {
-  it('nao classifica waiting-approval com aprovador interno como cliente', () => {
+  it('trata waiting-approval legado como aguardando cliente', () => {
     const material = baseMaterial('waiting-approval')
-    const project = baseProject({
-      approverIds: ['user-maria'],
-      memberIds: ['user-pedro'],
-    })
-    expect(
-      getReviewWaitingContext({ material, project, userId: 'user-outro' }),
-    ).toBe('aguardando_aprovador_interno')
-    expect(isAguardandoCliente({ material, project, userId: 'user-outro' })).toBe(false)
-  })
-
-  it('marca precisa de mim apenas se o usuario ainda nao aprovou', () => {
-    const material = baseMaterial('waiting-approval', {
-      approvedApproverIds: ['user-pedro'],
-    })
-    const project = baseProject({
-      approverIds: ['user-pedro', 'user-maria'],
-      approvers: ['Pedro', 'Maria'],
-    })
-    expect(isPrecisaDeMim({ material, project, userId: 'user-pedro' })).toBe(false)
-    expect(isPrecisaDeMim({ material, project, userId: 'user-maria' })).toBe(true)
-    expect(isAguardandoCliente({ material, project })).toBe(false)
-  })
-
-  it('classifica waiting-approval sem aprovadores internos como cliente', () => {
-    const material = baseMaterial('waiting-approval')
-    const project = baseProject({ approverIds: [] })
+    const project = baseProject({ memberIds: ['user-pedro'] })
     expect(getReviewWaitingContext({ material, project })).toBe('aguardando_cliente')
     expect(isAguardandoCliente({ material, project })).toBe(true)
   })
 
   it('classifica in-review como aguardando cliente', () => {
     const material = baseMaterial('in-review')
-    const project = baseProject({ memberIds: ['user-pedro'], approverIds: [] })
+    const project = baseProject({ memberIds: ['user-pedro'] })
     expect(getReviewWaitingContext({ material, project, userId: 'user-pedro' })).toBe(
       'aguardando_cliente',
     )
-    expect(isAguardandoCliente({ material, project })).toBe(true)
   })
 
   it('alteracoes solicitadas para o responsavel caem em precisa de mim', () => {
     const material = baseMaterial('changes-requested')
-    const project = baseProject({ memberIds: ['user-pedro'], approverIds: ['user-maria'] })
+    const project = baseProject({ memberIds: ['user-pedro'] })
     expect(isPrecisaDeMim({ material, project, userId: 'user-pedro' })).toBe(true)
   })
 })
 
-describe('getPendingApproverIds e labelAguardandoAcao', () => {
-  it('exibe o aprovador pendente correto apos Pedro aprovar', () => {
-    const material = baseMaterial('waiting-approval', {
-      approvedApproverIds: ['user-pedro'],
-    })
-    const project = baseProject({
-      approverIds: ['user-pedro', 'user-maria'],
-      approvers: ['Pedro', 'Maria'],
-      approvalMode: 'all',
-    })
-    expect(getPendingApproverIds(project, material.approvedApproverIds)).toEqual(['user-maria'])
-    expect(
-      labelAguardandoAcao({ material, project }, ['Maria']),
-    ).toBe('Aguardando confirmação de Maria')
-  })
-
-  it('exibe contagem quando ha multiplos pendentes', () => {
-    const material = baseMaterial('waiting-approval', {
-      approvedApproverIds: ['user-pedro'],
-    })
-    const project = baseProject({
-      approverIds: ['user-pedro', 'user-maria', 'user-carlos'],
-      approvers: ['Pedro', 'Maria', 'Carlos'],
-      approvalMode: 'all',
-    })
-    expect(getPendingApproverIds(project, material.approvedApproverIds)).toEqual([
-      'user-maria',
-      'user-carlos',
-    ])
-    expect(
-      labelAguardandoAcao({ material, project }, ['Maria', 'Carlos']),
-    ).toBe('Aguardando 2 confirmações internas')
+describe('labelAguardandoAcao', () => {
+  it('rotula status do cliente', () => {
+    expect(labelAguardandoAcao({ material: baseMaterial('in-review') })).toBe(
+      'Aguardando revisão do cliente',
+    )
+    expect(labelAguardandoAcao({ material: baseMaterial('changes-requested') })).toBe(
+      'Cliente solicitou alterações',
+    )
   })
 })
 
 describe('countAguardandoCliente', () => {
-  it('conta apenas materiais cuja proxima acao e do cliente', () => {
-    const projectCliente = baseProject({
-      id: 'p-cliente',
-      clientId: 'c1',
-      approverIds: [],
-    })
-    const projectInterno = baseProject({
-      id: 'p-interno',
-      clientId: 'c1',
-      approverIds: ['user-maria'],
-      approvers: ['Maria'],
-    })
+  it('conta materiais aguardando o Cliente 2', () => {
+    const project = baseProject()
     const materials = [
-      baseMaterial('waiting-approval', { id: 'a', projectId: 'p-cliente' }),
-      baseMaterial('waiting-approval', { id: 'b', projectId: 'p-interno' }),
-      baseMaterial('approved', { id: 'c', projectId: 'p-cliente' }),
-      baseMaterial('changes-requested', { id: 'd', projectId: 'p-interno' }),
-      baseMaterial('waiting-approval', { id: 'e', projectId: 'p-cliente' }),
-      baseMaterial('in-review', { id: 'f', projectId: 'p-cliente' }),
+      baseMaterial('waiting-approval', { id: 'a' }),
+      baseMaterial('in-review', { id: 'b' }),
+      baseMaterial('approved', { id: 'c' }),
+      baseMaterial('changes-requested', { id: 'd' }),
+      baseMaterial('draft', { id: 'e' }),
     ]
-    const byId = (id: string) =>
-      id === 'p-cliente' ? projectCliente : id === 'p-interno' ? projectInterno : undefined
-
-    expect(countAguardandoCliente(materials, byId)).toBe(3)
-    expect(
-      isAguardandoCliente({
-        material: materials[1],
-        project: projectInterno,
-      }),
-    ).toBe(false)
+    expect(countAguardandoCliente(materials, () => project)).toBe(2)
   })
 })

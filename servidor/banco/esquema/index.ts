@@ -375,6 +375,39 @@ export const clientes = mysqlTable(
   ],
 )
 
+/** Contatos externos do Cliente 2 (revisam/aprovam no portal). */
+export const contatosCliente = mysqlTable(
+  'contatos_cliente',
+  {
+    id: id().primaryKey(),
+    workspaceId: id('workspace_id'),
+    clienteId: id('cliente_id'),
+    nome: varchar('nome', { length: 160 }).notNull(),
+    email: varchar('email', { length: 254 }).notNull(),
+    podeComentar: boolean('pode_comentar').notNull().default(true),
+    podeSolicitarAlteracoes: boolean('pode_solicitar_alteracoes').notNull().default(true),
+    podeAprovar: boolean('pode_aprovar').notNull().default(false),
+    criadoEm: data('criado_em').notNull(),
+    atualizadoEm: data('atualizado_em').notNull(),
+    excluidoEm: data('excluido_em'),
+  },
+  (t) => [
+    index('idx_contatos_cliente_workspace').on(t.workspaceId),
+    index('idx_contatos_cliente_cliente').on(t.clienteId),
+    uniqueIndex('unq_contatos_cliente_email').on(t.clienteId, t.email),
+    foreignKey({
+      columns: [t.workspaceId],
+      foreignColumns: [workspaces.id],
+      name: 'fk_contatos_cliente_workspaces',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.clienteId],
+      foreignColumns: [clientes.id],
+      name: 'fk_contatos_cliente_clientes',
+    }).onDelete('cascade'),
+  ],
+)
+
 export const projetos = mysqlTable(
   'projetos',
   {
@@ -590,8 +623,13 @@ export const comentarios = mysqlTable(
     materialId: id('material_id'),
     versaoMaterialId: id('versao_material_id'),
     usuarioId: char('usuario_id', { length: 36 }),
+    contatoClienteId: char('contato_cliente_id', { length: 36 }),
     autorExternoNome: varchar('autor_externo_nome', { length: 160 }),
+    autorExternoEmail: varchar('autor_externo_email', { length: 254 }),
     comentarioOrigemId: char('comentario_origem_id', { length: 36 }),
+    tipo: mysqlEnum('tipo', ['comentario', 'solicitacao_alteracao'])
+      .notNull()
+      .default('comentario'),
     texto: text('texto').notNull(),
     posicaoX: decimal('posicao_x', { precision: 8, scale: 7 }).notNull(),
     posicaoY: decimal('posicao_y', { precision: 8, scale: 7 }).notNull(),
@@ -608,6 +646,7 @@ export const comentarios = mysqlTable(
     index('idx_comentarios_workspace').on(t.workspaceId),
     index('idx_comentarios_versao').on(t.versaoMaterialId),
     index('idx_comentarios_material_status').on(t.materialId, t.status),
+    index('idx_comentarios_contato').on(t.contatoClienteId),
     foreignKey({
       columns: [t.workspaceId],
       foreignColumns: [workspaces.id],
@@ -627,6 +666,11 @@ export const comentarios = mysqlTable(
       columns: [t.usuarioId],
       foreignColumns: [usuarios.id],
       name: 'fk_comentarios_usuarios',
+    }),
+    foreignKey({
+      columns: [t.contatoClienteId],
+      foreignColumns: [contatosCliente.id],
+      name: 'fk_comentarios_contatos',
     }),
     foreignKey({
       columns: [t.comentarioOrigemId],
@@ -675,7 +719,9 @@ export const aprovacoes = mysqlTable(
     materialId: id('material_id'),
     versaoMaterialId: id('versao_material_id'),
     aprovadoPorUsuarioId: char('aprovado_por_usuario_id', { length: 36 }),
+    contatoClienteId: char('contato_cliente_id', { length: 36 }),
     aprovadoPorExternoNome: varchar('aprovado_por_externo_nome', { length: 160 }),
+    aprovadoPorExternoEmail: varchar('aprovado_por_externo_email', { length: 254 }),
     observacao: text('observacao'),
     aprovadoEm: data('aprovado_em').notNull(),
     revogadaEm: data('revogada_em'),
@@ -684,6 +730,7 @@ export const aprovacoes = mysqlTable(
   (t) => [
     index('idx_aprovacoes_workspace').on(t.workspaceId),
     index('idx_aprovacoes_material').on(t.materialId),
+    index('idx_aprovacoes_contato').on(t.contatoClienteId),
     foreignKey({
       columns: [t.workspaceId],
       foreignColumns: [workspaces.id],
@@ -703,6 +750,11 @@ export const aprovacoes = mysqlTable(
       columns: [t.aprovadoPorUsuarioId],
       foreignColumns: [usuarios.id],
       name: 'fk_aprovacoes_usuarios',
+    }),
+    foreignKey({
+      columns: [t.contatoClienteId],
+      foreignColumns: [contatosCliente.id],
+      name: 'fk_aprovacoes_contatos',
     }),
   ],
 )

@@ -120,6 +120,7 @@ export type ReviewComment = {
   timestampSeconds?: number
   pdfPage?: number
   status: 'open' | 'resolved'
+  tipo?: 'comentario' | 'solicitacao_alteracao'
   createdAt: string
   updatedAt: string
   replies: CommentReply[]
@@ -135,13 +136,10 @@ export type Approval = {
   note?: string
 }
 
-/** Resultado real de POST /materiais/:id/aprovar */
+/** Resultado de POST /materiais/:id/enviar-para-aprovacao */
 export type ApprovalResult = {
-  approvalId: string
   materialFinalizado: boolean
-  aprovacoesRegistradas: number
-  aprovadoresNecessarios: number
-  aprovadoresPendentes: string[]
+  prontoParaCliente: boolean
 }
 
 export type Activity = {

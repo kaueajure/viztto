@@ -399,7 +399,7 @@ describe('API integrada com MySQL', () => {
       .where(eq(esquema.materiais.id, resposta.body.dado.id as string))
       .limit(1)
     expect(material?.versaoAtualId).toBe(resposta.body.dado.versaoId)
-    expect(material?.status).toBe('aguardando_revisao')
+    expect(material?.status).toBe('rascunho')
   })
   it('rejeita arquivo cuja assinatura nao e uma imagem', async () => {
     await agente
@@ -602,21 +602,8 @@ describe('API integrada com MySQL', () => {
     const a = await criar(`Banner A ${Date.now()}`)
     const b = await criar(`Banner B ${Date.now()}`)
 
-    await banco
-      .update(esquema.materiais)
-      .set({ status: 'aguardando_aprovacao', atualizadoEm: new Date() })
-      .where(eq(esquema.materiais.id, a.id))
-    await banco
-      .update(esquema.materiais)
-      .set({ status: 'aguardando_aprovacao', atualizadoEm: new Date() })
-      .where(eq(esquema.materiais.id, b.id))
-    await banco
-      .update(esquema.projetos)
-      .set({ status: 'aguardando_aprovacao', atualizadoEm: new Date() })
-      .where(eq(esquema.projetos.id, projetoTeste))
-
     await agente
-      .post(`/api/materiais/${a.id}/aprovar`)
+      .post(`/api/materiais/${a.id}/enviar-para-aprovacao`)
       .set('x-csrf-token', csrf)
       .send({ versaoMaterialId: a.versaoId, confirmarPendencias: true })
       .expect(201)
@@ -638,8 +625,10 @@ describe('API integrada com MySQL', () => {
       .limit(1)
 
     expect(matA?.status).toBe('aguardando_revisao')
-    expect(matB?.status).toBe('aguardando_aprovacao')
-    expect(proj?.status).not.toBe('aprovado')
+    expect(matB?.status).toBe('rascunho')
+    expect(proj?.status).toBe('aguardando_revisao')
+    expect(matA?.status).toBe('aguardando_revisao')
+    expect(matB?.status).toBe('rascunho')
     expect(proj?.status).toBe('aguardando_revisao')
 
     const [versaoA] = await banco
@@ -656,54 +645,7 @@ describe('API integrada com MySQL', () => {
     expect(item.approvedMaterials).toBe(0)
   })
 
-  it('bloqueia aprovacao de usuario que nao e aprovador do projeto', async () => {
-    const agora = new Date()
-    const criativoId = '22222222-2222-4222-8222-222222222222'
-    const senhaHash = await bcrypt.hash('Viztto@123', 4)
-    await banco
-      .insert(esquema.usuarios)
-      .values({
-        id: criativoId,
-        nome: 'Criativo Sem Poder',
-        email: 'criativo.aprovacao@viztto.local',
-        senhaHash,
-        emailVerificadoEm: agora,
-        ativo: true,
-        criadoEm: agora,
-        atualizadoEm: agora,
-      })
-      .onDuplicateKeyUpdate({ set: { senhaHash, ativo: true, atualizadoEm: agora } })
-    await banco
-      .insert(esquema.membrosWorkspace)
-      .values({
-        id: 'eeee0002-0000-4000-8000-000000000002',
-        workspaceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-        usuarioId: criativoId,
-        funcao: 'criativo',
-        status: 'ativo',
-        entrouEm: agora,
-        criadoEm: agora,
-        atualizadoEm: agora,
-      })
-      .onDuplicateKeyUpdate({ set: { status: 'ativo', funcao: 'criativo', atualizadoEm: agora } })
-
-    await agente
-      .put(`/api/projetos/${projetoTeste}/participantes`)
-      .set('x-csrf-token', csrf)
-      .send({
-        responsavelIds: [],
-        aprovadorIds: ['11111111-1111-4111-8111-111111111111'],
-      })
-      .expect(200)
-
-    const agenteCriativo = supertest.agent(app)
-    await agenteCriativo
-      .post('/api/autenticacao/entrar')
-      .send({ email: 'criativo.aprovacao@viztto.local', senha: 'Viztto@123' })
-      .expect(200)
-    const csrfCriativo = (await agenteCriativo.get('/api/autenticacao/csrf')).body
-      .csrfToken as string
-
+  it('permite envio por atendimento e rejeita transicao invalida a partir de aguardando_revisao', async () => {
     const png = await sharp({
       create: { width: 20, height: 20, channels: 4, background: '#101820' },
     })
@@ -713,84 +655,42 @@ describe('API integrada com MySQL', () => {
       .post('/api/materiais')
       .set('x-csrf-token', csrf)
       .field('projetoId', projetoTeste)
-      .field('nome', `Aprovacao ACL ${Date.now()}`)
+      .field('nome', `Workflow ${Date.now()}`)
       .field('tipo', 'imagem')
-      .attach('imagem', png, 'acl.png')
+      .attach('imagem', png, 'workflow.png')
       .expect(201)
-
-    const bloqueado = await agenteCriativo
-      .post(`/api/materiais/${material.body.dado.id}/aprovar`)
-      .set('x-csrf-token', csrfCriativo)
-      .send({ versaoMaterialId: material.body.dado.versaoId, confirmarPendencias: true })
-      .expect(403)
-    expect(bloqueado.body.erro.codigo).toBe('nao_aprovador')
 
     await agente
-      .put(`/api/projetos/${projetoTeste}/participantes`)
+      .post(`/api/materiais/${material.body.dado.id}/enviar-para-aprovacao`)
       .set('x-csrf-token', csrf)
-      .send({
-        responsavelIds: [],
-        aprovadorIds: [criativoId],
-      })
-      .expect(200)
-
-    await agenteCriativo
-      .post(`/api/materiais/${material.body.dado.id}/aprovar`)
-      .set('x-csrf-token', csrfCriativo)
       .send({ versaoMaterialId: material.body.dado.versaoId, confirmarPendencias: true })
       .expect(201)
+
+    const bloqueado = await agente
+      .post(`/api/materiais/${material.body.dado.id}/enviar-para-aprovacao`)
+      .set('x-csrf-token', csrf)
+      .send({ versaoMaterialId: material.body.dado.versaoId, confirmarPendencias: true })
+      .expect(409)
+    expect(bloqueado.body.erro.codigo).toBe('transicao_invalida')
   })
 
-  it('registra aprovacao_parcial ate o ultimo envio interno e so entao enviado_para_aprovacao', async () => {
-    const agora = new Date()
-    const aprovadorBId = '33333333-3333-4333-8333-333333333333'
-    const senhaHash = await bcrypt.hash('Viztto@123', 4)
-    await banco
-      .insert(esquema.usuarios)
-      .values({
-        id: aprovadorBId,
-        nome: 'Aprovador B',
-        email: 'aprovador.b@viztto.local',
-        senhaHash,
-        emailVerificadoEm: agora,
-        ativo: true,
-        criadoEm: agora,
-        atualizadoEm: agora,
-      })
-      .onDuplicateKeyUpdate({ set: { senhaHash, ativo: true, atualizadoEm: agora } })
-    await banco
-      .insert(esquema.membrosWorkspace)
-      .values({
-        id: 'eeee0003-0000-4000-8000-000000000003',
-        workspaceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-        usuarioId: aprovadorBId,
-        funcao: 'atendimento',
-        status: 'ativo',
-        entrouEm: agora,
-        criadoEm: agora,
-        atualizadoEm: agora,
-      })
-      .onDuplicateKeyUpdate({
-        set: { status: 'ativo', funcao: 'atendimento', atualizadoEm: agora },
-      })
-
-    const marinaId = '11111111-1111-4111-8111-111111111111'
-    await banco
-      .update(esquema.projetos)
-      .set({ modoAprovacao: 'todos', status: 'aguardando_aprovacao', atualizadoEm: agora })
-      .where(eq(esquema.projetos.id, projetoTeste))
-
-    await agente
-      .put(`/api/projetos/${projetoTeste}/participantes`)
+  it('cadastra contato externo e exige identidade no portal', async () => {
+    const clienteId = '45454545-4545-4545-8545-454545454545'
+    const contato = await agente
+      .post(`/api/clientes/${clienteId}/contatos`)
       .set('x-csrf-token', csrf)
       .send({
-        responsavelIds: [],
-        aprovadorIds: [marinaId, aprovadorBId],
+        nome: 'Maria Aprovadora',
+        email: 'maria.aprovadora@cliente.test',
+        podeComentar: true,
+        podeSolicitarAlteracoes: true,
+        podeAprovar: true,
       })
-      .expect(200)
+      .expect(201)
+    expect(contato.body.dado.email).toBe('maria.aprovadora@cliente.test')
 
     const png = await sharp({
-      create: { width: 18, height: 18, channels: 4, background: '#304050' },
+      create: { width: 16, height: 16, channels: 4, background: '#405060' },
     })
       .png()
       .toBuffer()
@@ -798,96 +698,89 @@ describe('API integrada com MySQL', () => {
       .post('/api/materiais')
       .set('x-csrf-token', csrf)
       .field('projetoId', projetoTeste)
-      .field('nome', `Multi aprovadores ${Date.now()}`)
+      .field('nome', `Portal contato ${Date.now()}`)
       .field('tipo', 'imagem')
-      .attach('imagem', png, 'multi.png')
+      .attach('imagem', png, 'portal.png')
       .expect(201)
 
-    const materialId = material.body.dado.id as string
-    const versaoMaterialId = material.body.dado.versaoId as string
-
-    await banco
-      .update(esquema.materiais)
-      .set({ status: 'aguardando_aprovacao', atualizadoEm: agora })
-      .where(eq(esquema.materiais.id, materialId))
-
-    const parcial = await agente
-      .post(`/api/materiais/${materialId}/aprovar`)
+    await agente
+      .post(`/api/materiais/${material.body.dado.id}/enviar-para-aprovacao`)
       .set('x-csrf-token', csrf)
-      .send({ versaoMaterialId, confirmarPendencias: true })
+      .send({ versaoMaterialId: material.body.dado.versaoId, confirmarPendencias: true })
       .expect(201)
-    expect(parcial.body.dado.materialFinalizado).toBe(false)
-    expect(parcial.body.dado.aprovacoesRegistradas).toBe(1)
-    expect(parcial.body.dado.aprovadoresNecessarios).toBe(2)
-    expect(parcial.body.dado.aprovadoresPendentes).toEqual([aprovadorBId])
 
-    const [matParcial] = await banco
-      .select()
-      .from(esquema.materiais)
-      .where(eq(esquema.materiais.id, materialId))
-      .limit(1)
-    expect(matParcial?.status).toBe('aguardando_aprovacao')
-
-    const atividadesParciais = await banco
-      .select()
-      .from(esquema.atividades)
-      .where(eq(esquema.atividades.materialId, materialId))
-    const ultimaParcial = atividadesParciais
-      .filter((item) => item.tipo === 'aprovacao_parcial' || item.tipo === 'enviado_para_aprovacao')
-      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())[0]
-    expect(ultimaParcial?.tipo).toBe('aprovacao_parcial')
-    expect(ultimaParcial?.descricao.includes('confirmou o envio')).toBe(true)
-    expect(ultimaParcial?.descricao.includes('Marina')).toBe(false)
-
-    const [projParcial] = await banco
+    const [projeto] = await banco
       .select()
       .from(esquema.projetos)
       .where(eq(esquema.projetos.id, projetoTeste))
       .limit(1)
-    expect(projParcial?.status).not.toBe('aprovado')
+    let token = projeto?.tokenPortal
+    if (!token) {
+      const link = await agente
+        .post(`/api/projetos/${projetoTeste}/link-portal`)
+        .set('x-csrf-token', csrf)
+        .expect(200)
+      token = link.body.dado.tokenPortal as string
+    }
+    expect(token).toBeTruthy()
 
-    const agenteB = supertest.agent(app)
-    await agenteB
-      .post('/api/autenticacao/entrar')
-      .send({ email: 'aprovador.b@viztto.local', senha: 'Viztto@123' })
+    const conteudo = await agente
+      .get(`/api/portal/projetos/${projetoTeste}/conteudo`)
+      .query({ t: token })
       .expect(200)
-    const csrfResposta = await agenteB.get('/api/autenticacao/csrf').expect(200)
-    const csrfB = (csrfResposta.body.token ?? csrfResposta.body.csrfToken) as string
+    expect(
+      conteudo.body.dado.materiais.some((item: { id: string }) => item.id === material.body.dado.id),
+    ).toBe(true)
+    expect(
+      conteudo.body.dado.materiais.every((item: { status: string }) => item.status !== 'rascunho'),
+    ).toBe(true)
 
-    const final = await agenteB
-      .post(`/api/materiais/${materialId}/aprovar`)
-      .set('x-csrf-token', csrfB)
-      .send({ versaoMaterialId, confirmarPendencias: true })
+    await agente
+      .post(`/api/portal/projetos/${projetoTeste}/materiais/${material.body.dado.id}/comentarios`)
+      .query({ t: token })
+      .send({
+        nome: 'Intruso',
+        email: 'intruso@outro.test',
+        texto: 'oi',
+        posicaoX: 0.2,
+        posicaoY: 0.3,
+      })
+      .expect(403)
+
+    await agente
+      .post(`/api/portal/projetos/${projetoTeste}/materiais/${material.body.dado.id}/comentarios`)
+      .query({ t: token })
+      .send({
+        nome: 'Maria Aprovadora',
+        email: 'maria.aprovadora@cliente.test',
+        texto: 'Gostei bastante',
+        posicaoX: 0.2,
+        posicaoY: 0.3,
+      })
       .expect(201)
-    expect(final.body.dado.materialFinalizado).toBe(true)
-    expect(final.body.dado.prontoParaCliente).toBe(true)
-    expect(final.body.dado.aprovacoesRegistradas).toBe(2)
-    expect(final.body.dado.aprovadoresNecessarios).toBe(2)
-    expect(final.body.dado.aprovadoresPendentes).toEqual([])
 
-    const [matFinal] = await banco
+    const [aposComentario] = await banco
       .select()
       .from(esquema.materiais)
-      .where(eq(esquema.materiais.id, materialId))
+      .where(eq(esquema.materiais.id, material.body.dado.id))
       .limit(1)
-    expect(matFinal?.status).toBe('aguardando_revisao')
+    expect(aposComentario?.status).toBe('aguardando_revisao')
 
-    const [versaoFinal] = await banco
+    await agente
+      .post(`/api/portal/projetos/${projetoTeste}/materiais/${material.body.dado.id}/aprovar`)
+      .query({ t: token })
+      .send({
+        nome: 'Maria Aprovadora',
+        email: 'maria.aprovadora@cliente.test',
+      })
+      .expect(201)
+
+    const [aprovado] = await banco
       .select()
-      .from(esquema.versoesMaterial)
-      .where(eq(esquema.versoesMaterial.id, versaoMaterialId))
+      .from(esquema.materiais)
+      .where(eq(esquema.materiais.id, material.body.dado.id))
       .limit(1)
-    expect(versaoFinal?.aprovada).toBe(false)
-
-    const atividadesFinais = await banco
-      .select()
-      .from(esquema.atividades)
-      .where(eq(esquema.atividades.materialId, materialId))
-    const ultimaFinal = atividadesFinais
-      .filter((item) => item.tipo === 'aprovacao_parcial' || item.tipo === 'enviado_para_aprovacao')
-      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())[0]
-    expect(ultimaFinal?.tipo).toBe('enviado_para_aprovacao')
-    expect(ultimaFinal?.descricao).toMatch(/enviou V\d+ para aprovação do cliente\./)
+    expect(aprovado?.status).toBe('aprovado')
   })
 
   it('nao armazena token de sessao puro', async () => {

@@ -21,7 +21,7 @@ import {
   garantirPodeUsarArmazenamento,
   garantirTipoMaterial,
 } from '../../servicos/limites-plano.servico.js'
-import { notificarClienteProjetoAlterado } from '../../servicos/notificar-cliente-projeto.servico.js'
+import { garantirTransicaoMaterial } from '../../servicos/material-workflow.servico.js'
 import { recalcularStatusProjeto } from '../../servicos/projeto-status.servico.js'
 
 const novoMaterial = z.object({
@@ -128,7 +128,7 @@ materiaisRotas.post('/', exigirFuncao('criativo'), receberImagem, async (req, re
         projetoId: corpo.projetoId,
         nome: corpo.nome,
         tipo: corpo.tipo,
-        status: 'aguardando_revisao',
+        status: 'rascunho',
         criadoPorUsuarioId: req.sessao!.usuarioId,
         criadoEm: agora,
         atualizadoEm: agora,
@@ -160,7 +160,7 @@ materiaisRotas.post('/', exigirFuncao('criativo'), receberImagem, async (req, re
         materialId: id,
         versaoMaterialId: versaoId,
         tipo: 'material_criado',
-        descricao: `Material ${corpo.nome} criado com a primeira versao`,
+        descricao: `Material ${corpo.nome} criado como rascunho`,
         criadoEm: agora,
       })
     })
@@ -168,11 +168,6 @@ materiaisRotas.post('/', exigirFuncao('criativo'), receberImagem, async (req, re
     await removerArquivoSalvo(salvo.registro.caminhoRelativo)
     throw erro
   }
-  await notificarClienteProjetoAlterado({
-    projetoId: corpo.projetoId,
-    workspaceId: req.sessao!.workspaceId,
-    resumo: `${req.sessao!.usuarioNome} adicionou o material "${corpo.nome}".`,
-  })
   res.status(201).json({ dado: { id, versaoId } })
 })
 
@@ -217,6 +212,7 @@ materiaisRotas.post(
   async (req, res) => {
     const corpo = novaVersao.parse(req.body)
     const material = await obterMaterial(String(req.params.materialId), req.sessao!.workspaceId)
+    garantirTransicaoMaterial(material.status, 'criar_nova_versao')
     const arquivoRecebido = validarArquivoDoTipo(material.tipo, req.file)
     await garantirPodeUsarArmazenamento(req.sessao!.workspaceId, arquivoRecebido.size)
     const salvo = await armazenarImagem(arquivoRecebido.buffer, arquivoRecebido.originalname, {
@@ -277,7 +273,11 @@ materiaisRotas.post(
                 materialId: c.materialId,
                 versaoMaterialId: versaoId,
                 usuarioId: c.usuarioId,
+                contatoClienteId: c.contatoClienteId,
+                autorExternoNome: c.autorExternoNome,
+                autorExternoEmail: c.autorExternoEmail,
                 comentarioOrigemId: c.id,
+                tipo: c.tipo,
                 texto: c.texto,
                 posicaoX: c.posicaoX,
                 posicaoY: c.posicaoY,
@@ -291,7 +291,7 @@ materiaisRotas.post(
         }
         await tx
           .update(materiais)
-          .set({ versaoAtualId: versaoId, status: 'aguardando_revisao', atualizadoEm: agora })
+          .set({ versaoAtualId: versaoId, status: 'rascunho', atualizadoEm: agora })
           .where(eq(materiais.id, material.id))
         await recalcularStatusProjeto(material.projetoId, agora, tx)
         await tx.insert(atividades).values({
@@ -302,7 +302,7 @@ materiaisRotas.post(
           materialId: material.id,
           versaoMaterialId: versaoId,
           tipo: 'versao_publicada',
-          descricao: `Nova versao publicada: ${corpo.nome}`,
+          descricao: `Nova versao em rascunho: ${corpo.nome}`,
           criadoEm: agora,
         })
       })
@@ -310,11 +310,6 @@ materiaisRotas.post(
       await removerArquivoSalvo(salvo.registro.caminhoRelativo)
       throw erro
     }
-    await notificarClienteProjetoAlterado({
-      projetoId: material.projetoId,
-      workspaceId: req.sessao!.workspaceId,
-      resumo: `${req.sessao!.usuarioNome} publicou uma nova versao do material "${material.nome}".`,
-    })
     res.status(201).json({ dado: { id: versaoId } })
   },
 )

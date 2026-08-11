@@ -320,7 +320,6 @@ export async function carregarDadosApi() {
       isAguardandoCliente({
         material: m,
         project,
-        approvedApproverIds: m.approvedApproverIds,
       }),
     ).length
     return project
@@ -344,7 +343,6 @@ export async function carregarDadosApi() {
         isAguardandoCliente({
           material: m,
           project,
-          approvedApproverIds: m.approvedApproverIds,
         })
       )
     }).length,
@@ -666,13 +664,10 @@ export const dadosApi = {
   aprovar: (id: string, versaoMaterialId: string, confirmarPendencias = true) =>
     requisicaoApi<{
       dado: {
-        id: string
         materialFinalizado: boolean
-        aprovacoesRegistradas: number
-        aprovadoresNecessarios: number
-        aprovadoresPendentes?: string[]
+        prontoParaCliente: boolean
       }
-    }>(`/api/materiais/${id}/aprovar`, {
+    }>(`/api/materiais/${id}/enviar-para-aprovacao`, {
       method: 'POST',
       body: json({ versaoMaterialId, confirmarPendencias }),
     }),

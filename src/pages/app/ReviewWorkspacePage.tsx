@@ -4,7 +4,6 @@ import { useParams } from 'react-router'
 import { ActivityPanel } from '@/components/review/ActivityPanel'
 import { CommentsPanel } from '@/components/review/CommentsPanel'
 import { ImageReviewCanvas } from '@/components/review/ImageReviewCanvas'
-import { MaterialApprovalsProgress } from '@/components/review/MaterialApprovalsProgress'
 import { MaterialPreview, type MaterialPreviewHandle } from '@/components/review/MaterialPreview'
 import { PdfReviewCanvas } from '@/components/review/PdfReviewCanvas'
 import { NewVersionModal } from '@/components/review/NewVersionModal'
@@ -56,6 +55,8 @@ export default function ReviewWorkspacePage() {
   const [newVersion, setNewVersion] = useState(false)
   const [decision, setDecision] = useState<'changes' | 'approve' | null>(null)
   const [compare, setCompare] = useState(false)
+  const [compareBeforeId, setCompareBeforeId] = useState<string | null>(null)
+  const [compareAfterId, setCompareAfterId] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
@@ -111,7 +112,6 @@ export default function ReviewWorkspacePage() {
   const materialActivities = data.activities.filter((item) => item.materialId === material.id)
   const sortedVersions = [...versions].sort((a, b) => a.number - b.number)
   const activeIndex = sortedVersions.findIndex((item) => item.id === activeVersion.id)
-  const compareBefore = sortedVersions[Math.max(0, activeIndex - 1)]
 
   const selectComment = (commentId: string) => {
     setSelectedId(commentId)
@@ -155,7 +155,12 @@ export default function ReviewWorkspacePage() {
           setSelectedId(null)
         }}
         onNewVersion={() => setNewVersion(true)}
-        onCompare={() => setCompare(true)}
+        onCompare={() => {
+          const antes = sortedVersions[Math.max(0, activeIndex - 1)] ?? activeVersion
+          setCompareBeforeId(antes.id)
+          setCompareAfterId(activeVersion.id)
+          setCompare(true)
+        }}
       />
     ) : panel === 'activity' ? (
       <ActivityPanel
@@ -169,12 +174,9 @@ export default function ReviewWorkspacePage() {
     ) : (
       <section className="p-4">
         <h2 className="font-semibold">Informações</h2>
-        <div className="mt-4">
-          <MaterialApprovalsProgress
-            materialId={material.id}
-            refreshKey={`${material.status}-${material.updatedAt}-${activeVersion.id}`}
-          />
-        </div>
+        <p className="mt-2 text-sm text-secondary">
+          A aprovação final é feita por contatos externos do Cliente 2 no portal.
+        </p>
         <dl className="mt-4 grid gap-3 text-sm">
           <div>
             <dt className="text-muted">Cliente</dt>
@@ -215,23 +217,8 @@ export default function ReviewWorkspacePage() {
   }
   const confirmApproval = async () => {
     if (activeVersion.id !== material.currentVersionId) return
-    const resultado = await data.approveVersion(material.id, activeVersion.id)
+    await data.approveVersion(material.id, activeVersion.id)
     setDecision(null)
-    if (!resultado.materialFinalizado) {
-      const pendentes = resultado.aprovadoresPendentes
-        .map((id) => data.team.find((membro) => membro.id === id)?.name)
-        .filter((nome): nome is string => Boolean(nome))
-      const contagem = `${resultado.aprovacoesRegistradas} de ${resultado.aprovadoresNecessarios} confirmações`
-      const aguardando =
-        pendentes.length === 1
-          ? `Aguardando ${pendentes[0]}.`
-          : 'Aguardando as demais confirmações internas.'
-      setNotice({
-        tone: 'success',
-        text: `✓ Envio registrado. ${contagem}. ${aguardando}`,
-      })
-      return
-    }
     setNotice({
       tone: 'success',
       text: `✓ Versão ${material.currentVersion} enviada para aprovação de ${client?.name ?? 'cliente'}.`,
@@ -278,8 +265,34 @@ export default function ReviewWorkspacePage() {
           role="status"
           className="border-b border-warning/30 bg-warning-soft px-4 py-2 text-center text-xs text-warning"
         >
-          Você está visualizando a versão {activeVersion.number}. A versão atual é a{' '}
-          {material.currentVersion}. As decisões ficam disponíveis apenas na versão atual.
+          Você está visualizando a versão {activeVersion.number}
+          {sortedVersions.length > 1
+            ? ` de ${sortedVersions[sortedVersions.length - 1]?.number ?? sortedVersions.length}`
+            : ''}
+          . A versão atual é a {material.currentVersion}. As decisões ficam disponíveis apenas na
+          versão atual.
+          <button
+            type="button"
+            className="ml-2 min-h-8 font-semibold underline underline-offset-4"
+            disabled={activeIndex <= 0}
+            onClick={() => {
+              const prev = sortedVersions[activeIndex - 1]
+              if (prev) setActiveVersionId(prev.id)
+            }}
+          >
+            Anterior
+          </button>
+          <button
+            type="button"
+            className="ml-2 min-h-8 font-semibold underline underline-offset-4"
+            disabled={activeIndex < 0 || activeIndex >= sortedVersions.length - 1}
+            onClick={() => {
+              const next = sortedVersions[activeIndex + 1]
+              if (next) setActiveVersionId(next.id)
+            }}
+          >
+            Próxima
+          </button>
           <button
             type="button"
             className="ml-2 min-h-8 font-semibold underline underline-offset-4"
@@ -536,10 +549,17 @@ export default function ReviewWorkspacePage() {
       />
       <Modal open={compare} onClose={() => setCompare(false)} title="Comparar versões">
         <VersionComparison
-          beforeImage={compareBefore?.imageUrl}
-          afterImage={activeVersion.imageUrl}
-          beforeLabel={`v${compareBefore?.number ?? activeVersion.number}`}
-          afterLabel={`v${activeVersion.number}`}
+          mode="side-by-side"
+          versions={versions.map((item) => ({
+            id: item.id,
+            label: `v${item.number} · ${item.label}`,
+            imageUrl: item.imageUrl,
+            tipo: material.type,
+          }))}
+          beforeId={compareBeforeId}
+          afterId={compareAfterId}
+          onBeforeId={setCompareBeforeId}
+          onAfterId={setCompareAfterId}
         />
       </Modal>
     </div>

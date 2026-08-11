@@ -65,6 +65,24 @@ test.describe('Fluxo principal (P0)', () => {
     await expect(page.getByRole('heading', { name: nomeCliente })).toBeVisible()
     const clienteId = page.url().split('/').pop()!
 
+    // Contato externo do Cliente 2 (aprovador do portal)
+    const csrf = await page.evaluate(async () => {
+      const r = await fetch('/api/autenticacao/csrf', { credentials: 'include' })
+      const j = (await r.json()) as { token?: string; csrfToken?: string }
+      return j.token ?? j.csrfToken ?? ''
+    })
+    const contatoRes = await page.request.post(`/api/clientes/${clienteId}/contatos`, {
+      data: {
+        nome: 'Maria Cliente',
+        email: `maria.${sufixo}@cliente.local`,
+        podeComentar: true,
+        podeSolicitarAlteracoes: true,
+        podeAprovar: true,
+      },
+      headers: { 'x-csrf-token': csrf, 'Content-Type': 'application/json' },
+    })
+    expect(contatoRes.ok(), await contatoRes.text()).toBeTruthy()
+
     // --- Projeto ---
     await page.goto(`/app/projetos/novo?client=${clienteId}`)
     await preencherCampo(page, /^Nome$/, nomeProjeto)
@@ -155,10 +173,11 @@ test.describe('Fluxo principal (P0)', () => {
 
     // Cliente 2 dá a aprovação final no portal.
     await page.getByRole('button', { name: /^aprovar$/i }).click()
-    const dialogAprovar = page.getByRole('dialog')
-    if (await dialogAprovar.isVisible().catch(() => false)) {
-      await dialogAprovar.getByRole('button', { name: /aprovar/i }).click()
-    }
+    const dialogIdentidade = page.getByRole('dialog')
+    await expect(dialogIdentidade.getByRole('heading', { name: 'Quem está revisando?' })).toBeVisible()
+    await dialogIdentidade.getByLabel('Nome').fill('Maria Cliente')
+    await dialogIdentidade.getByLabel('Email').fill(`maria.${sufixo}@cliente.local`)
+    await dialogIdentidade.getByRole('button', { name: 'Continuar' }).click()
     await expect(page.getByText(/aprovado/i).first()).toBeVisible({ timeout: 15_000 })
   })
 })

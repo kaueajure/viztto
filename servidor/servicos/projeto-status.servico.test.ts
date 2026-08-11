@@ -13,7 +13,13 @@ describe('agregarStatusProjetoPorMateriais', () => {
     ).toBe('alteracoes_solicitadas')
   })
 
-  it('prioriza aguardando_revisao antes de aguardando_aprovacao', () => {
+  it('trata aguardando_aprovacao legado como aguardando_revisao', () => {
+    expect(
+      agregarStatusProjetoPorMateriais(['aprovado', 'aguardando_aprovacao']),
+    ).toBe('aguardando_revisao')
+  })
+
+  it('prioriza aguardando_revisao', () => {
     expect(
       agregarStatusProjetoPorMateriais(['aprovado', 'aguardando_revisao', 'aguardando_aprovacao']),
     ).toBe('aguardando_revisao')

@@ -31,6 +31,8 @@ import {
   gerarTokenPortal,
   linkPortalProjeto,
 } from '../../servicos/projeto-acesso.servico.js'
+import { recalcularStatusProjeto } from '../../servicos/projeto-status.servico.js'
+import { listarContatosDoCliente } from '../../servicos/contatos-cliente.servico.js'
 
 function semSegredosPortal<T extends { senhaAcessoHash?: string | null }>(projeto: T) {
   const { senhaAcessoHash: _omitido, ...resto } = projeto
@@ -45,17 +47,6 @@ const dadosProjeto = z.object({
   nome: z.string().trim().min(2).max(200),
   descricao: z.string().max(5000).optional().nullable(),
   tipo: z.string().trim().min(2).max(80),
-  status: z
-    .enum([
-      'rascunho',
-      'em_andamento',
-      'aguardando_revisao',
-      'alteracoes_solicitadas',
-      'aguardando_aprovacao',
-      'aprovado',
-      'arquivado',
-    ])
-    .optional(),
   dataInicio: z.coerce.date().optional().nullable(),
   prazoEm: z.coerce.date().optional().nullable(),
   modoAprovacao: z.enum(['qualquer', 'todos']).optional(),
@@ -67,6 +58,10 @@ const dadosProjeto = z.object({
 const dadosProjetoAtualizacao = dadosProjeto
   .omit({ responsavelIds: true, aprovadorIds: true })
   .partial()
+  .extend({
+    /** Status operacional é derivado dos materiais; só arquivar é manual. */
+    status: z.enum(['arquivado']).optional(),
+  })
 
 const dadosParticipantes = z.object({
   responsavelIds: idsParticipantes,
@@ -587,14 +582,16 @@ projetosRotas.delete('/:projetoId/link-portal', exigirFuncao('atendimento'), asy
   res.json({ mensagem: 'Link do portal revogado.' })
 })
 
-/** Restaura projeto arquivado (status volta para em andamento). */
+/** Restaura projeto arquivado e recalcula status a partir dos materiais. */
 projetosRotas.post('/:projetoId/restaurar', exigirFuncao('atendimento'), async (req, res) => {
+  const projetoId = String(req.params.projetoId)
+  const agora = new Date()
   const r = await banco
     .update(projetos)
-    .set({ status: 'em_andamento', atualizadoEm: new Date() })
+    .set({ status: 'em_andamento', atualizadoEm: agora })
     .where(
       and(
-        eq(projetos.id, String(req.params.projetoId)),
+        eq(projetos.id, projetoId),
         eq(projetos.workspaceId, req.sessao!.workspaceId),
         eq(projetos.status, 'arquivado'),
         isNull(projetos.excluidoEm),
@@ -602,7 +599,25 @@ projetosRotas.post('/:projetoId/restaurar', exigirFuncao('atendimento'), async (
     )
   if (!r[0].affectedRows)
     throw new ErroHttp(404, 'Projeto arquivado não encontrado.', 'projeto_nao_encontrado')
-  res.json({ mensagem: 'Projeto restaurado.' })
+  const status = await recalcularStatusProjeto(projetoId, agora)
+  res.json({ mensagem: 'Projeto restaurado.', dado: { status } })
+})
+
+projetosRotas.get('/:projetoId/contatos-cliente', async (req, res) => {
+  const [projeto] = await banco
+    .select({ clienteId: projetos.clienteId })
+    .from(projetos)
+    .where(
+      and(
+        eq(projetos.id, String(req.params.projetoId)),
+        eq(projetos.workspaceId, req.sessao!.workspaceId),
+        isNull(projetos.excluidoEm),
+      ),
+    )
+    .limit(1)
+  if (!projeto) throw new ErroHttp(404, 'Projeto não encontrado.', 'projeto_nao_encontrado')
+  const lista = await listarContatosDoCliente(projeto.clienteId, req.sessao!.workspaceId)
+  res.json({ dados: lista })
 })
 
 projetosRotas.delete('/:projetoId', exigirFuncao('gestor'), async (req, res) => {

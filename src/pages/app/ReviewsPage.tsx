@@ -6,7 +6,6 @@ import { useAppData } from '@/contexts/AppDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { materialTypeLabel } from '@/lib/materialType'
 import {
-  getPendingApproverIds,
   isAguardandoCliente,
   isPrecisaDeMim,
   labelAguardandoAcao,
@@ -46,7 +45,6 @@ export default function ReviewsPage() {
   const [clienteId, setClienteId] = useState('all')
   const [projetoId, setProjetoId] = useState('all')
   const [responsavelId, setResponsavelId] = useState('all')
-  const [aprovadorId, setAprovadorId] = useState('all')
   const [statusFiltro, setStatusFiltro] = useState<MaterialStatusType | 'all'>('all')
   const [tipoFiltro, setTipoFiltro] = useState<'all' | Material['type']>('all')
   const [ordenacao, setOrdenacao] = useState<
@@ -69,7 +67,6 @@ export default function ReviewsPage() {
           material: m,
           project,
           userId: user?.id,
-          approvedApproverIds: m.approvedApproverIds,
         })
       },
     ],
@@ -82,7 +79,6 @@ export default function ReviewsPage() {
           material: m,
           project,
           userId: user?.id,
-          approvedApproverIds: m.approvedApproverIds,
         })
       },
     ],
@@ -110,7 +106,6 @@ export default function ReviewsPage() {
       if (clienteId !== 'all' && project?.clientId !== clienteId) return false
       if (projetoId !== 'all' && material.projectId !== projetoId) return false
       if (responsavelId !== 'all' && !project?.memberIds.includes(responsavelId)) return false
-      if (aprovadorId !== 'all' && !project?.approverIds.includes(aprovadorId)) return false
       if (statusFiltro !== 'all' && material.status !== statusFiltro) return false
       if (tipoFiltro !== 'all' && material.type !== tipoFiltro) return false
       if (busca.trim()) {
@@ -158,7 +153,6 @@ export default function ReviewsPage() {
     clienteId,
     projetoId,
     responsavelId,
-    aprovadorId,
     statusFiltro,
     tipoFiltro,
     ordenacao,
@@ -252,22 +246,7 @@ export default function ReviewsPage() {
         </select>
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        <select
-          aria-label="Aprovador"
-          value={aprovadorId}
-          onChange={(e) => setAprovadorId(e.target.value)}
-          className="min-h-11 rounded-md border border-line bg-surface px-3 text-sm"
-        >
-          <option value="all">Aprovador</option>
-          {team
-            .filter((t) => t.status === 'active')
-            .map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-        </select>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <select
           aria-label="Status"
           value={statusFiltro}
@@ -298,20 +277,11 @@ export default function ReviewsPage() {
         {itens.map((material) => {
           const { project, client } = contexto(material.projectId)
           const thumb = thumbnail(material)
-          const pendentesIds = getPendingApproverIds(project, material.approvedApproverIds ?? [])
-          const nomesPendentes = pendentesIds.map((id) => {
-            const idx = project?.approverIds.indexOf(id) ?? -1
-            return idx >= 0 ? project!.approvers[idx] : null
-          }).filter((nome): nome is string => Boolean(nome))
-          const aguardando = labelAguardandoAcao(
-            {
-              material,
-              project,
-              userId: user?.id,
-              approvedApproverIds: material.approvedApproverIds,
-            },
-            nomesPendentes,
-          )
+          const aguardando = labelAguardandoAcao({
+            material,
+            project,
+            userId: user?.id,
+          })
           return (
             <div
               key={material.id}

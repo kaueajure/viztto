@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router'
 import { PortalCustomizationEditor } from '@/components/portal/PortalCustomizationEditor'
 import { EmptyState } from '@/components/ui/DataDisplay'
 import { useAppData } from '@/contexts/AppDataContext'
-import { assinaturasApi } from '@/services/api/assinaturasApi'
 import { dadosApi } from '@/services/api/dadosApi'
 import { portalConfiguracoesApi } from '@/services/api/portalConfiguracoesApi'
-import type { ApprovalMode, ProjectStatus, TeamMember } from '@/types/domain'
-import { ApprovalSettings } from './ApprovalSettings'
+import type { ProjectStatus, TeamMember } from '@/types/domain'
+import { ContatosClienteSettings } from './ContatosClienteSettings'
 import { DangerZone } from './DangerZone'
 import { GeneralSettings } from './GeneralSettings'
 import { ParticipantsSettings } from './ParticipantsSettings'
@@ -35,11 +34,9 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
   const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [status, setStatus] = useState<ProjectStatus>('draft')
-  const [approvalMode, setApprovalMode] = useState<ApprovalMode>('any')
   const [portalActive, setPortalActive] = useState(true)
 
   const [memberIds, setMemberIds] = useState<string[]>([])
-  const [approverIds, setApproverIds] = useState<string[]>([])
   const [permissoes, setPermissoes] = useState<Map<string, PermissaoParticipante>>(new Map())
 
   const [portalLink, setPortalLink] = useState('')
@@ -58,7 +55,6 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
   const [portalUltimoAcessoEm, setPortalUltimoAcessoEm] = useState<string | null>(null)
   const [portalCriadoEm, setPortalCriadoEm] = useState<string | null>(null)
 
-  const [variosAprovadores, setVariosAprovadores] = useState(false)
   const [confirmExcluir, setConfirmExcluir] = useState('')
 
   const [infoSaving, setInfoSaving] = useState(false)
@@ -67,22 +63,12 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
   const [participantesSaving, setParticipantesSaving] = useState(false)
   const [participantesMsg, setParticipantesMsg] = useState('')
   const [participantesErro, setParticipantesErro] = useState('')
-  const [aprovacaoSaving, setAprovacaoSaving] = useState(false)
-  const [aprovacaoMsg, setAprovacaoMsg] = useState('')
-  const [aprovacaoErro, setAprovacaoErro] = useState('')
   const [portalSaving, setPortalSaving] = useState(false)
   const [portalMsg, setPortalMsg] = useState('')
   const [portalErro, setPortalErro] = useState('')
   const [dangerSaving, setDangerSaving] = useState(false)
   const [dangerMsg, setDangerMsg] = useState('')
   const [dangerErro, setDangerErro] = useState('')
-
-  useEffect(() => {
-    void assinaturasApi
-      .limites()
-      .then(({ dado }) => setVariosAprovadores(Boolean(dado.recursos.permiteVariosAprovadores)))
-      .catch(() => setVariosAprovadores(false))
-  }, [])
 
   useEffect(() => {
     if (!project) return
@@ -94,10 +80,8 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
     setStartDate(dataInput(project.startDate))
     setDueDate(dataInput(project.dueDate))
     setStatus(project.status)
-    setApprovalMode(project.approvalMode ?? 'any')
     setPortalActive(project.portalActive !== false)
     setMemberIds(project.memberIds ?? [])
-    setApproverIds(project.approverIds ?? [])
   }, [project?.id, project?.updatedAt])
 
   useEffect(() => {
@@ -113,7 +97,6 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
         setPortalAcessos(Number(dado.portalAcessos ?? 0))
         setPortalUltimoAcessoEm(dado.portalUltimoAcessoEm ? String(dado.portalUltimoAcessoEm) : null)
         setPortalCriadoEm(dado.portalCriadoEm ? String(dado.portalCriadoEm) : null)
-        if (dado.modoAprovacao) setApprovalMode(dado.modoAprovacao === 'todos' ? 'all' : 'any')
         if (dado.portalAtivo != null) setPortalActive(Boolean(dado.portalAtivo))
         if (dado.dataInicio) setStartDate(dataInput(String(dado.dataInicio)))
 
@@ -160,11 +143,10 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
   }, [projectId])
 
   const participantesVisiveis = useMemo(() => {
-    const ids = [...new Set([...memberIds, ...approverIds])]
-    return ids
+    return memberIds
       .map((id) => membrosAtivos.find((membro) => membro.id === id))
       .filter((item): item is TeamMember => Boolean(item))
-  }, [memberIds, approverIds, membrosAtivos])
+  }, [memberIds, membrosAtivos])
 
   if (!project) {
     return (
@@ -225,10 +207,8 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
         description: description.trim() || null,
         clientId,
         type,
-        status,
         startDate: startDate || null,
         dueDate: dueDate || null,
-        approvalMode,
         portalActive,
       })
       if (
@@ -238,7 +218,7 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
       ) {
         await updateProjectParticipants(projectId, {
           memberIds: proximosMembers,
-          approverIds,
+          approverIds: [],
         })
         setMemberIds(proximosMembers)
       } else {
@@ -257,11 +237,10 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
     setParticipantesErro('')
     setParticipantesSaving(true)
     try {
-      const ids = [...new Set([...memberIds, ...approverIds])]
       await updateProjectParticipants(projectId, {
         memberIds,
-        approverIds,
-        permissoes: ids.map((usuarioId) => {
+        approverIds: [],
+        permissoes: memberIds.map((usuarioId) => {
           const item = permissoes.get(usuarioId)
           return {
             usuarioId,
@@ -277,24 +256,6 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
       )
     } finally {
       setParticipantesSaving(false)
-    }
-  }
-
-  const salvarModoAprovacao = async (modo: ApprovalMode) => {
-    setApprovalMode(modo)
-    setAprovacaoMsg('')
-    setAprovacaoErro('')
-    setAprovacaoSaving(true)
-    try {
-      await dadosApi.atualizarProjeto(projectId, { approvalMode: modo })
-      await refresh()
-      setAprovacaoMsg('Modo de aprovação atualizado.')
-    } catch (erro) {
-      setAprovacaoErro(
-        erro instanceof Error ? erro.message : 'Não foi possível salvar o modo de aprovação.',
-      )
-    } finally {
-      setAprovacaoSaving(false)
     }
   }
 
@@ -453,7 +414,6 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
         status={status}
         clients={clients}
         membrosAtivos={membrosAtivos}
-        approverIds={approverIds}
         infoSaving={infoSaving}
         infoSaved={infoSaved}
         infoErro={infoErro}
@@ -464,15 +424,12 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
         onResponsavelId={setResponsavelId}
         onStartDate={setStartDate}
         onDueDate={setDueDate}
-        onStatus={setStatus}
         onSalvar={() => void salvarInfo()}
       />
 
       <ParticipantsSettings
         membrosAtivos={membrosAtivos}
         memberIds={memberIds}
-        approverIds={approverIds}
-        variosAprovadores={variosAprovadores}
         participantesVisiveis={participantesVisiveis}
         permissoes={permissoes}
         participantesSaving={participantesSaving}
@@ -481,23 +438,11 @@ export function ProjectSettingsPanel({ projectId }: { projectId: string }) {
         onToggleMembros={(id, checked) =>
           toggleLista(memberIds, id, checked, false, setMemberIds)
         }
-        onToggleAprovadores={(id, checked) =>
-          toggleLista(approverIds, id, checked, !variosAprovadores, setApproverIds)
-        }
         onAtualizarPermissao={atualizarPermissao}
         onSalvar={() => void salvarParticipantes()}
       />
 
-      <ApprovalSettings
-        approverIds={approverIds}
-        membrosAtivos={membrosAtivos}
-        approvalMode={approvalMode}
-        variosAprovadores={variosAprovadores}
-        aprovacaoSaving={aprovacaoSaving}
-        aprovacaoMsg={aprovacaoMsg}
-        aprovacaoErro={aprovacaoErro}
-        onSalvarModo={(modo) => void salvarModoAprovacao(modo)}
-      />
+      <ContatosClienteSettings clienteId={clientId} />
 
       <PortalSettings
         portalActive={portalActive}

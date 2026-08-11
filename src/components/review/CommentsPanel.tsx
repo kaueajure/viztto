@@ -133,6 +133,9 @@ export function CommentsPanel({
                           #{number} · {comment.status === 'open' ? 'Aberto' : 'Resolvido'}
                         </Badge>
                         <Badge>v{versionNumber(comment.versionId)}</Badge>
+                        {comment.tipo === 'solicitacao_alteracao' && (
+                          <Badge tone="revision">Solicitação</Badge>
+                        )}
                         {comment.timestampSeconds != null && (
                           <Badge>{formatVideoTimestamp(comment.timestampSeconds)}</Badge>
                         )}

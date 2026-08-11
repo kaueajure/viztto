@@ -136,6 +136,7 @@ comentariosRotas.post(
         workspaceId: material.workspaceId,
         materialId: material.id,
         usuarioId: req.sessao!.usuarioId,
+        tipo: 'comentario',
         criadoEm: agora,
         atualizadoEm: agora,
         versaoMaterialId: req.body.versaoMaterialId,
@@ -146,13 +147,6 @@ comentariosRotas.post(
           req.body.timestampSegundos == null ? null : String(req.body.timestampSegundos),
         paginaPdf: req.body.paginaPdf ?? null,
       })
-      await tx
-        .update(materiais)
-        .set({
-          status: material.status === 'aprovado' ? 'aguardando_revisao' : material.status,
-          atualizadoEm: agora,
-        })
-        .where(eq(materiais.id, material.id))
       await tx.insert(atividades).values({
         id: novoId(),
         workspaceId: material.workspaceId,

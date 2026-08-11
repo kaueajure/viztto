@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { rateLimit } from 'express-rate-limit'
-import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, isNull, ne, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { banco } from '../../configuracao/banco.js'
 import {
@@ -20,6 +20,7 @@ import { ErroHttp } from '../../middlewares/erros.js'
 import { validarCorpo } from '../../middlewares/validacao.js'
 import { novoId } from '../../utilitarios/seguranca.js'
 import { enviarArquivoResposta } from '../../servicos/arquivo.servico.js'
+import { garantirContatoPortal } from '../../servicos/contatos-cliente.servico.js'
 import {
   carregarMarcaPortal,
   garantirComentarioNoMaterial,
@@ -38,21 +39,30 @@ import {
   camposAssetPortal,
   obterAssetPortal,
 } from '../../servicos/portal-personalizacao.servico.js'
+import {
+  garantirTransicaoMaterial,
+  materialVisivelNoPortal,
+} from '../../servicos/material-workflow.servico.js'
 import { recalcularStatusProjeto } from '../../servicos/projeto-status.servico.js'
 import {
   acaoComentarioAtividade,
   descricaoComentarioNotificacao,
 } from '../../utilitarios/descricao-comentario.js'
 
-const novoComentarioPortal = z.object({
+const identidadePortal = z.object({
+  nome: z.string().trim().min(2).max(160),
+  email: z.string().trim().email().max(254),
+})
+const novoComentarioPortal = identidadePortal.extend({
   texto: z.string().trim().min(1).max(5000),
   posicaoX: z.number().min(0).max(1),
   posicaoY: z.number().min(0).max(1),
   timestampSegundos: z.number().min(0).max(86400).optional().nullable(),
   paginaPdf: z.number().int().min(1).max(10000).optional().nullable(),
 })
-const decisaoPortal = z.object({
+const decisaoPortal = identidadePortal.extend({
   confirmarPendencias: z.boolean().optional(),
+  observacao: z.string().trim().max(5000).optional(),
 })
 const desbloqueioPortal = z.object({ senha: z.string().min(1).max(80) })
 const tentativasDesbloqueio = rateLimit({
@@ -203,7 +213,7 @@ portalRotas.get('/personalizacao-assets/:escopo/:id/:campo', async (req, res) =>
   await enviarArquivoResposta(res, asset.caminho, mime)
 })
 
-async function materialDoProjeto(materialId: string, projetoId: string) {
+async function materialDoProjeto(materialId: string, projetoId: string, opts?: { incluirRascunho?: boolean }) {
   const [material] = await banco
     .select()
     .from(materiais)
@@ -216,6 +226,8 @@ async function materialDoProjeto(materialId: string, projetoId: string) {
     )
     .limit(1)
   if (!material) throw new ErroHttp(404, 'Material não encontrado.', 'material_nao_encontrado')
+  if (!opts?.incluirRascunho && !materialVisivelNoPortal(material.status))
+    throw new ErroHttp(404, 'Material não encontrado.', 'material_nao_encontrado')
   return material
 }
 
@@ -299,7 +311,13 @@ portalRotas.get('/projetos/:projetoId/conteudo', async (req, res) => {
     .from(materiais)
     .leftJoin(versoesMaterial, eq(versoesMaterial.id, materiais.versaoAtualId))
     .leftJoin(arquivos, eq(arquivos.id, versoesMaterial.arquivoId))
-    .where(and(eq(materiais.projetoId, projetoId), isNull(materiais.excluidoEm)))
+    .where(
+      and(
+        eq(materiais.projetoId, projetoId),
+        isNull(materiais.excluidoEm),
+        ne(materiais.status, 'rascunho'),
+      ),
+    )
     .orderBy(desc(materiais.atualizadoEm))
 
   const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
@@ -346,19 +364,27 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) =
   const material = await materialDoProjeto(String(req.params.materialId), projetoId)
   if (!material.versaoAtualId)
     throw new ErroHttp(422, 'Este material ainda não tem versão para revisar.', 'versao_ausente')
-  const [versao] = await banco
+  const versoes = await banco
     .select({
       id: versoesMaterial.id,
       numero: versoesMaterial.numero,
       nome: versoesMaterial.nome,
       arquivoId: versoesMaterial.arquivoId,
       aprovada: versoesMaterial.aprovada,
+      criadoEm: versoesMaterial.criadoEm,
+      criadoPorNome: usuarios.nome,
     })
     .from(versoesMaterial)
-    .where(and(eq(versoesMaterial.id, material.versaoAtualId), isNull(versoesMaterial.excluidoEm)))
-    .limit(1)
-  if (!versao) throw new ErroHttp(404, 'Versão não encontrada.', 'versao_nao_encontrada')
+    .leftJoin(usuarios, eq(usuarios.id, versoesMaterial.criadaPorUsuarioId))
+    .where(and(eq(versoesMaterial.materialId, material.id), isNull(versoesMaterial.excluidoEm)))
+    .orderBy(desc(versoesMaterial.numero))
   const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
+  const permiteAntigas = marca.permitirVersoesAntigas === true
+  const versoesVisiveis = permiteAntigas
+    ? versoes
+    : versoes.filter((item) => item.id === material.versaoAtualId)
+  const versaoAtual = versoes.find((item) => item.id === material.versaoAtualId)
+  if (!versaoAtual) throw new ErroHttp(404, 'Versão não encontrada.', 'versao_nao_encontrada')
   res.json({
     dado: {
       projeto: {
@@ -375,9 +401,14 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId', async (req, res) =
         tipo: material.tipo,
       },
       versao: {
-        ...versao,
-        imagemUrl: `/api/portal/projetos/${projetoId}/arquivos/${versao.arquivoId}`,
+        ...versaoAtual,
+        imagemUrl: `/api/portal/projetos/${projetoId}/arquivos/${versaoAtual.arquivoId}`,
       },
+      versoes: versoesVisiveis.map((item) => ({
+        ...item,
+        atual: item.id === material.versaoAtualId,
+        imagemUrl: `/api/portal/projetos/${projetoId}/arquivos/${item.arquivoId}`,
+      })),
       marca,
     },
   })
@@ -442,9 +473,11 @@ portalRotas.get('/projetos/:projetoId/materiais/:materialId/comentarios', async 
         comentario.timestampSegundos == null ? undefined : Number(comentario.timestampSegundos),
       pdfPage: comentario.paginaPdf ?? undefined,
       status: comentario.status === 'aberto' ? 'open' : 'resolved',
+      tipo: comentario.tipo,
       createdAt: comentario.criadoEm,
       updatedAt: comentario.atualizadoEm,
       externo: Boolean(comentario.autorExternoNome),
+      autorEmail: comentario.autorExternoEmail ?? undefined,
     })),
   })
 })
@@ -460,6 +493,12 @@ portalRotas.post(
       undefined,
       cookieDaRequisicao(req, projetoId),
     )
+    const { contato } = await garantirContatoPortal({
+      projetoId,
+      nome: req.body.nome,
+      email: req.body.email,
+      acao: 'comentar',
+    })
     const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
     if (marca.permitirComentarios === false)
       throw new ErroHttp(403, 'Comentários não permitidos neste portal.', 'sem_permissao')
@@ -483,7 +522,10 @@ portalRotas.post(
         materialId: material.id,
         versaoMaterialId: material.versaoAtualId!,
         usuarioId: null,
-        autorExternoNome: projeto.clienteNome,
+        contatoClienteId: contato.id,
+        autorExternoNome: contato.nome,
+        autorExternoEmail: contato.email,
+        tipo: 'comentario',
         texto: req.body.texto,
         posicaoX: String(req.body.posicaoX),
         posicaoY: String(req.body.posicaoY),
@@ -494,11 +536,6 @@ portalRotas.post(
         criadoEm: agora,
         atualizadoEm: agora,
       })
-      await tx
-        .update(materiais)
-        .set({ status: 'aguardando_revisao', atualizadoEm: agora })
-        .where(eq(materiais.id, material.id))
-      await recalcularStatusProjeto(projetoId, agora, tx)
       await tx.insert(atividades).values({
         id: atividadeId,
         workspaceId: material.workspaceId,
@@ -513,6 +550,7 @@ portalRotas.post(
           timestampSegundos: req.body.timestampSegundos,
           paginaPdf: req.body.paginaPdf,
         }),
+        metadados: { autorExternoNome: contato.nome, autorExternoEmail: contato.email },
         criadoEm: agora,
       })
     })
@@ -522,7 +560,7 @@ portalRotas.post(
       atividadeId,
       titulo: 'Novo comentario do cliente',
       descricao: descricaoComentarioNotificacao({
-        autorNome: projeto.clienteNome,
+        autorNome: contato.nome,
         tipoMaterial: material.tipo,
         timestampSegundos: req.body.timestampSegundos,
         paginaPdf: req.body.paginaPdf,
@@ -535,6 +573,7 @@ portalRotas.post(
 
 portalRotas.post(
   '/projetos/:projetoId/materiais/:materialId/solicitar-alteracoes',
+  validarCorpo(decisaoPortal),
   async (req, res) => {
     const projetoId = String(req.params.projetoId)
     const projeto = await exigirAcessoPortal(
@@ -543,18 +582,19 @@ portalRotas.post(
       undefined,
       cookieDaRequisicao(req, projetoId),
     )
+    const { contato } = await garantirContatoPortal({
+      projetoId,
+      nome: req.body.nome,
+      email: req.body.email,
+      acao: 'solicitar_alteracoes',
+    })
     const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
     if (marca.permitirSolicitacaoAlteracoes === false)
       throw new ErroHttp(403, 'Solicitação de alterações não permitida neste portal.', 'sem_permissao')
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)
       throw new ErroHttp(422, 'Publique uma versão antes desta ação.', 'versao_ausente')
-    if (material.status === 'aprovado')
-      throw new ErroHttp(
-        409,
-        'Este material já foi aprovado. Peça à equipe para reabrir a revisão.',
-        'material_ja_aprovado',
-      )
+    garantirTransicaoMaterial(material.status, 'solicitar_alteracoes')
     const [abertos] = await banco
       .select({ total: count() })
       .from(comentarios)
@@ -565,7 +605,7 @@ portalRotas.post(
           isNull(comentarios.excluidoEm),
         ),
       )
-    if (!(abertos?.total ?? 0))
+    if (!(abertos?.total ?? 0) && !req.body.observacao?.trim())
       throw new ErroHttp(
         422,
         'Adicione ao menos um comentario antes de solicitar alteracoes.',
@@ -573,7 +613,37 @@ portalRotas.post(
       )
     const agora = new Date()
     const atividadeId = novoId()
+    const observacao = req.body.observacao?.trim()
     await banco.transaction(async (tx) => {
+      await tx
+        .update(comentarios)
+        .set({ tipo: 'solicitacao_alteracao', atualizadoEm: agora })
+        .where(
+          and(
+            eq(comentarios.versaoMaterialId, material.versaoAtualId!),
+            eq(comentarios.status, 'aberto'),
+            isNull(comentarios.excluidoEm),
+          ),
+        )
+      if (observacao) {
+        await tx.insert(comentarios).values({
+          id: novoId(),
+          workspaceId: material.workspaceId,
+          materialId: material.id,
+          versaoMaterialId: material.versaoAtualId!,
+          usuarioId: null,
+          contatoClienteId: contato.id,
+          autorExternoNome: contato.nome,
+          autorExternoEmail: contato.email,
+          tipo: 'solicitacao_alteracao',
+          texto: observacao,
+          posicaoX: '0.5000000',
+          posicaoY: '0.5000000',
+          status: 'aberto',
+          criadoEm: agora,
+          atualizadoEm: agora,
+        })
+      }
       await tx
         .update(materiais)
         .set({ status: 'alteracoes_solicitadas', atualizadoEm: agora })
@@ -587,8 +657,12 @@ portalRotas.post(
         materialId: material.id,
         versaoMaterialId: material.versaoAtualId!,
         tipo: 'alteracoes_solicitadas',
-        descricao: `solicitou alterações em ${material.nome}`,
-        metadados: { solicitanteExternoNome: projeto.clienteNome },
+        descricao: `${contato.nome} solicitou alterações em ${material.nome}`,
+        metadados: {
+          solicitanteExternoNome: contato.nome,
+          solicitanteExternoEmail: contato.email,
+          contatoClienteId: contato.id,
+        },
         criadoEm: agora,
       })
     })
@@ -597,7 +671,7 @@ portalRotas.post(
       destinatarioId: projeto.criadoPorUsuarioId,
       atividadeId,
       titulo: 'Cliente solicitou alteracoes',
-      descricao: `${projeto.clienteNome} pediu correcoes em "${material.nome}".`,
+      descricao: `${contato.nome} pediu correcoes em "${material.nome}".`,
       tipo: 'alteracoes_solicitadas',
     })
     res.json({ mensagem: 'Alteracoes solicitadas.' })
@@ -615,30 +689,36 @@ portalRotas.post(
       undefined,
       cookieDaRequisicao(req, projetoId),
     )
+    const { contato } = await garantirContatoPortal({
+      projetoId,
+      nome: req.body.nome,
+      email: req.body.email,
+      acao: 'aprovar',
+    })
     const marca = await carregarMarcaPortal(projeto.workspaceId, projeto.clienteId, projeto.id)
     if (marca.permitirAprovacao === false)
       throw new ErroHttp(403, 'Aprovação não permitida neste portal.', 'sem_permissao')
     const material = await materialDoProjeto(String(req.params.materialId), projetoId)
     if (!material.versaoAtualId)
       throw new ErroHttp(422, 'Publique uma versão antes desta ação.', 'versao_ausente')
-    if (material.status === 'aprovado')
-      throw new ErroHttp(409, 'Este material já foi aprovado.', 'material_ja_aprovado')
-    const [abertos] = await banco
+    garantirTransicaoMaterial(material.status, 'aprovar')
+    const [solicitacoes] = await banco
       .select({ total: count() })
       .from(comentarios)
       .where(
         and(
           eq(comentarios.versaoMaterialId, material.versaoAtualId),
           eq(comentarios.status, 'aberto'),
+          eq(comentarios.tipo, 'solicitacao_alteracao'),
           isNull(comentarios.excluidoEm),
         ),
       )
-    if ((abertos?.total ?? 0) > 0 && !req.body.confirmarPendencias)
+    if ((solicitacoes?.total ?? 0) > 0)
       throw new ErroHttp(
         409,
-        'Esta versão possui comentários pendentes. Confirme para aprovar.',
-        'pendencias_abertas',
-        { total: abertos?.total },
+        'Existem solicitacoes de alteracao pendentes. Resolva-as antes de aprovar.',
+        'solicitacoes_pendentes',
+        { total: solicitacoes?.total },
       )
     const agora = new Date()
     const id = novoId()
@@ -650,7 +730,10 @@ portalRotas.post(
         materialId: material.id,
         versaoMaterialId: material.versaoAtualId!,
         aprovadoPorUsuarioId: null,
-        aprovadoPorExternoNome: projeto.clienteNome,
+        contatoClienteId: contato.id,
+        aprovadoPorExternoNome: contato.nome,
+        aprovadoPorExternoEmail: contato.email,
+        observacao: req.body.observacao,
         aprovadoEm: agora,
         criadoEm: agora,
       })
@@ -671,8 +754,12 @@ portalRotas.post(
         materialId: material.id,
         versaoMaterialId: material.versaoAtualId!,
         tipo: 'versao_aprovada',
-        descricao: `aprovou ${material.nome}`,
-        metadados: { aprovadorExternoNome: projeto.clienteNome },
+        descricao: `${contato.nome} aprovou ${material.nome}`,
+        metadados: {
+          aprovadorExternoNome: contato.nome,
+          aprovadorExternoEmail: contato.email,
+          contatoClienteId: contato.id,
+        },
         criadoEm: agora,
       })
     })
@@ -681,7 +768,7 @@ portalRotas.post(
       destinatarioId: projeto.criadoPorUsuarioId,
       atividadeId,
       titulo: 'Cliente aprovou a versão',
-      descricao: `${projeto.clienteNome} aprovou "${material.nome}".`,
+      descricao: `${contato.nome} aprovou "${material.nome}".`,
       tipo: 'versao_aprovada',
     })
     res.status(201).json({ dado: { id } })

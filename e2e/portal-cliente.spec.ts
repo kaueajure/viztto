@@ -51,13 +51,19 @@ async function prepararPortal(
         await route.fulfill({ json: { dados: estado.comentarios } })
         return
       }
-      const body = request.postDataJSON() as { texto: string; posicaoX: number; posicaoY: number }
+      const body = request.postDataJSON() as {
+        texto: string
+        posicaoX: number
+        posicaoY: number
+        nome?: string
+        email?: string
+      }
       estado.comentarios.push({
         id: `comentario-${estado.comentarios.length + 1}`,
         materialId,
         versionId,
         authorId: 'portal:cliente',
-        authorName: 'Cliente externo',
+        authorName: body.nome || 'Cliente externo',
         text: body.texto,
         x: body.posicaoX,
         y: body.posicaoY,
@@ -70,18 +76,23 @@ async function prepararPortal(
     }
 
     if (pathname.endsWith(`/materiais/${materialId}/aprovar`) && method === 'POST') {
-      const body = request.postDataJSON() as { confirmarPendencias: boolean }
+      const body = request.postDataJSON() as {
+        confirmarPendencias?: boolean
+        nome?: string
+        email?: string
+      }
       estado.aprovacoes.push(body)
-      if (estado.comentarios.some((item) => item.status === 'open') && !body.confirmarPendencias) {
+      const solicitacoes = estado.comentarios.filter(
+        (item) => item.status === 'open' && (item as MockComment & { tipo?: string }).tipo === 'solicitacao_alteracao',
+      )
+      if (solicitacoes.length > 0) {
         await route.fulfill({
           status: 409,
           json: {
             erro: {
-              codigo: 'pendencias_abertas',
-              mensagem: 'Esta versão possui comentários pendentes.',
-              detalhes: {
-                total: estado.comentarios.filter((item) => item.status === 'open').length,
-              },
+              codigo: 'solicitacoes_pendentes',
+              mensagem: 'Existem solicitacoes de alteracao pendentes.',
+              detalhes: { total: solicitacoes.length },
             },
           },
         })
@@ -111,7 +122,7 @@ async function prepararPortal(
             material: {
               id: materialId,
               nome: 'Peça principal',
-              status: estado.aprovado ? 'aprovado' : 'aguardando_aprovacao',
+              status: estado.aprovado ? 'aprovado' : 'aguardando_revisao',
               tipo: 'imagem',
             },
             versao: {
@@ -122,6 +133,17 @@ async function prepararPortal(
               aprovada: estado.aprovado,
               imagemUrl: '/demo/review-campaign-v4.svg',
             },
+            versoes: [
+              {
+                id: versionId,
+                numero: 2,
+                nome: 'Versão 2',
+                arquivoId: 'arquivo-1',
+                aprovada: estado.aprovado,
+                atual: true,
+                imagemUrl: '/demo/review-campaign-v4.svg',
+              },
+            ],
             marca,
           },
         },
@@ -159,7 +181,7 @@ async function prepararPortal(
                 id: videoId,
                 nome: 'Filme da campanha',
                 tipo: 'video',
-                status: 'aguardando_aprovacao',
+                status: 'aguardando_revisao',
                 versaoAtual: 1,
                 arquivoId: 'arquivo-2',
                 imagemUrl: '/api/portal/arquivo-video',
@@ -219,6 +241,14 @@ function comentarioAberto(): MockComment {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
+}
+
+async function preencherIdentidadePortal(page: Page) {
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('heading', { name: 'Quem está revisando?' })).toBeVisible()
+  await dialog.getByLabel('Nome').fill('Maria Aprovadora')
+  await dialog.getByLabel('Email').fill('maria@cliente.test')
+  await dialog.getByRole('button', { name: 'Continuar' }).click()
 }
 
 test.describe('Portal do cliente', () => {
@@ -355,6 +385,7 @@ test.describe('Portal do cliente', () => {
     await page.getByRole('button', { name: /imagem em modo de comentário/i }).press('Enter')
     await page.getByLabel('O que precisa mudar?').fill('Aumentar o contraste do título.')
     await page.getByRole('button', { name: 'Enviar comentário' }).click()
+    await preencherIdentidadePortal(page)
 
     await expect(page.getByText(/comentário enviado/i)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Comentar', exact: true })).toBeVisible()
@@ -363,40 +394,41 @@ test.describe('Portal do cliente', () => {
     ).toBe(true)
   })
 
-  test('aprova diretamente quando não existem comentários pendentes', async ({ page }) => {
+  test('aprova diretamente quando não existem solicitações pendentes', async ({ page }) => {
     const estado = await prepararPortal(page)
     await page.goto(reviewUrl)
 
     await page.getByRole('button', { name: 'Aprovar', exact: true }).click()
+    await preencherIdentidadePortal(page)
     await expect(page.getByRole('status', { name: 'Versão aprovada' })).toBeVisible()
-    expect(estado.aprovacoes).toEqual([{ confirmarPendencias: false }])
+    expect(estado.aprovacoes[0]).toMatchObject({
+      nome: 'Maria Aprovadora',
+      email: 'maria@cliente.test',
+    })
   })
 
-  test('pede confirmação, permite voltar e aprova pendências somente após confirmação', async ({
-    page,
-  }) => {
+  test('bloqueia aprovação quando há solicitações de alteração abertas', async ({ page }) => {
+    const pendente = {
+      ...comentarioAberto(),
+      tipo: 'solicitacao_alteracao',
+    } as MockComment & { tipo: string }
+    await prepararPortal(page, [pendente])
+    await page.goto(reviewUrl)
+
+    await page.getByRole('button', { name: 'Aprovar', exact: true }).click()
+    await preencherIdentidadePortal(page)
+    await expect(page.getByText(/solicitações de alteração pendentes/i)).toBeVisible()
+    await expect(page.getByRole('status', { name: 'Versão aprovada' })).toHaveCount(0)
+  })
+
+  test('permite aprovar com comentários informativos abertos', async ({ page }) => {
     const estado = await prepararPortal(page, [comentarioAberto()])
     await page.goto(reviewUrl)
 
     await page.getByRole('button', { name: 'Aprovar', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: 'Existem comentários pendentes' })
-    await expect(dialog).toBeVisible()
-    await expect(dialog.getByText(/1 comentário pendente/i)).toBeVisible()
-    await dialog.getByRole('button', { name: 'Voltar' }).click()
-    await expect(dialog).toHaveCount(0)
-    expect(estado.aprovacoes).toHaveLength(0)
-
-    await page.getByRole('button', { name: 'Aprovar', exact: true }).click()
-    await page
-      .getByRole('dialog', { name: 'Existem comentários pendentes' })
-      .getByRole('button', { name: 'Aprovar mesmo assim' })
-      .click()
+    await preencherIdentidadePortal(page)
     await expect(page.getByRole('status', { name: 'Versão aprovada' })).toBeVisible()
-    expect(estado.aprovacoes).toEqual([{ confirmarPendencias: true }])
-
-    await page.reload()
-    await expect(page.getByRole('status', { name: 'Versão aprovada' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Aprovar', exact: true })).toHaveCount(0)
+    expect(estado.aprovacoes).toHaveLength(1)
   })
 
   test('diferencia imagem, vídeo e PDF sem carregar mídia pesada na listagem', async ({ page }) => {
